@@ -23,6 +23,38 @@ npm test            # Input, navigation, parking, driving, and mission checks
 
 The project uses a project-local npm cache because some cloud workspaces have an unwritable home directory. Both the cache and `node_modules` are ignored by Git. The production build is a static site; deploy the contents of `dist/` to any static host. A subdirectory deployment may require Vite's `base` option.
 
+## Windows desktop client (including builds made in WSL)
+
+Build the Windows x64 client from WSL:
+
+```sh
+npm ci
+npm run desktop:package:win
+```
+
+The complete application is in `release/Cerea Vice-win32-x64/`. Copy that whole folder to a local Windows directory, open it in Windows Explorer, and run **cerea-vice.exe**. Keep all files in the folder together; copying the executable alone will not work. Launching a local Windows copy also avoids WSL network-path launch problems. The packaged game runs offline and requires neither Node.js nor a Vite server on the player's machine. This is an unsigned portable development build, without an installer or automatic updates.
+
+To find the folder's Windows path from WSL:
+
+```sh
+wslpath -w "$PWD/release/Cerea Vice-win32-x64"
+```
+
+Connect the controller to **Windows**, then press a button in the game window. A standard Xbox-style or PlayStation controller mapped by Chromium works through the existing Gamepad API. The briefing and pause screens show connection status. Unplugging a detected controller pauses the drive; reconnect and press A / Cross or Enter to resume. Reconnecting alone does not resume the drive. Start / Options can begin, pause, and resume the drive. F11 or Alt+Enter toggles fullscreen; close the window or use Alt+F4 to quit on Windows.
+
+For local development on a native desktop OS, `npm run desktop` builds and launches the app; `npm run desktop:package` packages for that host OS. Running these commands inside WSL creates or launches a **Linux** app; use `desktop:package:win` for Windows. The desktop shell loads only bundled game assets through a secure custom origin, with renderer Node access disabled and sandboxing enabled.
+
+Desktop verification uses simulated standard controller input:
+
+```sh
+npm test
+npm run test:desktop                  # On a graphical desktop
+# Headless Linux with Xvfb and an installed window manager:
+xvfb-run -a sh -c 'xfwm4 --compositor=off & npm run test:desktop'
+```
+
+The desktop smoke test covers offline startup, sandbox settings, controller-only start/driving, steering, handbraking, directions, mission reminders, disconnect/pause/reconnect, keyboard fallback, and fullscreen. The Windows x64 bundle has also been launched successfully on the Windows host from a local Windows directory. Physical controller testing and full Windows gameplay validation remain separate checks.
+
 ## Controls
 
 | Action                             | Standard controller   | Keyboard                     |
@@ -30,11 +62,11 @@ The project uses a project-local npm cache because some cloud workspaces have an
 | Steer                              | Left stick            | A / D or left / right arrows |
 | Accelerate                         | Right trigger         | W or up arrow                |
 | Brake, then reverse                | Left trigger          | S or down arrow              |
-| Handbrake                          | X (west face button)  | Space                        |
+| Handbrake                          | X / Square (west face button)  | Space                        |
 | Glance left / right                | LB / RB               | Q / E                        |
-| Start / request directions / retry | A (south face button) | F or Enter                   |
+| Start / request directions / retry | A / Cross (south face button) | F or Enter                   |
 | Repeat mission and time remaining  | D-pad up              | Tab or M                     |
-| Pause / resume                     | Start                 | Escape or P                  |
+| Pause / resume                     | Start / Options                 | Escape or P                  |
 
 Connect a controller and press a button so the browser exposes it. The game selects the first connected controller with the browser's `standard` mapping; equivalent PlayStation face buttons work through that mapping. A 16% stick deadzone suppresses drift. Keyboard remains available while a controller is connected. Embedded previews may block the browser Gamepad API; the game falls back to keyboard controls instead of failing to render. Open the preview in a new browser tab to use a controller if the embedded view restricts it. There are no touch controls.
 
@@ -51,6 +83,8 @@ Connect a controller and press a button so the browser exposes it. The game sele
 ## District
 
 The handcrafted 160 × 160 metre road grid has a perimeter loop, four T-junctions, and a four-way Central Crossroads. Roads are Harbor Road (south), Tower Lane (north), Market Street (west and central east–west), Central Avenue (central north–south), and East Quay (east). North is world −Z, east is +X. The district is deterministic and uses no random generation.
+
+Every junction approach has a roadside direction board showing left, straight, or right arrows for the onward streets, with nearby landmarks below the street names. Arrows face the approaching driver; the backs of these boards are blank.
 
 Three signed areas provide additional orientation: Harbor Ward in the southwest, Old Town to the north and centre, and Waterfront along the east. Tower Lane crosses a small canal bridge; the southern part of Market Street crosses an unused harbor railway spur. These are fixed environmental cues, with no train, signal, or bridge simulation. Direction hints include the current area. The Blue Hotel is in Waterfront.
 

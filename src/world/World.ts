@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { junctionDirections } from "./directions";
 import { box, building, material, sign, signpost } from "./builders";
 import {
   nodes,
@@ -224,39 +225,23 @@ export class World {
     signpost(scene, -12, 29, ["OLD TOWN"], 0);
     signpost(scene, -12, 60, ["HARBOR WARD"], 0);
 
-    // Physical street and direction signs. Fixed compass directions remain useful from both faces.
+    // Each approach has its own board, facing the incoming driver on the right verge.
     for (const node of nodes) {
-      const names = [
-        ...new Set(
-          roads
-            .filter((r) => r.a === node.id || r.b === node.id)
-            .map((r) => r.name),
-        ),
-      ];
-      signpost(
-        scene,
-        node.x - 10,
-        node.z + 10,
-        names.slice(0, 2).map((n) => n.toUpperCase()),
-        0,
-      );
-      signpost(
-        scene,
-        node.x + 10,
-        node.z - 10,
-        names.slice(0, 2).map((n) => n.toUpperCase()),
-        Math.PI / 2,
-      );
+      for (const road of roads.filter((r) => r.a === node.id || r.b === node.id)) {
+        const from = nodeById(road.a === node.id ? road.b : road.a);
+        const dx = Math.sign(node.x - from.x);
+        const dz = Math.sign(node.z - from.z);
+        signpost(
+          scene,
+          node.x - dx * 23 - dz * 10,
+          node.z - dz * 23 + dx * 10,
+          junctionDirections(node.id, from.id),
+          Math.atan2(-dx, -dz),
+          "#163b3d",
+          11,
+        );
+      }
     }
-    for (const [x, z, angle, lines] of [
-      [-11, 69, 0, ["N  CENTRAL CROSSROADS", "E  EAST QUAY / HOTEL"]],
-      [11, 11, Math.PI / 2, ["E  BLUE HOTEL", "W  OLD MARKET"]],
-      [-11, -11, 0, ["N  WATER TOWER", "S  HARBOR ROAD"]],
-      [69, -11, 0, ["N  BLUE HOTEL", "S  HARBOR ROAD"]],
-      [69, -69, Math.PI / 2, ["S  BLUE HOTEL", "W  WATER TOWER"]],
-      [-69, -69, 0, ["E  TOWER LANE", "S  OLD MARKET"]],
-    ] as [number, number, number, string[]][])
-      signpost(scene, x, z, lines, angle);
 
     // Small deterministic scenery, outside the driving corridors.
     for (const [x, z] of [

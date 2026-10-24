@@ -7,15 +7,29 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts desktop/assets.test.mjs",
+    "desktop:setup": "install-electron",
+    "desktop": "npm run desktop:setup && npm run build && electron .",
+    "desktop:package": "npm run desktop:setup && npm run build && node desktop/package.mjs",
+    "test:desktop": "npm run desktop:setup && npm run build && node --test desktop/smoke.test.mjs",
+    "desktop:package:win": "npm run desktop:setup && npm run build && node desktop/package.mjs --platform=win32 --arch=x64"
   },
   "dependencies": {
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "@electron/packager": "^20.3.0",
     "@types/three": "^0.180.0",
+    "electron": "^45.0.0",
+    "playwright-core": "^1.64.1",
     "tsx": "^4.20.6",
     "typescript": "~5.9.3",
     "vite": "^7.1.12"
+  },
+  "productName": "Cerea Vice",
+  "description": "A first-person driving and navigation experiment in Harbor District",
+  "main": "desktop/main.mjs",
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

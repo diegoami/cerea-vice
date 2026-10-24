@@ -89,9 +89,9 @@ export class Hud {
       <div><span>Steer</span><b>Left stick</b><b>A D / ← →</b></div>
       <div><span>Accelerate</span><b>RT</b><b>W / ↑</b></div>
       <div><span>Brake / reverse</span><b>LT</b><b>S / ↓</b></div>
-      <div><span>Handbrake</span><b>X</b><b>Space</b></div>
+      <div><span>Handbrake</span><b>X / Square</b><b>Space</b></div>
       <div><span>Glance</span><b>LB / RB</b><b>Q / E</b></div>
-      <div><span>Ask for directions</span><b>A</b><b>F / Enter</b></div>
+      <div><span>Ask for directions</span><b>A / Cross</b><b>F / Enter</b></div>
       <div><span>Mission reminder</span><b>D-pad up</b><b>Tab / M</b></div>
       <div><span>Pause</span><b>Start</b><b>Esc / P</b></div>
     </div>`;
@@ -104,11 +104,11 @@ export class Hud {
         </div>
         <div class="briefing-side"><span class="eyebrow">YOUR FIRST DRIVE</span><h2>Find the Blue Hotel.</h2><p>It’s on East Quay in Waterfront, in the northeast of the district. Look for the blue facade and stop in its marked forecourt.</p>
           <div class="briefing-tip"><b>Lost? Pull over.</b><p>Come to a full stop anywhere, then press A or F for a local direction hint. Marked P bays are legal stopping places.</p></div>
-          ${controls}<small class="controller-note">Standard controller supported. Press a controller button to connect. Keyboard works immediately.</small>
+          ${controls}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
       </section>`;
     } else if (screen === "paused") {
-      this.overlay.innerHTML = `<section class="pause modal" aria-labelledby="screen-title"><span class="eyebrow accent">ENGINE IDLING / TIMER PAUSED</span><h1 id="screen-title">Take a breather.</h1><p>The district will be here when you’re ready.</p>${controls}<button type="button">Back to the road <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER / START TO RESUME</span></section>`;
+      this.overlay.innerHTML = `<section class="pause modal" aria-labelledby="screen-title"><span class="eyebrow accent">ENGINE IDLING / TIMER PAUSED</span><h1 id="screen-title">Take a breather.</h1><p>The district will be here when you’re ready.</p>${controls}<small class="controller-note" id="controller-status" role="status"></small><button type="button">Back to the road <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER / START TO RESUME</span></section>`;
     } else {
       const success = mission.state === "success";
       this.overlay.innerHTML = `<section class="result modal" aria-labelledby="screen-title">
@@ -136,7 +136,10 @@ export class Hud {
     parking: Parking,
     device: string,
     gamepadBlocked = false,
+    controllerStatus = "",
   ) {
+    const controllerNote = this.overlay.querySelector("#controller-status");
+    if (controllerNote && controllerNote.textContent !== controllerStatus) controllerNote.textContent = controllerStatus;
     const degrees = bearing(car.heading);
     this.compassTrack.style.transform = `translateX(${-416 - (degrees / 45) * 52 - 26}px)`;
     this.compassValue.textContent = `${compass(car.heading)} · ${Math.round(degrees).toString().padStart(3, "0")}°`;

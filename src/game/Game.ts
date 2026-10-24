@@ -93,8 +93,12 @@ export class Game {
       : 0;
     this.previousTime = time;
     const actions = this.input.poll();
+    if (this.input.controllerDisconnected) {
+      this.pause();
+      this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
+    }
     if (actions.pause) {
-      if (this.screen === "paused") this.activate();
+      if (this.screen !== "running") this.activate();
       else this.pause();
     }
     if (actions.interact) {
@@ -137,6 +141,7 @@ export class Game {
       this.parking,
       this.input.device,
       this.input.gamepadBlocked,
+      this.input.controllerStatus,
     );
     this.renderer.render(this.world.scene, this.cockpit.camera);
   }

@@ -3,3 +3,5 @@ node_modules/
 dist/
 *.local
 test-results/
+release/
+.desktop-stage/

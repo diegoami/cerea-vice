@@ -33,6 +33,9 @@ export class Input {
   private queuedReminder = false;
   device = "Keyboard";
   gamepadBlocked = false;
+  controllerDisconnected = false;
+  controllerStatus = "Connect a controller and press any button. Keyboard works immediately.";
+  private hadController = false;
 
   constructor() {
     window.addEventListener("keydown", (event) => {
@@ -74,6 +77,15 @@ export class Input {
     const pad = Array.from(pads).find(
       (p) => p?.connected && p.mapping === "standard",
     );
+    this.controllerDisconnected = this.hadController && !pad;
+    this.hadController = Boolean(pad);
+    this.controllerStatus = pad
+      ? "Controller connected · Left stick: steer · RT: accelerate · A / Cross: start or ask."
+      : this.gamepadBlocked
+        ? "Controller access restricted. Open in a new browser tab or use the desktop app."
+        : pads.some((p) => p?.connected)
+          ? "Controller detected with an unsupported mapping. Use a standard controller or keyboard."
+          : "Connect a controller and press any button. Keyboard works immediately.";
     const button = (index: number) => pad?.buttons[index]?.value ?? 0;
     this.device = pad ? "Controller" : "Keyboard";
     const interact = down("KeyF", "Enter") || button(0) > 0.5;

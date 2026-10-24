@@ -76,6 +76,8 @@ test("keyboard and standard controller produce the same actions, with edge-trigg
   buttons[0].value = 1;
   assert.deepEqual(input.poll(), keyboard);
   assert.equal(input.device, "Controller");
+  assert.match(input.controllerStatus, /Controller connected/);
+  assert.equal(input.controllerDisconnected, false);
   assert.equal(input.poll().interact, false);
   buttons[7].value = 0;
   buttons[0].value = 0;
@@ -96,6 +98,9 @@ test("keyboard and standard controller produce the same actions, with edge-trigg
   assert.equal(input.poll().steer, 0);
   connected = false;
   assert.equal(input.poll().brake, 0);
+  assert.equal(input.controllerDisconnected, true);
+  input.poll();
+  assert.equal(input.controllerDisconnected, false, "Disconnect is reported once");
   assert.equal(input.device, "Keyboard");
   key("keydown", "KeyF");
   key("keyup", "KeyF");

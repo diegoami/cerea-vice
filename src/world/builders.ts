@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Rect } from "./district";
+import type { DirectionRow } from "./directions";
 
 const materials = new Map<number, THREE.MeshLambertMaterial>();
 export function material(color: number) {
@@ -33,14 +34,14 @@ export function sign(
   x: number,
   y: number,
   z: number,
-  lines: string[],
+  lines: (string | DirectionRow)[],
   width: number,
   angle = 0,
   color = "#163b3d",
 ) {
   const canvas = document.createElement("canvas");
   canvas.width = 768;
-  canvas.height = lines.length > 1 ? 256 : 128;
+  canvas.height = lines.length * 128;
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -51,9 +52,38 @@ export function sign(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = "bold 48px monospace";
-  lines.forEach((line, i) =>
-    ctx.fillText(line, 384, (canvas.height * (i + 0.5)) / lines.length, 716),
-  );
+  lines.forEach((line, i) => {
+    const y = i * 128 + 64;
+    if (typeof line === "string") {
+      ctx.textAlign = "center";
+      ctx.font = "bold 48px monospace";
+      ctx.fillText(line, 384, y, 716);
+      return;
+    }
+    // Draw arrows as geometry so their shape does not depend on installed fonts.
+    ctx.save();
+    ctx.translate(76, y);
+    ctx.rotate(line.direction === "left" ? -Math.PI / 2 : line.direction === "right" ? Math.PI / 2 : 0);
+    ctx.beginPath();
+    ctx.moveTo(-9, 36);
+    ctx.lineTo(9, 36);
+    ctx.lineTo(9, -4);
+    ctx.lineTo(30, -4);
+    ctx.lineTo(0, -36);
+    ctx.lineTo(-30, -4);
+    ctx.lineTo(-9, -4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.textAlign = "left";
+    ctx.font = "bold 48px monospace";
+    ctx.fillText(line.text, 142, y - 18, 590);
+    ctx.font = "32px monospace";
+    ctx.fillText(line.detail, 142, y + 30, 590);
+    if (i > 0) {
+      ctx.fillRect(24, i * 128, 720, 2);
+    }
+  });
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.magFilter = THREE.NearestFilter;
@@ -63,8 +93,11 @@ export function sign(
     (width * canvas.height) / canvas.width,
   );
   const face = new THREE.MeshBasicMaterial({ map: texture });
+  const directional = lines.some((line) => typeof line !== "string");
   for (const side of [0, 1]) {
-    const mesh = new THREE.Mesh(geometry, face);
+    const mesh = new THREE.Mesh(geometry, side === 1 && directional
+      ? new THREE.MeshBasicMaterial({ color })
+      : face);
     mesh.position.z = side === 0 ? 0.03 : -0.03;
     mesh.rotation.y = side * Math.PI;
     group.add(mesh);
@@ -79,12 +112,14 @@ export function signpost(
   parent: THREE.Object3D,
   x: number,
   z: number,
-  lines: string[],
+  lines: (string | DirectionRow)[],
   angle = 0,
   color?: string,
   width = lines.length > 1 ? 11 : 8,
 ) {
-  box(parent, x, 2, z, 0.22, 4, 0.22, 0x43575a);
+  const directional = lines.some((line) => typeof line !== "string");
+  const postHeight = directional ? 4.2 - (width * lines.length) / 12 : 4;
+  box(parent, x, postHeight / 2, z, 0.22, postHeight, 0.22, 0x43575a);
   sign(parent, x, 4.2, z, lines, width, angle, color);
 }
 
