@@ -1,5 +1,7 @@
 # Cerea Vice — Phase 1
 
+[Game vision](VISION.md) defines the long-term direction and scope. This README describes the current fictional-district prototype; real-world geography and a stopped-only atlas are planned.
+
 [Play the hosted prototype](https://cerea-vice-harbor-drive.brownclock131.chatgpt.site) (private; sign in with the owner's ChatGPT account).
 
 A small first-person driving and navigation experiment in **Harbor District**. Find the Blue Hotel on East Quay and stop in its forecourt within three minutes. Navigate using street signs, a permanent compass, a water tower, the red Old Market, and a yellow service station. There is no minimap, route line, or destination arrow.
@@ -135,4 +137,4 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 2. Tune sign placement, junction approaches, braking distances, and the mission deadline from those sessions.
 3. Add a few generic destination objectives behind the existing mission interface, without committing to a detective, taxi, or delivery theme.
 4. Add simple engine/turning audio and more distinct street silhouettes if they improve orientation.
-5. Consider an optional atlas only after testing whether signs, landmarks, and stop-to-ask directions are satisfying on their own.
+5. Add an atlas that can be consulted only while stopped, as defined in the [game vision](VISION.md).

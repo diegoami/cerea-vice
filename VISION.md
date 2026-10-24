@@ -1,0 +1,94 @@
+# Cerea Vice game vision
+
+## General vision
+
+A geography-first driving game in which you learn your way around a real place by driving through it—not by following GPS or answering geography quizzes.
+
+You drive an ordinary car through a simplified, recognizable real-world environment. Missions give you a reason to reach particular places, sometimes before a deadline. Success depends on reading signs, recognizing landmarks, understanding directions, planning routes and gradually building a mental map.
+
+## Setting and atmosphere
+
+The intended setting is the 1980s, before everyday satellite navigation and smartphones.
+
+The presentation is deliberately economical: first-person driving with a simple cockpit, sparse low-poly scenery and a C64/Amiga-inspired appearance. It should convey a believable place without requiring photorealistic buildings or sophisticated vehicle simulation.
+
+The retro look is an aesthetic choice, not a requirement to reproduce old hardware or rendering techniques. Driving should feel smooth with modern analog controller input.
+
+## The central gameplay loop
+
+1. Receive a destination, address or description.
+2. Plan the journey using the available information.
+3. Drive using road signs, landmarks, compass directions and memory.
+4. If uncertain, stop and consult the atlas or ask for directions.
+5. Recover from wrong turns rather than automatically receiving a new route.
+6. Reach the destination and complete the task.
+7. Apply what you learned on subsequent journeys.
+
+The main progression is personal familiarity: a district that initially feels confusing eventually becomes somewhere you know.
+
+## Navigation rules
+
+- No GPS, minimap, floating destination marker or route line.
+- A visible compass shows the car’s heading—not the direction of the objective.
+- The atlas is available only while stopped.
+- Asking for your location or directions is possible anywhere, provided the car is stopped. It is not restricted to designated buildings or special interaction points.
+- There are a few clearly identifiable places where stopping and parking are allowed.
+- Directions use street names, compass directions, junctions and landmarks rather than exact coordinates or automatic navigation.
+- Consulting the atlas and asking for help are legitimate parts of play, not failures.
+
+## Geography is the foundation
+
+The eventual world should preserve meaningful real geography:
+
+- Street and road connections.
+- Place names.
+- Relative positions and compass directions.
+- Districts and neighbouring settlements.
+- Rivers, bridges, terrain and major landmarks.
+
+Scenery can be simplified and journeys can be compressed, but not so much that players learn misleading spatial relationships.
+
+A fictional district is acceptable for the initial technical prototype. The larger vision remains a game through which players become familiar with actual places.
+
+## Missions provide purpose
+
+The driving and navigation foundation should support different themes without being built around just one:
+
+| Mission theme | Reason to navigate |
+| --- | --- |
+| Taxi driving | Collect a passenger and find their destination |
+| Pizza delivery | Locate an address before the order becomes late |
+| Emergency delivery | Reach a clinic or another urgent destination in time |
+| Courier work | Carry an item between specified locations |
+| Detective work | Reach a witness, suspect or scheduled meeting |
+
+Detective work is one possible application—not the defining identity of the engine. Initially, one generic timed journey is enough.
+
+## Driving experience
+
+The aim is accessible, credible driving rather than hardcore automotive simulation:
+
+- First-person view.
+- Controller support from the beginning, with keyboard fallback.
+- Analog steering, acceleration and braking.
+- Simple reversing and parking.
+- Left/right glances for junctions and signs.
+- Basic collisions and readable vehicle behaviour.
+
+The challenge should come primarily from finding your way, not from mastering complicated controls.
+
+## What the game is not
+
+It is not a fleet manager, transport tycoon, business simulator or conventional racing game.
+
+There is no need for hiring drivers, managing depots, production chains, company finances or vehicle collections. Likewise, a large detective simulation, elaborate dialogue system and combat are outside the initial scope.
+
+## First playable goal
+
+A small, coherent district, one car, readable signs, distinctive landmarks, a compass, a few legal stopping areas and one timed destination.
+
+The key test is:
+
+> Can the player get somewhere through observation and directions, recover when lost, and later repeat the journey because they actually remember the place?
+
+That is the core of the vision: learning geography through purposeful journeys, with missions supplying motivation and the road itself supplying the challenge.
