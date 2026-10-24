@@ -8,11 +8,13 @@ This is a proposed sequence, not a fixed schedule. Each milestone ends with a pl
 
 The prototype already has first-person driving, analog controller input with keyboard fallback, reversing, handbraking, glances, collisions, a heading compass, junction direction boards, legal stopping areas, stopped-only direction requests, and one timed journey through fictional Harbor District.
 
-A portable Windows client has been built and launched. Automated tests cover driving and navigation systems and a desktop drive with simulated controller input. Physical controller behaviour, sign readability while moving and the player's learning experience still need hands-on validation.
+A portable Windows client has been built and launched. Automated tests cover driving and navigation systems and a desktop drive with simulated controller input. The user confirmed milestone 1 complete on 25 October 2026, covering the driving and signs playtest. Longer-term geography learning will be evaluated through multiple journeys.
 
-The main missing pieces are a stopped-only atlas, reusable destinations and journeys, real geography, and evidence that repeated journeys produce familiarity.
+A stopped-only atlas is now implemented. The main missing pieces are a distinct location request, reusable destinations and journeys, real geography, and evidence that repeated journeys produce familiarity.
 
 ## Milestone 1 Validate the driving and signs
+
+**Status:** Complete, confirmed by the user on 25 October 2026.
 
 **Deliverable:** a comfortable Windows controller playtest of the current hotel journey.
 
@@ -25,6 +27,8 @@ The main missing pieces are a stopped-only atlas, reusable destinations and jour
 
 ## Milestone 2 Complete the navigation tools
 
+**Status:** Atlas implemented with controller/keyboard page controls and paused reading time. Atlas playtesting and a separate “Where am I?” request remain.
+
 **Deliverable:** a usable paper-style atlas and clearer stopped-only help.
 
 - Add a north-up atlas with street names, districts, landmarks, bridges and an index of named places. It shows geography without a route line, live car marker or destination arrow.
@@ -35,7 +39,7 @@ The main missing pieces are a stopped-only atlas, reusable destinations and jour
 
 **Checkpoint:** a player can locate themselves from descriptions, plan a route on the atlas, close it, drive a section and stop to reorient when uncertain.
 
-**Provisional rule to test:** atlas consultation and direction reading pause the mission timer, so reading speed does not become the challenge. Confirm this through playtesting before fixing the rule.
+**Implemented rule to playtest:** atlas consultation pauses the mission timer and driving. Direction hints currently remain on the driving HUD without pausing the timer; reconsider their reading behaviour when expanding navigation help.
 
 ## Milestone 3 Make journeys reusable and test learning
 
@@ -94,8 +98,8 @@ Fleet management, company finances, production chains, vehicle collections, comb
 
 ## Immediate next work
 
-1. Playtest the current Windows build with a physical controller and fix handling or sign problems.
-2. Implement the stopped-only atlas and controller-friendly navigation help.
+1. Playtest the atlas in the Windows build.
+2. Add a separate stopped-only location request alongside destination directions.
 3. Generalise destinations and add several journeys in Harbor District.
 
 During these steps, choose the candidate real location and historical period. No map expansion or engine replacement is needed to begin.

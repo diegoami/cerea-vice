@@ -99,3 +99,20 @@ export function roadRect(road: Road): Rect {
 export const isPaved = (p: Point): boolean =>
   roads.some((r) => inRect(p, roadRect(r))) ||
   parkingZones.some((r) => inRect(p, r));
+
+export interface Landmark extends Rect {
+  id: string;
+  name: string;
+  road: string;
+}
+
+// Shared by the scenery and the printed atlas.
+export const landmarks: Landmark[] = [
+  { id: "hotel", name: "Blue Hotel", road: "East Quay", x: 111, z: -44, width: 13, depth: 32 },
+  { id: "market", name: "Old Market", road: "Market Street", x: -42, z: -41, width: 38, depth: 37 },
+  { id: "tower", name: "Water Tower", road: "Tower Lane", x: -99, z: -93, width: 15, depth: 15 },
+  { id: "station", name: "Service Station", road: "Harbor Road", x: 24, z: 99, width: 28, depth: 12 },
+];
+export const landmarkById = (id: string): Landmark => landmarks.find((place) => place.id === id)!;
+export const canal = { x: 40, z: -88, width: 12, depth: 48 };
+export const harbor = { x: 0, z: 152, width: 600, depth: 80 };

@@ -7,6 +7,9 @@ export interface Actions {
   interact: boolean;
   pause: boolean;
   reminder: boolean;
+  atlas: boolean;
+  back: boolean;
+  atlasPage: number;
 }
 const blockedKeys = new Set([
   "ArrowUp",
@@ -31,6 +34,12 @@ export class Input {
   private queuedPause = false;
   private previousReminder = false;
   private queuedReminder = false;
+  private queuedAtlas = false;
+  private queuedBack = false;
+  private queuedAtlasPage = 0;
+  private previousAtlas = false;
+  private previousBack = false;
+  private previousAtlasPage = 0;
   device = "Keyboard";
   gamepadBlocked = false;
   controllerDisconnected = false;
@@ -46,6 +55,10 @@ export class Input {
           this.queuedInteract = true;
         if (event.code === "Escape" || event.code === "KeyP")
           this.queuedPause = true;
+        if (event.code === "KeyT") this.queuedAtlas = true;
+        if (event.code === "Escape") this.queuedBack = true;
+        if (event.code === "ArrowLeft" || event.code === "KeyQ") this.queuedAtlasPage = -1;
+        if (event.code === "ArrowRight" || event.code === "KeyE") this.queuedAtlasPage = 1;
         if (event.code === "Tab" || event.code === "KeyM")
           this.queuedReminder = true;
       }
@@ -57,6 +70,9 @@ export class Input {
       this.queuedInteract = false;
       this.queuedPause = false;
       this.queuedReminder = false;
+      this.queuedAtlas = false;
+      this.queuedBack = false;
+      this.queuedAtlasPage = 0;
     });
   }
 
@@ -91,6 +107,10 @@ export class Input {
     const interact = down("KeyF", "Enter") || button(0) > 0.5;
     const pause = down("Escape", "KeyP") || button(9) > 0.5;
     const reminder = down("Tab", "KeyM") || button(12) > 0.5;
+    const atlas = down("KeyT") || button(3) > 0.5;
+    const back = down("Escape") || button(1) > 0.5;
+    const atlasPage = Number(down("ArrowRight", "KeyE") || button(5) > 0.5 || button(15) > 0.5)
+      - Number(down("ArrowLeft", "KeyQ") || button(4) > 0.5 || button(14) > 0.5);
     const keyboardSteer =
       Number(down("KeyD", "ArrowRight")) - Number(down("KeyA", "ArrowLeft"));
     const actions: Actions = {
@@ -104,7 +124,16 @@ export class Input {
       interact: this.queuedInteract || (interact && !this.previousInteract),
       pause: this.queuedPause || (pause && !this.previousPause),
       reminder: this.queuedReminder || (reminder && !this.previousReminder),
+      atlas: this.queuedAtlas || (atlas && !this.previousAtlas),
+      back: this.queuedBack || (back && !this.previousBack),
+      atlasPage: this.queuedAtlasPage || (atlasPage !== this.previousAtlasPage ? atlasPage : 0),
     };
+    this.previousAtlas = atlas;
+    this.previousBack = back;
+    this.previousAtlasPage = atlasPage;
+    this.queuedAtlas = false;
+    this.queuedBack = false;
+    this.queuedAtlasPage = 0;
     this.previousInteract = interact;
     this.previousPause = pause;
     this.queuedInteract = false;

@@ -800,3 +800,121 @@ h1 em {
     scroll-behavior: auto;
   }
 }
+
+/* Printed atlas: a separate reading surface above the driving instruments. */
+.overlay.atlas-open {
+  z-index: 20;
+  padding: 24px;
+  background: #101b23ed;
+}
+.atlas-book {
+  color: #253d3d;
+  background: #eee5cd;
+  border: 1px solid #c4b893;
+  box-shadow: 0 24px 90px #0008;
+  width: min(1060px, 100%);
+  height: min(820px, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.atlas-header {
+  padding: 18px 26px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 3px double #697567;
+  gap: 12px;
+}
+.atlas-edition, .atlas-paused {
+  font: 10px/1.5 monospace;
+  letter-spacing: 1px;
+}
+.atlas-paused { text-align: right; max-width: 180px; }
+.atlas-header h1 {
+  font: 32px/1.1 Georgia, serif;
+  letter-spacing: -1px;
+  margin: 4px 0 0;
+}
+.atlas-tabs { display: flex; border-bottom: 1px solid #9d9f87; }
+.atlas-book button {
+  color: #253d3d;
+  background: #e4d9b9;
+  border: 0;
+  padding: 12px 18px;
+  cursor: pointer;
+  font: bold 12px monospace;
+}
+.atlas-tabs button { flex: 1; }
+.atlas-tabs button[aria-pressed="true"] { background: #304b47; color: #f8efd7; }
+.atlas-book button:focus-visible { outline: 3px solid #966432; outline-offset: -4px; }
+.atlas-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: auto;
+}
+.atlas-sheet {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  padding: 12px;
+  background: #f3ebd6;
+}
+.atlas-map { width: 100%; height: 100%; min-height: 0; }
+.atlas-map text { text-anchor: middle; fill: #29443f; }
+.atlas-grid { stroke: #728777; stroke-width: 0.35; stroke-dasharray: 1 1; fill: none; }
+.atlas-water { fill: #9cbfc1; }
+.atlas-road-edge { fill: none; stroke: #8b8e76; stroke-width: 13; stroke-linecap: square; }
+.atlas-roads { fill: none; stroke: #f9f2df; stroke-width: 11; stroke-linecap: square; }
+.atlas-bay { fill: #c1ceab; stroke: #5c775b; stroke-width: 0.5; }
+.atlas-parking { font: bold 6px monospace; }
+.atlas-building { fill: #b1a289; stroke: #655f4b; stroke-width: 0.5; }
+.atlas-building-hotel { fill: #80a9b8; }
+.atlas-building-market { fill: #b5816b; }
+.atlas-building-station { fill: #ceba77; }
+.atlas-bridge { stroke: #4a625e; stroke-width: 1; fill: none; }
+.atlas-rail { stroke: #6d6450; stroke-width: 0.5; stroke-dasharray: 2 1; fill: none; }
+.atlas-road-label { font: bold 4.5px monospace; }
+.atlas-place-label { font: bold 4.5px monospace; paint-order: stroke; stroke: #f3ebd6; stroke-width: 1.5px; }
+.atlas-feature-label { font: italic 3.8px Georgia, serif; }
+.atlas-region-label { font: 5px Georgia, serif; letter-spacing: 0.7px; opacity: 0.8; }
+.atlas-grid-label { font: bold 5px monospace; }
+.atlas-north { font: bold 5px monospace; fill: none; stroke: #29443f; stroke-width: 0.8; }
+.atlas-north text { stroke: none; }
+.atlas-margin { width: 205px; padding: 20px; border-left: 1px solid #b4ad91; }
+.atlas-margin h2, .atlas-index h2 { font-size: 20px; margin: 0 0 12px; }
+.atlas-margin h3 { font: bold 12px monospace; text-transform: uppercase; margin-top: 24px; }
+.atlas-margin p { font-size: 14px; line-height: 1.5; }
+.atlas-margin ul { list-style: none; padding: 0; font: 12px/2.4 monospace; }
+.atlas-margin li { display: flex; align-items: center; gap: 10px; }
+.atlas-margin b { display: inline-block; width: 18px; text-align: center; }
+.atlas-key-road, .atlas-key-building, .atlas-key-water { display: inline-block; width: 18px; height: 10px; border: 1px solid #8b8e76; background: #f9f2df; }
+.atlas-key-building { background: #b1a289; }
+.atlas-key-water { background: #9cbfc1; }
+.atlas-margin .atlas-margin-note { font-style: italic; border-top: 1px solid #b4ad91; padding-top: 14px; }
+.atlas-footer { border-top: 1px solid #9d9f87; display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; gap: 10px; }
+.atlas-footer > span { font: 10px/1.7 monospace; }
+.atlas-footer button { border: 1px solid #8b8e76; }
+.atlas-footer small { display: block; font: 9px monospace; margin-top: 6px; }
+.atlas-index { width: 100%; padding: 24px 36px; overflow: auto; }
+.atlas-index table { width: 100%; border-collapse: collapse; text-align: left; font-size: 15px; }
+.atlas-index th, .atlas-index td { padding: 10px; border-bottom: 1px solid #b4ad91; }
+.atlas-index thead { font: bold 11px monospace; text-transform: uppercase; }
+.atlas-index tbody th { font-weight: normal; }
+.atlas-index small { display: block; margin-top: 4px; color: #57695c; }
+.atlas-index .atlas-ref { font: bold 16px monospace; }
+.atlas-index > p { font-size: 14px; line-height: 1.5; }
+@media (max-width: 760px) {
+  .overlay.atlas-open { padding: 8px; }
+  .atlas-book { height: calc(100dvh - 16px); }
+  .atlas-header { padding: 12px; }
+  .atlas-header h1 { font-size: 25px; }
+  .atlas-edition, .atlas-paused { font-size: 8px; letter-spacing: 0; }
+  .atlas-margin { display: none; }
+  .atlas-index { padding: 16px; }
+  .atlas-index table { font-size: 12px; }
+  .atlas-index th, .atlas-index td { padding: 8px 4px; }
+  .atlas-footer { padding: 8px; }
+  .atlas-footer button { padding: 10px; }
+}

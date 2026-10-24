@@ -126,3 +126,38 @@ test("keyboard and standard controller produce the same actions, with edge-trigg
   buttons[12].value = 0;
   assert.equal(input.poll().reminder, false);
 });
+
+test("atlas controls preserve quick taps and trigger once when held on keyboard and controller", () => {
+  const target = new EventTarget();
+  const pad = { connected: true, mapping: "standard", axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ value: 0 })) };
+  Object.defineProperty(globalThis, "window", { value: target, configurable: true });
+  Object.defineProperty(globalThis, "navigator", { value: { getGamepads: () => [pad] }, configurable: true });
+  const input = new Input();
+  const key = (type: string, code: string) => {
+    const event = new Event(type);
+    Object.defineProperty(event, "code", { value: code });
+    target.dispatchEvent(event);
+  };
+  key("keydown", "KeyT"); key("keyup", "KeyT");
+  assert.equal(input.poll().atlas, true);
+  assert.equal(input.poll().atlas, false);
+  pad.buttons[3].value = 1;
+  assert.equal(input.poll().atlas, true);
+  assert.equal(input.poll().atlas, false);
+  pad.buttons[3].value = 0; input.poll();
+  pad.buttons[5].value = 1;
+  assert.equal(input.poll().atlasPage, 1);
+  assert.equal(input.poll().atlasPage, 0);
+  pad.buttons[5].value = 0; input.poll();
+  key("keydown", "ArrowLeft"); key("keyup", "ArrowLeft");
+  assert.equal(input.poll().atlasPage, -1);
+  assert.equal(input.poll().atlasPage, 0);
+  pad.buttons[1].value = 1;
+  assert.equal(input.poll().back, true);
+  assert.equal(input.poll().back, false);
+  target.dispatchEvent(new Event("blur"));
+  pad.buttons[1].value = 0;
+  key("keydown", "KeyT");
+  target.dispatchEvent(new Event("blur"));
+  assert.equal(input.poll().atlas, false, "Blur clears a queued atlas request");
+});

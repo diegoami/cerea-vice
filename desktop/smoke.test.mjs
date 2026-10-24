@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { _electron } from 'playwright-core';
 
-// Run on a desktop, or with xvfb-run -a npm run test:desktop on headless Linux.
+// On headless Linux use Xvfb with a window manager for the fullscreen check.
 test('desktop runs offline and supports a controller-only drive, disconnect and resume', { timeout: 90000 }, async () => {
   const profile = await mkdtemp(path.join(tmpdir(), 'cerea-desktop-test-'));
   const errors = [];
@@ -49,17 +49,61 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     await button(0,1);
     await button(0,0);
     await page.waitForFunction(() => document.querySelector('#hint').textContent.includes('Harbor Road'));
+    // A held atlas button must open once; driving inputs cannot move the car while reading.
+    await button(3,1);
+    await page.getByRole('dialog', {name:'Harbor District'}).waitFor();
+    const atlasTimer = await page.locator('#timer').innerText();
+    const atlasHeading = await page.locator('#heading').innerText();
+    const map = await page.locator('.atlas-map').innerHTML();
+    assert.match(map, /HARBOR ROAD/);
+    assert.match(map, /BLUE HOTEL/);
+    assert.equal(await page.locator('.atlas-parking').count(), 4);
+    await button(7,1);
+    await page.evaluate(() => { window.testController.axes[0] = 1; });
+    await page.waitForTimeout(1200);
+    assert.equal(await page.locator('.atlas-book').count(), 1);
+    assert.equal(await page.locator('#timer').innerText(), atlasTimer);
+    assert.equal(await page.locator('#heading').innerText(), atlasHeading);
+    assert.equal(Number(await page.locator('#speed').innerText()), 0);
+    await button(7,0);
+    await button(3,0);
+    await page.evaluate(() => { window.testController.axes[0] = 0; });
+    await button(5,1); await button(5,0);
+    await page.getByRole('heading', {name:'Places and parking'}).waitFor();
+    assert.equal(await page.getByRole('row', {name:/Blue Hotel East Quay Waterfront D2/}).count(), 1);
+    await button(4,1); await button(4,0);
+    await page.locator('.atlas-map').waitFor();
+    await mkdir('test-results', {recursive:true});
+    await page.screenshot({path:'test-results/desktop-atlas.png'});
+    await button(1,1); await button(1,0);
+    await page.waitForFunction(() => document.querySelector('#overlay').hidden);
     await button(7,0.7);
     await page.waitForFunction(() => Number(document.querySelector('#speed').textContent) > 8);
+    await button(3,1); await button(3,0);
+    assert.equal(await page.locator('.atlas-book').isVisible(), false, 'Atlas is unavailable while moving');
+    assert.match(await page.locator('#hint').innerText(), /complete stop before opening the atlas/);
     await page.evaluate(() => { window.testController.axes[0] = -0.6; });
     await page.waitForFunction(() => !document.querySelector('#heading').textContent.includes('090°'));
     await button(7,0);
     await button(2,1);
     await page.waitForFunction(() => Number(document.querySelector('#speed').textContent) === 0);
     await button(2,0);
+    // Keyboard and mouse page controls share the same atlas, without resuming on Escape.
+    await page.waitForFunction(() => document.querySelector('#stop-state').textContent.includes('STOP'));
+    await page.keyboard.press('t');
+    await page.locator('.atlas-map').waitFor();
+    await page.keyboard.press('ArrowRight');
+    await page.getByRole('heading', {name:'Places and parking'}).waitFor();
+    await page.getByRole('button', {name:'01 · District map'}).click();
+    await page.locator('.atlas-map').waitFor();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#overlay').hidden);
+    // Reopening is allowed before testing disconnect while reading.
+    await page.keyboard.press('t');
+    await page.locator('.atlas-map').waitFor();
     await button(12,1);
     await button(12,0);
-    await page.waitForFunction(() => document.querySelector('#hint-label').textContent === 'MISSION REMINDER');
+    assert.equal(await page.locator('.atlas-book').count(), 1);
     await page.evaluate(() => { window.testController.connected = false; });
     await page.getByRole('button', { name: 'Back to the road' }).waitFor();
     assert.match(await page.locator('#hint').innerText(), /Controller disconnected/);
@@ -72,6 +116,8 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     await button(0,1);
     await button(0,0);
     await page.waitForFunction(() => document.querySelector('#overlay').hidden);
+    await button(12,1); await button(12,0);
+    await page.waitForFunction(() => document.querySelector('#hint-label').textContent === 'MISSION REMINDER');
     await button(9,1);
     await button(9,0);
     await page.getByRole('button', { name: 'Back to the road' }).waitFor();

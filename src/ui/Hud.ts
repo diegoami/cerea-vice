@@ -1,9 +1,10 @@
+import { atlasMarkup, type AtlasPage } from "./Atlas";
 import type { Car } from "../driving/Car";
 import type { Mission } from "../mission/Mission";
 import type { Parking } from "../navigation/Parking";
 import { bearing, compass, nearestRoad } from "../navigation/Navigation";
 
-export type Screen = "briefing" | "running" | "paused" | "result";
+export type Screen = "briefing" | "running" | "paused" | "result" | "atlas";
 export const formatTime = (seconds: number) =>
   `${Math.floor(seconds / 60)
     .toString()
@@ -13,6 +14,7 @@ export const formatTime = (seconds: number) =>
 
 export class Hud {
   private overlay: HTMLElement;
+  private atlasPage: AtlasPage = "map";
   private currentScreen: Screen | undefined;
   private speed: HTMLElement;
   private compassTrack: HTMLElement;
@@ -65,8 +67,23 @@ export class Hud {
     this.hint = find("#hint");
     this.hintLabel = find("#hint-label");
     this.overlay.addEventListener("click", (e) => {
-      if ((e.target as HTMLElement).closest("button")) onAction();
+      const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
+      if (!button) return;
+      if (button.dataset.atlasPage) {
+        this.setAtlasPage(button.dataset.atlasPage as AtlasPage);
+      } else onAction();
     });
+  }
+
+  private setAtlasPage(page: AtlasPage) {
+    if (this.currentScreen !== "atlas" || this.atlasPage === page) return;
+    this.atlasPage = page;
+    this.overlay.innerHTML = atlasMarkup(page);
+    this.overlay.querySelector<HTMLButtonElement>(`[data-atlas-page="${page}"]`)?.focus();
+  }
+
+  turnAtlasPage(direction: number) {
+    this.setAtlasPage(direction < 0 ? "map" : "index");
   }
 
   setHint(message: string) {
@@ -82,8 +99,15 @@ export class Hud {
   show(screen: Screen, mission: Mission, car: Car, parking: Parking) {
     if (screen === this.currentScreen) return;
     this.currentScreen = screen;
+    this.overlay.classList.toggle("atlas-open", screen === "atlas");
     this.overlay.hidden = screen === "running";
     if (screen === "running") return;
+    if (screen === "atlas") {
+      this.atlasPage = "map";
+      this.overlay.innerHTML = atlasMarkup(this.atlasPage);
+      this.overlay.querySelector<HTMLButtonElement>("[data-atlas-close]")?.focus();
+      return;
+    }
     const controls = `<div class="control-table">
       <div class="control-heading"><span>ACTION</span><span>CONTROLLER</span><span>KEYBOARD</span></div>
       <div><span>Steer</span><b>Left stick</b><b>A D / ← →</b></div>
@@ -92,6 +116,7 @@ export class Hud {
       <div><span>Handbrake</span><b>X / Square</b><b>Space</b></div>
       <div><span>Glance</span><b>LB / RB</b><b>Q / E</b></div>
       <div><span>Ask for directions</span><b>A / Cross</b><b>F / Enter</b></div>
+      <div><span>Atlas (while stopped)</span><b>Y / Triangle</b><b>T</b></div>
       <div><span>Mission reminder</span><b>D-pad up</b><b>Tab / M</b></div>
       <div><span>Pause</span><b>Start</b><b>Esc / P</b></div>
     </div>`;
@@ -103,7 +128,7 @@ export class Hud {
           <button type="button">Start the engine <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER TO BEGIN · 3 MINUTE DRIVE</span>
         </div>
         <div class="briefing-side"><span class="eyebrow">YOUR FIRST DRIVE</span><h2>Find the Blue Hotel.</h2><p>It’s on East Quay in Waterfront, in the northeast of the district. Look for the blue facade and stop in its marked forecourt.</p>
-          <div class="briefing-tip"><b>Lost? Pull over.</b><p>Come to a full stop anywhere, then press A or F for a local direction hint. Marked P bays are legal stopping places.</p></div>
+          <div class="briefing-tip"><b>Lost? Pull over.</b><p>Come to a full stop anywhere. Press Y / T for the atlas, or A / F for a local direction hint. Marked P bays are legal stopping places.</p></div>
           ${controls}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
       </section>`;
@@ -173,7 +198,7 @@ export class Hud {
       : "";
     this.wheel.style.transform = `rotate(${car.steering * 65}deg)`;
     this.prompt.innerHTML = parking.stopped
-      ? `<kbd>${device === "Controller" ? "A" : "F"}</kbd> Ask for directions <span>· ${parking.zone ?? "unsafe stopping place"}</span>`
-      : "Stop fully to ask for directions";
+      ? `<kbd>${device === "Controller" ? "A" : "F"}</kbd> Ask for directions &nbsp; <kbd>${device === "Controller" ? "Y" : "T"}</kbd> Atlas <span>· ${parking.zone ?? "unsafe stopping place"}</span>`
+      : "Stop fully for the atlas or directions";
   }
 }

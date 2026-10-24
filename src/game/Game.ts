@@ -65,7 +65,7 @@ export class Game {
   }
 
   private pause() {
-    if (this.screen === "running") {
+    if (this.screen === "running" || this.screen === "atlas") {
       this.screen = "paused";
       this.accumulator = 0;
     }
@@ -97,26 +97,39 @@ export class Game {
       this.pause();
       this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
     }
-    if (actions.pause) {
-      if (this.screen !== "running") this.activate();
-      else this.pause();
-    }
-    if (actions.interact) {
-      if (this.screen !== "running") this.activate();
-      else if (
-        this.mission.recordDirectionRequest(
-          this.parking.stopped,
-          Boolean(this.parking.zone),
+    if (this.screen === "atlas") {
+      if (actions.atlas || actions.back || actions.pause || actions.interact) this.activate();
+      else if (actions.atlasPage) this.hud.turnAtlasPage(actions.atlasPage);
+    } else if (!this.input.controllerDisconnected) {
+      if (actions.pause) {
+        if (this.screen !== "running") this.activate();
+        else this.pause();
+      }
+      if (actions.interact) {
+        if (this.screen !== "running") this.activate();
+        else if (
+          this.mission.recordDirectionRequest(
+            this.parking.stopped,
+            Boolean(this.parking.zone),
+          )
         )
-      )
-        this.hud.setHint(directionHint(this.car, this.car.heading));
-      else
-        this.hud.setHint(
-          "Come to a complete stop first. Hold the handbrake, then ask again.",
-        );
-    }
-    if (actions.reminder && this.screen === "running") {
-      this.hud.remindMission(this.mission);
+          this.hud.setHint(directionHint(this.car, this.car.heading));
+        else
+          this.hud.setHint(
+            "Come to a complete stop first. Hold the handbrake, then ask again.",
+          );
+      }
+      if (actions.reminder && this.screen === "running") {
+        this.hud.remindMission(this.mission);
+      }
+      if (actions.atlas && this.screen === "running") {
+        if (this.parking.stopped && this.car.speed === 0) {
+          this.screen = "atlas";
+          this.accumulator = 0;
+        } else {
+          this.hud.setHint("Come to a complete stop before opening the atlas. Hold the handbrake, then press Y / Triangle or T.");
+        }
+      }
     }
     if (this.screen === "running") {
       this.accumulator += dt;

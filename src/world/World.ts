@@ -7,6 +7,9 @@ import {
   nodeById,
   roadRect,
   parkingZones,
+  landmarkById,
+  canal,
+  harbor,
   type Rect,
 } from "./district";
 
@@ -24,7 +27,7 @@ export class World {
     scene.add(sun);
     box(scene, 0, -0.4, 0, 280, 0.7, 260, 0x647c6b);
     // Harbor water and a solid quay wall keep the compact play space legible.
-    box(scene, 0, -0.3, 152, 600, 0.1, 80, 0x4f7d8b);
+    box(scene, harbor.x, -0.3, harbor.z, harbor.width, 0.1, harbor.depth, 0x4f7d8b);
     box(scene, 0, 0.35, 114, 246, 0.7, 3, 0xb8b39a);
     for (let x = -110; x <= 110; x += 12)
       box(scene, x, 1.3, 114, 0.3, 2, 0.3, 0x324854);
@@ -131,7 +134,7 @@ export class World {
     building(
       scene,
       this.colliders,
-      { x: -42, z: -41, width: 38, depth: 37 },
+      landmarkById("market"),
       9,
       0xaf6857,
     );
@@ -152,7 +155,7 @@ export class World {
     building(
       scene,
       this.colliders,
-      { x: 111, z: -44, width: 13, depth: 32 },
+      landmarkById("hotel"),
       22,
       0x427baf,
     );
@@ -170,27 +173,29 @@ export class World {
     );
 
     // Water tower: the skyline anchor, visible over surrounding low blocks.
+    const tower = landmarkById("tower");
     for (const dx of [-5, 5])
       for (const dz of [-5, 5]) {
-        box(scene, -99 + dx, 13, -93 + dz, 1.1, 26, 1.1, 0x536b70);
+        box(scene, tower.x + dx, 13, tower.z + dz, 1.1, 26, 1.1, 0x536b70);
       }
     const tank = new THREE.Mesh(
       new THREE.CylinderGeometry(9, 9, 10, 10),
       material(0xd3c3a0),
     );
-    tank.position.set(-99, 29, -93);
+    tank.position.set(tower.x, 29, tower.z);
     scene.add(tank);
     const roof = new THREE.Mesh(
       new THREE.ConeGeometry(10, 5, 10),
       material(0x9f614e),
     );
-    roof.position.set(-99, 36.5, -93);
+    roof.position.set(tower.x, 36.5, tower.z);
     scene.add(roof);
-    this.colliders.push({ x: -99, z: -93, width: 15, depth: 15 });
+    this.colliders.push(tower);
     sign(scene, -99, 29, -83.8, ["HARBOR", "WATER"], 15, 0, "#546963");
 
     // Service station: a low yellow canopy, two pumps and a large roadside label.
-    box(scene, 24, 5, 99, 28, 1, 12, 0xd8ad58);
+    const station = landmarkById("station");
+    box(scene, station.x, 5, station.z, station.width, 1, station.depth, 0xd8ad58);
     for (const x of [13, 35]) box(scene, x, 2.5, 100, 0.7, 5, 0.7, 0xc7b890);
     for (const x of [19, 29]) {
       box(scene, x, 1.2, 99, 1.5, 2.4, 1.3, 0xd28460);
@@ -201,7 +206,7 @@ export class World {
     signpost(scene, 12, 91, ["SERVICE STATION"], Math.PI, "#6d5733");
 
     // A level bridge keeps the arcade controller two-dimensional. Water is visible beside the deck.
-    box(scene, 40, 0, -88, 12, 0.04, 48, 0x4f7d8b);
+    box(scene, canal.x, 0, canal.z, canal.width, 0.04, canal.depth, 0x4f7d8b);
     for (const z of [-90, -70]) {
       box(scene, 40, 0.35, z, 28, 0.7, 0.8, 0xa7ab98);
       box(scene, 40, 1.5, z, 28, 0.18, 0.25, 0x425c63);

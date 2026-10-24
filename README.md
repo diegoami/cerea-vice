@@ -1,6 +1,6 @@
 # Cerea Vice — Phase 1
 
-[Game vision](VISION.md) defines the long-term direction and scope. This README describes the current fictional-district prototype; real-world geography and a stopped-only atlas are planned.
+[Game vision](VISION.md) defines the long-term direction and scope. This README describes the current fictional-district prototype; it includes a stopped-only paper atlas, while real-world geography is planned.
 
 [Play the hosted prototype](https://cerea-vice-harbor-drive.brownclock131.chatgpt.site) (private; sign in with the owner's ChatGPT account).
 
@@ -55,7 +55,7 @@ npm run test:desktop                  # On a graphical desktop
 xvfb-run -a sh -c 'xfwm4 --compositor=off & npm run test:desktop'
 ```
 
-The desktop smoke test covers offline startup, sandbox settings, controller-only start/driving, steering, handbraking, directions, mission reminders, disconnect/pause/reconnect, keyboard fallback, and fullscreen. The Windows x64 bundle has also been launched successfully on the Windows host from a local Windows directory. Physical controller testing and full Windows gameplay validation remain separate checks.
+The desktop smoke test covers offline startup, sandbox settings, controller-only start/driving, steering, handbraking, directions, atlas pages and moving-access rejection, frozen reading time, mission reminders, disconnect/pause/reconnect, keyboard fallback, and fullscreen. The Windows x64 bundle has also been launched successfully on the Windows host from a local Windows directory. Physical controller testing and full Windows gameplay validation remain separate checks.
 
 ## Controls
 
@@ -67,6 +67,9 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 | Handbrake                          | X / Square (west face button)  | Space                        |
 | Glance left / right                | LB / RB               | Q / E                        |
 | Start / request directions / retry | A / Cross (south face button) | F or Enter                   |
+| Open / close atlas (while stopped) | Y / Triangle          | T                            |
+| Turn atlas page                    | LB / RB or D-pad ← / → | Q / E or left / right arrows |
+| Close atlas                        | B / Circle            | Escape                       |
 | Repeat mission and time remaining  | D-pad up              | Tab or M                     |
 | Pause / resume                     | Start / Options                 | Escape or P                  |
 
@@ -81,6 +84,14 @@ Connect a controller and press a button so the browser exposes it. The game sele
 - Reach the hotel forecourt and stop fully before the three-minute deadline for success. If time expires, continue driving: stopping at the hotel produces a late-arrival result. Results show elapsed arrival time, unsafe stops, collisions, and direction requests broken down into legal and unsafe stops. Repeated requests at the same stop count separately; rejected moving requests do not count. Retry starts a fresh drive.
 - Repeat the objective and time remaining at any speed with D-pad up, Tab, or M. A mission reminder does not request directions or add to the request count.
 - Pausing or leaving the browser window freezes the simulation and timer. Resume explicitly when returning.
+
+## Paper atlas
+
+Stop fully for 0.45 seconds, then press **T** or **Y / Triangle** to open the atlas anywhere, including outside a marked parking bay. Requests while moving explain how to stop first. The car and mission timer freeze while reading; closing the atlas resumes the drive.
+
+The first page is a north-up street map with district names, landmarks, the canal bridge, rail spur, harbor and four legal stopping bays. The second page is an alphabetical place index with street/area descriptions and grid references. Roads, main landmark footprints, water and parking bays use the same district data as the world. The atlas contains no live car marker, route line or destination arrow.
+
+Use **LB / RB**, **D-pad left / right**, **Q / E** or the **arrow keys** to change pages. The page tabs also work with the mouse. Close with **B / Circle**, **T**, **Y / Triangle**, **Escape**, or the close button; **A / Enter** and **Start** also return to the road. Driving inputs are ignored while reading. Switching away from the window or disconnecting the controller closes the atlas into the pause screen, requiring an explicit resume.
 
 ## District
 
@@ -110,6 +121,7 @@ src/
     World.ts                  Hand-placed geometry, landmarks, solid obstacles
   ui/
     Hud.ts                    Compass, mission, dashboard, briefing/pause/results
+    Atlas.ts                  Printed map and place index, without live tracking
     style.css                 Responsive overlay and cockpit presentation
 tests/
   input.test.ts               Device mapping, analog inputs, action edges
@@ -135,6 +147,6 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 
 See the [tentative development roadmap](ROADMAP.md) for milestones and playable checkpoints leading to the [game vision](VISION.md).
 
-1. Playtest the Windows build with a physical controller and tune handling and sign readability.
-2. Add a stopped-only atlas and clearer navigation help.
+1. Playtest the atlas in the Windows build; driving and sign validation is complete.
+2. Add a distinct stopped-only “Where am I?” request alongside destination directions.
 3. Support several destinations and journeys before building a small real-world district.
