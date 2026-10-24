@@ -131,10 +131,10 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 - All state lives in memory. Reloading resets the drive. No storage API, save system, backend, paid service, or multiplayer is present.
 - Automated controller checks use simulated standard gamepad input. Browser and operating-system mappings still warrant testing on a physical controller before a public playtest.
 
-## Next steps — Phase 2
+## Next steps
 
-1. Playtest navigation and handling on physical controllers; measure wrong turns, direction requests, and whether players recognize landmarks.
-2. Tune sign placement, junction approaches, braking distances, and the mission deadline from those sessions.
-3. Add a few generic destination objectives behind the existing mission interface, without committing to a detective, taxi, or delivery theme.
-4. Add simple engine/turning audio and more distinct street silhouettes if they improve orientation.
-5. Add an atlas that can be consulted only while stopped, as defined in the [game vision](VISION.md).
+See the [tentative development roadmap](ROADMAP.md) for milestones and playable checkpoints leading to the [game vision](VISION.md).
+
+1. Playtest the Windows build with a physical controller and tune handling and sign readability.
+2. Add a stopped-only atlas and clearer navigation help.
+3. Support several destinations and journeys before building a small real-world district.
