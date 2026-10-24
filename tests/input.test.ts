@@ -1,0 +1,123 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { Input } from "../src/input/Input";
+
+test("a preview that blocks gamepad access still accepts keyboard input", () => {
+  const target = new EventTarget();
+  Object.defineProperty(globalThis, "window", {
+    value: target,
+    configurable: true,
+  });
+  let attempts = 0;
+  Object.defineProperty(globalThis, "navigator", {
+    value: {
+      getGamepads: () => {
+        attempts++;
+        throw new DOMException(
+          "Gamepad access is disallowed by permissions policy",
+          "SecurityError",
+        );
+      },
+    },
+    configurable: true,
+  });
+  const input = new Input();
+  const key = new Event("keydown");
+  Object.defineProperty(key, "code", { value: "KeyW" });
+  target.dispatchEvent(key);
+  assert.equal(input.poll().throttle, 1);
+  assert.equal(input.gamepadBlocked, true);
+  assert.equal(input.device, "Keyboard");
+  assert.equal(input.poll().throttle, 1);
+  assert.equal(attempts, 1, "Do not repeat a denied API call every frame");
+});
+
+test("keyboard and standard controller produce the same actions, with edge-triggered interaction and pause", () => {
+  const target = new EventTarget();
+  Object.defineProperty(globalThis, "window", {
+    value: target,
+    configurable: true,
+  });
+  let connected = false;
+  const buttons = Array.from({ length: 17 }, () => ({
+    value: 0,
+    pressed: false,
+    touched: false,
+  }));
+  const pad = {
+    connected: true,
+    mapping: "standard",
+    axes: [0, 0, 0, 0],
+    buttons,
+  };
+  Object.defineProperty(globalThis, "navigator", {
+    value: { getGamepads: () => [connected ? pad : null] },
+    configurable: true,
+  });
+  const key = (type: string, code: string) => {
+    const event = new Event(type, { cancelable: true });
+    Object.defineProperty(event, "code", { value: code });
+    target.dispatchEvent(event);
+  };
+  const input = new Input();
+  key("keydown", "KeyW");
+  key("keydown", "KeyD");
+  key("keydown", "KeyF");
+  const keyboard = input.poll();
+  assert.equal(keyboard.throttle, 1);
+  assert.equal(keyboard.steer, 1);
+  assert.equal(keyboard.interact, true);
+  assert.equal(input.poll().interact, false);
+  target.dispatchEvent(new Event("blur"));
+  assert.equal(input.poll().throttle, 0);
+  connected = true;
+  pad.axes[0] = 1;
+  buttons[7].value = 1;
+  buttons[0].value = 1;
+  assert.deepEqual(input.poll(), keyboard);
+  assert.equal(input.device, "Controller");
+  assert.equal(input.poll().interact, false);
+  buttons[7].value = 0;
+  buttons[0].value = 0;
+  buttons[6].value = 0.6;
+  buttons[2].value = 1;
+  buttons[4].value = 1;
+  buttons[9].value = 1;
+  const brake = input.poll();
+  assert.equal(brake.brake, 0.6);
+  assert.equal(brake.handbrake, true);
+  assert.equal(brake.glance, -1);
+  assert.equal(brake.pause, true);
+  assert.equal(input.poll().pause, false);
+  buttons[4].value = 0;
+  buttons[5].value = 1;
+  pad.axes[0] = 0.1;
+  assert.equal(input.poll().glance, 1);
+  assert.equal(input.poll().steer, 0);
+  connected = false;
+  assert.equal(input.poll().brake, 0);
+  assert.equal(input.device, "Keyboard");
+  key("keydown", "KeyF");
+  key("keyup", "KeyF");
+  assert.equal(
+    input.poll().interact,
+    true,
+    "A quick tap survives until the next frame",
+  );
+  assert.equal(input.poll().interact, false);
+  key("keydown", "Tab");
+  key("keyup", "Tab");
+  assert.equal(input.poll().reminder, true);
+  assert.equal(input.poll().reminder, false);
+  key("keydown", "KeyM");
+  assert.equal(input.poll().reminder, true);
+  assert.equal(input.poll().reminder, false);
+  key("keyup", "KeyM");
+  input.poll();
+  connected = true;
+  buttons[12].value = 1;
+  assert.equal(input.poll().reminder, true);
+  assert.equal(input.poll().reminder, false);
+  buttons[12].value = 0;
+  assert.equal(input.poll().reminder, false);
+});
