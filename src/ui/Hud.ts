@@ -1,4 +1,5 @@
-import { atlasMarkup, type AtlasPage } from "./Atlas";
+import { AtlasNotes } from "../navigation/AtlasNotes";
+import { atlasReference, atlasMarkup, type AtlasPage } from "./Atlas";
 import type { Car } from "../driving/Car";
 import type { Mission } from "../mission/Mission";
 import type { Parking } from "../navigation/Parking";
@@ -15,6 +16,7 @@ export const formatTime = (seconds: number) =>
 export class Hud {
   private overlay: HTMLElement;
   private atlasPage: AtlasPage = "map";
+  private readonly atlasNotes = new AtlasNotes();
   private currentScreen: Screen | undefined;
   private speed: HTMLElement;
   private compassTrack: HTMLElement;
@@ -68,10 +70,22 @@ export class Hud {
     this.hintLabel = find("#hint-label");
     this.overlay.addEventListener("click", (e) => {
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
-      if (!button) return;
+      if (!button) {
+        const map = (e.target as Element).closest<SVGSVGElement>(".atlas-map");
+        if (!map || this.currentScreen !== "atlas") return;
+        const matrix = map.getScreenCTM();
+        if (!matrix) return;
+        const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse());
+        if (Math.abs(point.x) > 120 || Math.abs(point.y) > 120) return;
+        this.atlasNotes.pointAt({ x: point.x, z: point.y });
+        this.placeAtlasMarker();
+        return;
+      }
       if (button.dataset.atlasPage) {
         this.setAtlasPage(button.dataset.atlasPage as AtlasPage);
-      } else onAction();
+      } else if (button.hasAttribute("data-atlas-place")) this.placeAtlasMarker();
+      else if (button.hasAttribute("data-atlas-remove")) this.removeAtlasMarker();
+      else onAction();
     });
   }
 
@@ -79,7 +93,44 @@ export class Hud {
     if (this.currentScreen !== "atlas" || this.atlasPage === page) return;
     this.atlasPage = page;
     this.overlay.innerHTML = atlasMarkup(page);
+    this.updateAtlasNotes();
     this.overlay.querySelector<HTMLButtonElement>(`[data-atlas-page="${page}"]`)?.focus();
+  }
+
+  private updateAtlasNotes() {
+    const { cursor, marker } = this.atlasNotes;
+    this.overlay.querySelector(".atlas-cursor")?.setAttribute("transform", `translate(${cursor.x} ${cursor.z})`);
+    const pin = this.overlay.querySelector<SVGGElement>(".atlas-pin");
+    if (pin) {
+      pin.style.display = marker ? "" : "none";
+      if (marker) pin.setAttribute("transform", `translate(${marker.x} ${marker.z})`);
+    }
+    const status = this.overlay.querySelector("#atlas-marker-status");
+    if (status) {
+      const text = marker ? `Your marker: ${atlasReference(marker)} · placed by hand.` : "No personal marker placed.";
+      if (status.textContent !== text) status.textContent = text;
+    }
+    const mapPage = this.atlasPage === "map";
+    const placeButton = this.overlay.querySelector<HTMLButtonElement>("[data-atlas-place]");
+    const removeButton = this.overlay.querySelector<HTMLButtonElement>("[data-atlas-remove]");
+    if (placeButton) placeButton.disabled = !mapPage;
+    if (removeButton) removeButton.disabled = !marker;
+  }
+
+  moveAtlasCursor(dt: number, x: number, z: number) {
+    if (this.currentScreen === "atlas" && this.atlasPage === "map" && this.atlasNotes.move(dt, x, z)) this.updateAtlasNotes();
+  }
+
+  placeAtlasMarker() {
+    if (this.currentScreen !== "atlas" || this.atlasPage !== "map") return;
+    this.atlasNotes.place();
+    this.updateAtlasNotes();
+  }
+
+  removeAtlasMarker() {
+    if (this.currentScreen !== "atlas") return;
+    this.atlasNotes.remove();
+    this.updateAtlasNotes();
   }
 
   turnAtlasPage(direction: number) {
@@ -105,6 +156,7 @@ export class Hud {
     if (screen === "atlas") {
       this.atlasPage = "map";
       this.overlay.innerHTML = atlasMarkup(this.atlasPage);
+      this.updateAtlasNotes();
       this.overlay.querySelector<HTMLButtonElement>("[data-atlas-close]")?.focus();
       return;
     }

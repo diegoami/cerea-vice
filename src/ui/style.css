@@ -918,3 +918,17 @@ h1 em {
   .atlas-footer { padding: 8px; }
   .atlas-footer button { padding: 10px; }
 }
+.atlas-map { cursor: crosshair; }
+.atlas-cursor { fill: none; stroke: #8d352b; stroke-width: 0.7; pointer-events: none; }
+.atlas-cursor circle { stroke-dasharray: 2 1; }
+.atlas-pin { fill: #a53b30; stroke: #f9f2df; stroke-width: 0.8; pointer-events: none; }
+.atlas-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; border-top: 1px solid #9d9f87; padding: 8px 18px; }
+.atlas-tools > span { margin-right: auto; font: 11px/1.5 monospace; }
+.atlas-tools button { padding: 8px 12px; border: 1px solid #8b8e76; }
+.atlas-tools small { display: block; font: 9px monospace; margin-top: 4px; }
+.atlas-tools button:disabled { opacity: 0.45; cursor: default; }
+@media (max-width: 760px) {
+  .atlas-tools { padding: 6px 8px; gap: 4px; }
+  .atlas-tools > span { font-size: 9px; }
+  .atlas-tools button { font-size: 10px; padding: 7px; }
+}

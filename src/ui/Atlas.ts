@@ -32,6 +32,8 @@ function mapSvg() {
     <g class="atlas-place-label"><text x="115" y="-23" text-anchor="end">BLUE HOTEL</text><text x="-42" y="-17">OLD MARKET</text><text x="-115" y="-108" text-anchor="start">WATER TOWER</text><text x="24" y="111">SERVICE STATION</text></g>
     <text x="47" y="-99" class="atlas-feature-label">CANAL</text><text x="-98" y="54" class="atlas-feature-label">RAIL SPUR</text><text x="-93" y="118" class="atlas-feature-label">HARBOR</text>
     <g class="atlas-grid-label">${["A", "B", "C", "D"].map((letter, i) => `<text x="${-90 + i * 60}" y="-125">${letter}</text>`).join("")}${[1, 2, 3, 4].map((row, i) => `<text x="-127" y="${-88 + i * 60}">${row}</text>`).join("")}</g>
+    <g class="atlas-pin" style="display:none" role="img" aria-label="Your marker"><circle r="3.2"/><path d="M -2 -2 L 2 2 M -2 2 L 2 -2"/></g>
+    <g class="atlas-cursor" aria-hidden="true"><circle r="5"/><path d="M -8 0 H -3 M 3 0 H 8 M 0 -8 V -3 M 0 3 V 8"/></g>
     <g class="atlas-north"><path d="M 111 -111 V -96 M 107 -106 L 111 -112 L 115 -106"/><text x="111" y="-117">N</text></g>
   </svg>`;
 }
@@ -48,7 +50,8 @@ export function atlasMarkup(page: AtlasPage): string {
   return `<section class="atlas-book" role="dialog" aria-modal="true" aria-labelledby="atlas-title">
     <header class="atlas-header"><div><span class="atlas-edition">CEREA MOTORING ATLAS · 1986 EDITION</span><h1 id="atlas-title">Harbor District</h1></div><span class="atlas-paused">PARKED READING · TIMER PAUSED</span></header>
     <nav class="atlas-tabs" aria-label="Atlas pages"><button type="button" data-atlas-page="map" aria-pressed="${page === "map"}">01 · District map</button><button type="button" data-atlas-page="index" aria-pressed="${page === "index"}">02 · Place index</button></nav>
-    <div class="atlas-content">${page === "map" ? `<div class="atlas-sheet">${mapSvg()}</div><aside class="atlas-margin"><h2>Finding your way</h2><p>North is at the top. Match street names, junctions and landmarks to the road outside.</p><h3>Key</h3><ul><li><span class="atlas-key-road"></span> Road</li><li><b>P</b> Legal stopping bay</li><li><span class="atlas-key-building"></span> Landmark</li><li><span class="atlas-key-water"></span> Water</li></ul><p>Use the place index to look up a grid square.</p><p class="atlas-margin-note">Unsure where you are? Close the atlas and ask for directions while stopped.</p></aside>` : indexMarkup()}</div>
-    <footer class="atlas-footer"><span>LB / RB · D-pad ← →<br>Q / E · Arrow keys: turn page</span><button type="button" data-atlas-close>Close atlas <small>B / Circle · Y / Triangle · T / Esc</small></button></footer>
+    <div class="atlas-content">${page === "map" ? `<div class="atlas-sheet">${mapSvg()}</div><aside class="atlas-margin"><h2>Finding your way</h2><p>North is at the top. Match street names, junctions and landmarks to the road outside.</p><h3>Key</h3><ul><li><span class="atlas-key-road"></span> Road</li><li><b>P</b> Legal stopping bay</li><li><span class="atlas-key-building"></span> Landmark</li><li><span class="atlas-key-water"></span> Water</li></ul><p>Click the map to place your marker, or move the crosshair with the stick / D-pad / arrow keys and press A / Enter.</p><p class="atlas-margin-note">Unsure where you are? Close the atlas and ask for directions while stopped.</p></aside>` : indexMarkup()}</div>
+    <div class="atlas-tools"><span id="atlas-marker-status" role="status">No personal marker placed.</span><button type="button" data-atlas-place>Place marker <small>A / Cross · Enter</small></button><button type="button" data-atlas-remove>Erase marker <small>X / Square · Delete</small></button></div>
+    <footer class="atlas-footer"><span>LB / RB · Q / E: pages<br>Stick / D-pad / arrows: move crosshair</span><button type="button" data-atlas-close>Close atlas <small>B / Circle · Y / Triangle · T / Esc</small></button></footer>
   </section>`;
 }

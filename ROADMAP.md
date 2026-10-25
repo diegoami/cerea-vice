@@ -27,7 +27,7 @@ A stopped-only atlas is now implemented. The main missing pieces are a distinct 
 
 ## Milestone 2 Complete the navigation tools
 
-**Status:** Atlas implemented with controller/keyboard page controls and paused reading time. Atlas playtesting and a separate “Where am I?” request remain.
+**Status:** Atlas implemented with controller/keyboard page controls, paused reading time and a player-placed marker for this session. Atlas playtesting and a separate “Where am I?” request remain.
 
 **Deliverable:** a usable paper-style atlas and clearer stopped-only help.
 

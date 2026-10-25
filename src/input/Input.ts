@@ -10,6 +10,9 @@ export interface Actions {
   atlas: boolean;
   back: boolean;
   atlasPage: number;
+  atlasMoveX: number;
+  atlasMoveY: number;
+  clearMarker: boolean;
 }
 const blockedKeys = new Set([
   "ArrowUp",
@@ -19,6 +22,8 @@ const blockedKeys = new Set([
   "Space",
   "Enter",
   "Tab",
+  "Delete",
+  "Backspace",
 ]);
 const deadzone = (value: number) =>
   Math.abs(value) < 0.16
@@ -40,6 +45,8 @@ export class Input {
   private previousAtlas = false;
   private previousBack = false;
   private previousAtlasPage = 0;
+  private previousClearMarker = false;
+  private queuedClearMarker = false;
   device = "Keyboard";
   gamepadBlocked = false;
   controllerDisconnected = false;
@@ -57,8 +64,9 @@ export class Input {
           this.queuedPause = true;
         if (event.code === "KeyT") this.queuedAtlas = true;
         if (event.code === "Escape") this.queuedBack = true;
-        if (event.code === "ArrowLeft" || event.code === "KeyQ") this.queuedAtlasPage = -1;
-        if (event.code === "ArrowRight" || event.code === "KeyE") this.queuedAtlasPage = 1;
+        if (event.code === "Delete" || event.code === "Backspace") this.queuedClearMarker = true;
+        if (event.code === "KeyQ") this.queuedAtlasPage = -1;
+        if (event.code === "KeyE") this.queuedAtlasPage = 1;
         if (event.code === "Tab" || event.code === "KeyM")
           this.queuedReminder = true;
       }
@@ -73,6 +81,7 @@ export class Input {
       this.queuedAtlas = false;
       this.queuedBack = false;
       this.queuedAtlasPage = 0;
+      this.queuedClearMarker = false;
     });
   }
 
@@ -109,8 +118,9 @@ export class Input {
     const reminder = down("Tab", "KeyM") || button(12) > 0.5;
     const atlas = down("KeyT") || button(3) > 0.5;
     const back = down("Escape") || button(1) > 0.5;
-    const atlasPage = Number(down("ArrowRight", "KeyE") || button(5) > 0.5 || button(15) > 0.5)
-      - Number(down("ArrowLeft", "KeyQ") || button(4) > 0.5 || button(14) > 0.5);
+    const atlasPage = Number(down("KeyE") || button(5) > 0.5)
+      - Number(down("KeyQ") || button(4) > 0.5);
+    const clearMarker = down("Delete", "Backspace") || button(2) > 0.5;
     const keyboardSteer =
       Number(down("KeyD", "ArrowRight")) - Number(down("KeyA", "ArrowLeft"));
     const actions: Actions = {
@@ -127,7 +137,13 @@ export class Input {
       atlas: this.queuedAtlas || (atlas && !this.previousAtlas),
       back: this.queuedBack || (back && !this.previousBack),
       atlasPage: this.queuedAtlasPage || (atlasPage !== this.previousAtlasPage ? atlasPage : 0),
+      atlasMoveX: keyboardSteer || (Number(button(15) > 0.5) - Number(button(14) > 0.5)) || deadzone(pad?.axes[0] ?? 0),
+      atlasMoveY: (Number(down("KeyS", "ArrowDown")) - Number(down("KeyW", "ArrowUp")))
+        || (Number(button(13) > 0.5) - Number(button(12) > 0.5)) || deadzone(pad?.axes[1] ?? 0),
+      clearMarker: this.queuedClearMarker || (clearMarker && !this.previousClearMarker),
     };
+    this.previousClearMarker = clearMarker;
+    this.queuedClearMarker = false;
     this.previousAtlas = atlas;
     this.previousBack = back;
     this.previousAtlasPage = atlasPage;

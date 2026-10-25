@@ -98,8 +98,13 @@ export class Game {
       this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
     }
     if (this.screen === "atlas") {
-      if (actions.atlas || actions.back || actions.pause || actions.interact) this.activate();
-      else if (actions.atlasPage) this.hud.turnAtlasPage(actions.atlasPage);
+      if (actions.atlas || actions.back || actions.pause) this.activate();
+      else {
+        if (actions.atlasPage) this.hud.turnAtlasPage(actions.atlasPage);
+        this.hud.moveAtlasCursor(dt, actions.atlasMoveX, actions.atlasMoveY);
+        if (actions.interact) this.hud.placeAtlasMarker();
+        if (actions.clearMarker) this.hud.removeAtlasMarker();
+      }
     } else if (!this.input.controllerDisconnected) {
       if (actions.pause) {
         if (this.screen !== "running") this.activate();
