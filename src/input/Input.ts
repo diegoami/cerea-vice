@@ -13,6 +13,7 @@ export interface Actions {
   atlasMoveX: number;
   atlasMoveY: number;
   clearMarker: boolean;
+  information: boolean;
 }
 const blockedKeys = new Set([
   "ArrowUp",
@@ -45,6 +46,8 @@ export class Input {
   private previousAtlas = false;
   private previousBack = false;
   private previousAtlasPage = 0;
+  private previousInformation = false;
+  private queuedInformation = false;
   private previousClearMarker = false;
   private queuedClearMarker = false;
   device = "Keyboard";
@@ -62,6 +65,7 @@ export class Input {
           this.queuedInteract = true;
         if (event.code === "Escape" || event.code === "KeyP")
           this.queuedPause = true;
+        if (event.code === "KeyF") this.queuedInformation = true;
         if (event.code === "KeyT") this.queuedAtlas = true;
         if (event.code === "Escape") this.queuedBack = true;
         if (event.code === "Delete" || event.code === "Backspace") this.queuedClearMarker = true;
@@ -82,6 +86,7 @@ export class Input {
       this.queuedBack = false;
       this.queuedAtlasPage = 0;
       this.queuedClearMarker = false;
+      this.queuedInformation = false;
     });
   }
 
@@ -120,6 +125,7 @@ export class Input {
     const back = down("Escape") || button(1) > 0.5;
     const atlasPage = Number(down("KeyE") || button(5) > 0.5)
       - Number(down("KeyQ") || button(4) > 0.5);
+    const information = down("KeyF") || button(11) > 0.5;
     const clearMarker = down("Delete", "Backspace") || button(2) > 0.5;
     const keyboardSteer =
       Number(down("KeyD", "ArrowRight")) - Number(down("KeyA", "ArrowLeft"));
@@ -141,7 +147,10 @@ export class Input {
       atlasMoveY: (Number(down("KeyS", "ArrowDown")) - Number(down("KeyW", "ArrowUp")))
         || (Number(button(13) > 0.5) - Number(button(12) > 0.5)) || deadzone(pad?.axes[1] ?? 0),
       clearMarker: this.queuedClearMarker || (clearMarker && !this.previousClearMarker),
+      information: this.queuedInformation || (information && !this.previousInformation),
     };
+    this.previousInformation = information;
+    this.queuedInformation = false;
     this.previousClearMarker = clearMarker;
     this.queuedClearMarker = false;
     this.previousAtlas = atlas;

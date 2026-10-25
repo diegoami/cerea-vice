@@ -4,7 +4,7 @@
 
 **Cerea Centro** is the default: a small modern neighbourhood in Cerea, Italy, with actual street connections and building footprints. Start beside the Municipio on Via Venticinque Aprile and find Biblioteca di Cerea on Viale della Vittoria within six minutes. The visual style remains retro; historical reconstruction is not required. For this pilot, stopping anywhere is allowed without unsafe-stop counts; marked bays remain landmarks and the arrival area.
 
-**Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline.
+**Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline. Small street-name plates identify lateral streets at crossings and repeat along longer stretches; larger arrow boards are reserved for major thoroughfares.
 
 [Previously hosted Harbor prototype](https://cerea-vice-harbor-drive.brownclock131.chatgpt.site) (private; may lag the current desktop build).
 
@@ -79,6 +79,7 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 | Turn atlas page                    | LB / RB               | Q / E                        |
 | Move atlas crosshair               | Left stick / D-pad    | WASD / arrow keys            |
 | Mark estimated position            | A / Cross             | Enter / click map            |
+| Ask for information with atlas open | Right stick press (R3) | F / information button       |
 | Erase atlas marker                 | X / Square            | Delete / Backspace           |
 | Close atlas                        | B / Circle            | Escape                       |
 | Repeat mission and time remaining  | D-pad up              | Tab or M                     |
@@ -100,13 +101,13 @@ Connect a controller and press a button so the browser exposes it. The game sele
 
 Stop fully for 0.45 seconds, then press **T** or **Y / Triangle** to open the atlas anywhere, including outside a marked parking bay. Requests while moving explain how to stop first. The car and mission timer freeze while reading; closing the atlas resumes the drive.
 
-The first page is a north-up street map with district names, landmarks, the canal bridge, rail spur, harbor and four legal stopping bays. The second page is an alphabetical place index with street/area descriptions and grid references. Roads, main landmark footprints, water and parking bays use the same district data as the world. The atlas contains no live car marker, route line or destination arrow. Cerea currently allows stopping anywhere; Harbor retains its marked-bay legal/unsafe distinction.
+The first page is a north-up map of the selected district, with street names, landmarks, waterways, railway features and marked stopping bays. The second page is an alphabetical place index with street/area descriptions and grid references. Roads, main landmark footprints, water and parking bays use the same district data as the world. The atlas contains no live car marker, route line or destination arrow. Cerea currently allows stopping anywhere; Harbor retains its marked-bay legal/unsafe distinction.
 
 Use **LB / RB** or **Q / E** to change pages. The page tabs also work with the mouse. Close with **B / Circle**, **T**, **Y / Triangle**, **Escape**, or the close button; **Start** also returns to the road. Driving inputs are ignored while reading. Switching away from the window or disconnecting the controller closes the atlas into the pause screen, requiring an explicit resume.
 
 The atlas marker changes only when you **successfully ask for information while stopped**, or **move it yourself** to where you think you are. Simply driving, parking in a bay, opening the atlas or repeating the mission reminder does not update it. Rejected requests while moving do not update it either. Information can be requested at any settled stop, including outside a legal bay.
 
-A successful A / F information request records that position as a snapshot, labelled **Last information received**. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete / Backspace erases it. The marker remains fixed until the next successful information request or manual change. A new drive starts with the given starting position at Harbor lay-by. It never follows the car or creates a route line.
+A successful A / F information request records that position as a snapshot, labelled **Last information received**. While the atlas is open, press **F**, **the right stick (R3)**, or its **Ask for information** button. The directions appear beside the map, the marker updates, and the car and timer stay paused. A / Enter still places your manual estimate in the atlas. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete / Backspace erases it. The marker remains fixed until the next successful information request or manual change. A new drive starts with its given starting position: Sosta Municipio in Cerea or Harbor lay-by in Harbor District. It never follows the car or creates a route line.
 
 ## Harbor District
 
@@ -150,7 +151,7 @@ tests/
 
 `Game` coordinates the systems; the car consumes only `Actions`, with no keyboard or controller knowledge. Navigation and mission logic use plain positions, not Three.js objects. World data defines the roads used for both geometry and routing. Dijkstra search routes via the nearest road projection to the selected destination, then describes the next junction and compass direction. Cerea routes honour imported one-way tags; the original Harbor wording is preserved for that district. Heading is included and a safe turnaround is suggested when facing away. No raw coordinates are displayed to the player.
 
-The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type declarations, and `tsx` (for tests) are development tools. Text signs are generated on local canvases; no network assets, external fonts, realistic textures, or asset pipeline are used. Rendering is capped at 960 internal horizontal pixels, with nearest-neighbour scaling, flat materials, simple lighting, and distance fog.
+The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type declarations, and `tsx` (for tests) are development tools. Text signs are generated on local canvases; no network assets, external fonts, realistic textures, or asset pipeline are used. Rendering uses native/HiDPI resolution capped at 1920 internal horizontal pixels, antialiasing and filtered sign textures so small street-name plates remain readable. Flat materials, simple lighting and distance fog retain the economical retro presentation.
 
 ## Phase 1 assumptions and limits
 

@@ -1,5 +1,5 @@
 import { AtlasNotes } from "../navigation/AtlasNotes";
-import { atlasReference, atlasMarkup, type AtlasPage } from "./Atlas";
+import { atlasFrame, atlasReference, atlasMarkup, type AtlasPage } from "./Atlas";
 import type { Car } from "../driving/Car";
 import type { Mission } from "../mission/Mission";
 import type { Parking } from "../navigation/Parking";
@@ -17,6 +17,7 @@ export const formatTime = (seconds: number) =>
 
 export class Hud {
   private overlay: HTMLElement;
+  private atlasInformation = "";
   private atlasPage: AtlasPage = "map";
   private readonly atlasNotes = new AtlasNotes();
   private currentScreen: Screen | undefined;
@@ -32,7 +33,7 @@ export class Hud {
   private hint: HTMLElement;
   private hintLabel: HTMLElement;
 
-  constructor(root: HTMLElement, onAction: () => void) {
+  constructor(root: HTMLElement, onAction: () => void, onInformation: () => void) {
     const ui = document.createElement("div");
     ui.id = "hud";
     ui.innerHTML = `
@@ -79,7 +80,8 @@ export class Hud {
         const matrix = map.getScreenCTM();
         if (!matrix) return;
         const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse());
-        if (Math.abs(point.x) > 120 || Math.abs(point.y) > 120) return;
+        const frame=atlasFrame();
+        if (point.x < frame.minX || point.x > frame.minX+frame.span || point.y < frame.minZ || point.y > frame.minZ+frame.span) return;
         this.atlasNotes.pointAt({ x: point.x, z: point.y });
         this.placeAtlasMarker();
         return;
@@ -90,6 +92,7 @@ export class Hud {
         this.setAtlasPage(button.dataset.atlasPage as AtlasPage);
       } else if (button.hasAttribute("data-atlas-place")) this.placeAtlasMarker();
       else if (button.hasAttribute("data-atlas-remove")) this.removeAtlasMarker();
+      else if (button.hasAttribute("data-atlas-information")) onInformation();
       else onAction();
     });
   }
@@ -102,7 +105,26 @@ export class Hud {
     this.overlay.querySelector<HTMLButtonElement>(`[data-atlas-page="${page}"]`)?.focus();
   }
 
+  setAtlasInformation(message: string) {
+    this.atlasInformation = message;
+    if(this.currentScreen === "atlas") {
+      this.updateAtlasInformation();
+      this.updateAtlasNotes();
+    }
+  }
+
+  private updateAtlasInformation() {
+    const panel=this.overlay.querySelector<HTMLElement>(".atlas-information");
+    const text=this.overlay.querySelector("#atlas-information-text");
+    if(panel)panel.hidden=!this.atlasInformation;
+    this.overlay.querySelector(".atlas-book")?.classList.toggle("has-information",Boolean(this.atlasInformation));
+    const introduction=this.overlay.querySelector<HTMLElement>(".atlas-introduction");
+    if(introduction)introduction.hidden=Boolean(this.atlasInformation);
+    if(text)text.textContent=this.atlasInformation;
+  }
+
   private updateAtlasNotes() {
+    this.updateAtlasInformation();
     const { cursor, marker } = this.atlasNotes;
     this.overlay.querySelector(".atlas-cursor")?.setAttribute("transform", `translate(${cursor.x} ${cursor.z})`);
     const pin = this.overlay.querySelector<SVGGElement>(".atlas-pin");
@@ -126,6 +148,7 @@ export class Hud {
 
   resetAtlasNotes() {
     this.atlasNotes.reset();
+    this.atlasInformation = "";
   }
 
   confirmAtlasPosition(position: Point, parkingName?: string) {

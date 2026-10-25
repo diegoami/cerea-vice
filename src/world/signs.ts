@@ -10,6 +10,7 @@ export interface RoadSignPlan {
   height: number;
   rows: DirectionRow[];
 }
+export const isMajorRoad=(road:Road)=>["primary","secondary","tertiary"].includes(road.roadClass??"");
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 
 /** Trace back along the real approach, including short OSM shape segments. */
@@ -56,11 +57,13 @@ export function planJunctionSigns():{signs:RoadSignPlan[];missing:string[]} {
   const signs:RoadSignPlan[]=[],missing:string[]=[];
   for(const node of nodes) {
     const links=roads.filter(road=>road.a===node.id||road.b===node.id);
-    if(links.length<2||new Set(links.map(road=>road.name)).size<2)continue;
+    const majorNames=new Set(links.filter(isMajorRoad).map(road=>road.name));
+    if(majorNames.size<2)continue;
     for(const incoming of links) {
+      if(!isMajorRoad(incoming))continue;
       if(incoming.oneWay&&incoming.b!==node.id)continue;
       const approachId=incoming.a===node.id?incoming.b:incoming.a;
-      const rows=junctionDirections(node.id,approachId);
+      const rows=junctionDirections(node.id,approachId).filter(row=>[...majorNames].some(name=>name.toUpperCase()===row.text));
       if(!rows.length)continue;
       const path=approachPoints(node.id,incoming);
       const available=path.slice(1).reduce((sum,p,i)=>sum+distance(path[i],p),0);

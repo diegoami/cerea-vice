@@ -71,62 +71,86 @@
     {
       "a": "sw",
       "b": "s",
-      "name": "Harbor Road"
+      "name": "Harbor Road",
+      "roadClass": "secondary",
+      "width": 16
     },
     {
       "a": "s",
       "b": "se",
-      "name": "Harbor Road"
+      "name": "Harbor Road",
+      "roadClass": "secondary",
+      "width": 16
     },
     {
       "a": "sw",
       "b": "w",
-      "name": "Market Street"
+      "name": "Market Street",
+      "roadClass": "residential",
+      "width": 16
     },
     {
       "a": "w",
       "b": "nw",
-      "name": "Market Street"
+      "name": "Market Street",
+      "roadClass": "residential",
+      "width": 16
     },
     {
       "a": "w",
       "b": "c",
-      "name": "Market Street"
+      "name": "Market Street",
+      "roadClass": "residential",
+      "width": 16
     },
     {
       "a": "c",
       "b": "e",
-      "name": "Market Street"
+      "name": "Market Street",
+      "roadClass": "residential",
+      "width": 16
     },
     {
       "a": "nw",
       "b": "n",
-      "name": "Tower Lane"
+      "name": "Tower Lane",
+      "roadClass": "residential",
+      "width": 16
     },
     {
       "a": "n",
       "b": "ne",
-      "name": "Tower Lane"
+      "name": "Tower Lane",
+      "roadClass": "residential",
+      "width": 16
     },
     {
       "a": "s",
       "b": "c",
-      "name": "Central Avenue"
+      "name": "Central Avenue",
+      "roadClass": "tertiary",
+      "width": 16
     },
     {
       "a": "c",
       "b": "n",
-      "name": "Central Avenue"
+      "name": "Central Avenue",
+      "roadClass": "tertiary",
+      "width": 16
     },
     {
       "a": "se",
       "b": "e",
-      "name": "East Quay"
+      "name": "East Quay",
+      "roadClass": "secondary",
+      "width": 16
     },
     {
       "a": "e",
       "b": "ne",
-      "name": "East Quay"
+      "name": "East Quay",
+      "roadClass": "secondary",
+      "width": 16
     }
   ],
   "parkingZones": [
@@ -201,7 +225,138 @@
       "depth": 12
     }
   ],
-  "buildings": [],
+  "buildings": [
+    {
+      "x": -46,
+      "z": 43,
+      "width": 40,
+      "depth": 36,
+      "height": 11,
+      "color": 9600622,
+      "points": [
+        {
+          "x": -66.0,
+          "z": 25.0
+        },
+        {
+          "x": -26.0,
+          "z": 25.0
+        },
+        {
+          "x": -26.0,
+          "z": 61.0
+        },
+        {
+          "x": -66.0,
+          "z": 61.0
+        }
+      ]
+    },
+    {
+      "x": 43,
+      "z": 40,
+      "width": 29,
+      "depth": 36,
+      "height": 15,
+      "color": 7767166,
+      "points": [
+        {
+          "x": 28.5,
+          "z": 22.0
+        },
+        {
+          "x": 57.5,
+          "z": 22.0
+        },
+        {
+          "x": 57.5,
+          "z": 58.0
+        },
+        {
+          "x": 28.5,
+          "z": 58.0
+        }
+      ]
+    },
+    {
+      "x": -42,
+      "z": -41,
+      "width": 38,
+      "depth": 37,
+      "height": 9,
+      "color": 11495511,
+      "points": [
+        {
+          "x": -61.0,
+          "z": -59.5
+        },
+        {
+          "x": -23.0,
+          "z": -59.5
+        },
+        {
+          "x": -23.0,
+          "z": -22.5
+        },
+        {
+          "x": -61.0,
+          "z": -22.5
+        }
+      ]
+    },
+    {
+      "x": 40,
+      "z": -42,
+      "width": 34,
+      "depth": 38,
+      "height": 18,
+      "color": 8028811,
+      "points": [
+        {
+          "x": 23.0,
+          "z": -61.0
+        },
+        {
+          "x": 57.0,
+          "z": -61.0
+        },
+        {
+          "x": 57.0,
+          "z": -23.0
+        },
+        {
+          "x": 23.0,
+          "z": -23.0
+        }
+      ]
+    },
+    {
+      "x": 111,
+      "z": -44,
+      "width": 13,
+      "depth": 32,
+      "height": 22,
+      "color": 4357039,
+      "points": [
+        {
+          "x": 104.5,
+          "z": -60.0
+        },
+        {
+          "x": 117.5,
+          "z": -60.0
+        },
+        {
+          "x": 117.5,
+          "z": -28.0
+        },
+        {
+          "x": 104.5,
+          "z": -28.0
+        }
+      ]
+    }
+  ],
   "features": [
     {
       "name": "Canal",

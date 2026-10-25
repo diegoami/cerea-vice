@@ -12,7 +12,7 @@ import { Hud, type Screen } from "../ui/Hud";
 
 export class Game {
   private readonly renderer = new WebGLRenderer({
-    antialias: false,
+    antialias: true,
     powerPreference: "high-performance",
   });
   private readonly world = new World();
@@ -33,10 +33,10 @@ export class Game {
     this.renderer.domElement.tabIndex = -1;
     this.renderer.domElement.setAttribute(
       "aria-label",
-      "First-person view of Harbor District",
+      `First-person view of ${district.name}`,
     );
     root.append(this.renderer.domElement);
-    this.hud = new Hud(root, () => this.activate());
+    this.hud = new Hud(root, () => this.activate(), () => this.requestInformation());
     this.resize();
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("blur", () => this.pause());
@@ -57,7 +57,7 @@ export class Game {
   private resize() {
     const width = window.innerWidth,
       height = window.innerHeight;
-    const scale = Math.min(1, 960 / width);
+    const scale = Math.min(window.devicePixelRatio || 1, 2, 1920 / width);
     this.renderer.setSize(
       Math.round(width * scale),
       Math.round(height * scale),
@@ -91,6 +91,16 @@ export class Game {
     this.renderer.domElement.focus({ preventScroll: true });
   }
 
+  private requestInformation() {
+    if (this.screen !== "running" && this.screen !== "atlas") return;
+    if (this.mission.recordDirectionRequest(this.parking.stopped, this.parking.legal)) {
+      const message = directionHint(this.car, this.car.heading);
+      this.hud.setHint(message);
+      this.hud.confirmAtlasPosition(this.car, this.parking.zone);
+      this.hud.setAtlasInformation(message);
+    } else this.hud.setHint("Come to a complete stop first. Hold the handbrake, then ask again.");
+  }
+
   private frame(time: number) {
     const dt = this.previousTime
       ? Math.min((time - this.previousTime) / 1000, 0.1)
@@ -113,7 +123,8 @@ export class Game {
       else {
         if (actions.atlasPage) this.hud.turnAtlasPage(actions.atlasPage);
         this.hud.moveAtlasCursor(dt, actions.atlasMoveX, actions.atlasMoveY);
-        if (actions.interact) this.hud.placeAtlasMarker();
+        if (actions.information) this.requestInformation();
+        else if (actions.interact) this.hud.placeAtlasMarker();
         if (actions.clearMarker) this.hud.removeAtlasMarker();
       }
     } else if (!this.input.controllerDisconnected) {
@@ -121,20 +132,9 @@ export class Game {
         if (this.screen !== "running") this.activate();
         else this.pause();
       }
-      if (actions.interact) {
-        if (this.screen !== "running") this.activate();
-        else if (
-          this.mission.recordDirectionRequest(
-            this.parking.stopped,
-            this.parking.legal,
-          )
-        ) {
-          this.hud.setHint(directionHint(this.car, this.car.heading));
-          this.hud.confirmAtlasPosition(this.car, this.parking.zone);
-        } else
-          this.hud.setHint(
-            "Come to a complete stop first. Hold the handbrake, then ask again.",
-          );
+      if (actions.interact || actions.information) {
+        if (this.screen !== "running" && actions.interact) this.activate();
+        else this.requestInformation();
       }
       if (actions.reminder && this.screen === "running") {
         this.hud.remindMission(this.mission);

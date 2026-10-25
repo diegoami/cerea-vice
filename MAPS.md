@@ -23,7 +23,8 @@ The default mission is a first real-place playtest, not a final challenge balanc
 - `src/world/load.ts`: local selection and JSON loading.
 - `tools/import-cerea.py`: deterministic offline conversion of the checked-in source extract.
 - `tools/prepare-cerea.mjs`: build-time polygon clipping for road, sidewalk, junction and bay clearance.
-- `src/world/signs.ts`: compact, unobstructed sign placement and coverage.
+- `src/world/signs.ts`: major-road direction boards and other roadside signs.
+- `src/world/streetPlates.ts`: façade/post street-name plates, crossing coverage and between-junction repeaters.
 - `data/README.md`: source, projection, attribution and simplification notes.
 
 The running game loads only the local JSON files; it does not contact OpenStreetMap or require an internet connection. Editable JSON is district content, not executable code. The current UI selects bundled districts; there is no arbitrary file picker or map editor yet.
@@ -32,13 +33,13 @@ The running game loads only the local JSON files; it does not contact OpenStreet
 
 1. Create a version 1 district JSON matching `DistrictDefinition` in `src/world/schema.ts`.
 2. Use local metre coordinates: north is negative Z and east is positive X. Preserve a consistent scale. Roads connect node IDs; intermediate shape points retain curves. Different elevation crossings must not share a junction ID unless the roads actually connect.
-3. Supply road widths and one-way direction where needed. A one-way segment runs from `a` to `b`. Road-rule enforcement is not simulated, but route hints and onward signs honour this direction.
+3. Supply road widths, `roadClass` and one-way direction where needed. `primary`, `secondary` and `tertiary` receive major-road direction boards where they meet other major roads; other classes use name plates. A one-way segment runs from `a` to `b`. Road-rule enforcement is not simulated, but route hints and onward signs honour this direction.
 4. Supply bounds, building polygons, water/rail polylines, named landmarks and rectangular game stopping areas.
 5. Set the starting position, heading and name. Define the mission's destination bay and a reachable road node near its entrance, plus its objective, hint and duration.
 6. Put the file in `public/maps/` and register its ID and name in `availableDistricts` in `src/world/load.ts`.
 7. Check validation, connectivity, road/footprint clearance, legal stopping and arrival. Run unit and desktop tests, inspect both the atlas and driving view, then playtest the journey.
 
-Generic map rendering supports angled segments, shared junction caps, polygon building collisions, local landmark signs and source attribution. Compact junction boards are placed by a clearance planner that follows short mapped approach segments and checks the complete board against buildings and roads. All 81 valid named-street approaches are covered, including the Borghetto turn into Viale della Vittoria. Its west end has an explicit one-way/no-entry warning. Parking and boundary signs use the same clearance checks. Static untextured meshes are batched to keep the denser district economical. The original Harbor scenery and its familiar navigation wording are retained in dedicated legacy builders, rather than requiring the new renderer to reproduce its handcrafted decorations.
+Generic map rendering supports angled segments, shared junction caps, polygon building collisions, local landmark signs and source attribution. Signage now has two levels. Larger arrow boards are limited to junctions connecting major roads (mapped primary, secondary and tertiary roads). Small, arrow-free street-name plates identify every turnable street from each legal crossing approach. Plates are attached to nearby façades where practical, otherwise to small posts, and repeat along stretches away from crossings. Visibility and clearance checks cover the plate face, its approach and the side of the crossing it names, including the Borghetto turn into Viale della Vittoria. Its west end has an explicit one-way/no-entry warning. Parking and boundary signs use the same clearance checks. Static untextured meshes are batched to keep the denser district economical. The original Harbor scenery and its familiar navigation wording are retained in dedicated legacy builders, rather than requiring the new renderer to reproduce its handcrafted decorations.
 
 ## Rebuild
 

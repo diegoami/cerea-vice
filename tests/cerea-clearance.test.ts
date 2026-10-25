@@ -3,9 +3,8 @@ import assert from 'node:assert/strict';
 import clipping from 'polygon-clipping';
 import cerea from '../public/maps/cerea.json';
 import harbor from '../public/maps/harbor.json';
-import {activateDistrict,district,nodes,roads,nodeById,inRect,spawn} from '../src/world/district';
-import {planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,boardIsClear} from '../src/world/signs';
-import {junctionDirections} from '../src/world/directions';
+import {activateDistrict,district,roads,nodeById,inRect,spawn} from '../src/world/district';
+import {planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,boardIsClear,isMajorRoad} from '../src/world/signs';
 import {Parking} from '../src/navigation/Parking';
 import {Mission} from '../src/mission/Mission';
 
@@ -32,25 +31,19 @@ test('Cerea building polygons clear the full rendered road width and junction ca
   }
 });
 
-test('every named-street junction approach has a compact unobstructed sign, including short Vittoria approaches',()=>{
+test('large arrow boards are reserved for junctions between major thoroughfares',()=>{
   activateDistrict(cerea);
   const {signs,missing}=planJunctionSigns();
   assert.deepEqual(missing,[]);
-  for(const node of nodes){
-    const links=roads.filter(road=>road.a===node.id||road.b===node.id);
-    if(links.length<2||new Set(links.map(road=>road.name)).size<2)continue;
-    for(const road of links){
-      if(road.oneWay&&road.b!==node.id)continue;
-      const approach=road.a===node.id?road.b:road.a;
-      if(!junctionDirections(node.id,approach).length)continue;
-      assert.ok(signs.some(sign=>sign.junctionId===node.id&&sign.approachId===approach),`Missing approach ${node.id}:${approach}`);
-    }
+  assert.ok(signs.length>0&&signs.length<30);
+  for(const plan of signs){
+    const links=roads.filter(road=>road.a===plan.junctionId||road.b===plan.junctionId);
+    assert.ok(new Set(links.filter(isMajorRoad).map(road=>road.name)).size>=2);
+    const incoming=links.find(road=>road.a===plan.approachId||road.b===plan.approachId)!;
+    assert.ok(isMajorRoad(incoming));
+    assert.ok(boardIsClear(plan));
+    for(const row of plan.rows)assert.ok(links.some(road=>isMajorRoad(road)&&road.name.toUpperCase()===row.text));
   }
-  for(const sign of signs){assert.ok(sign.width<=4.2);assert.ok(boardIsClear(sign));}
-  const shortVittoria=signs.find(sign=>sign.junctionId==='12850799975'&&sign.approachId==='1396752599');
-  assert.ok(shortVittoria?.rows.some(row=>row.text==='VIALE DELLA VITTORIA'&&row.direction==='left'));
-  const borghetto=signs.find(sign=>sign.junctionId==='1412153146'&&sign.approachId==='1027997680');
-  assert.ok(borghetto?.rows.some(row=>row.text==='VIALE DELLA VITTORIA'&&row.direction==='right'&&row.detail==='BIBLIOTECA'));
   for(const sign of planEdgeSigns())assert.ok(boardIsClear(sign));
   for(const sign of planParkingSigns())assert.ok(boardIsClear(sign));
   const noEntry=planVittoriaNoEntrySign();assert.ok(noEntry&&boardIsClear(noEntry));

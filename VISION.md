@@ -35,6 +35,8 @@ The main progression is personal familiarity: a district that initially feels co
 - Asking for your location or directions is possible anywhere, provided the car is stopped. It is not restricted to designated buildings or special interaction points.
 - There are a few clearly identifiable places where stopping and parking are allowed.
 - Directions use street names, compass directions, junctions and landmarks rather than exact coordinates or automatic navigation.
+- Major thoroughfares may use larger direction boards. Normal streets use small name plates at crossings, including building-mounted plates where practical, with occasional repeat plates between junctions. Players should be able to identify lateral streets before turning.
+- Information can be requested while the atlas remains open, with separate controls for asking and marking an estimated position.
 - Consulting the atlas and asking for help are legitimate parts of play, not failures.
 
 ## Geography is the foundation

@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { district, roads, nodeById, parkingZones, landmarks, inRect, isPaved, projectToSegment, pointInPolygon, type Point, type Rect } from "./district";
 import { HarborWorld } from "./HarborWorld";
-import { box, sign, signpost, material } from "./builders";
+import { box, sign, signpost, material, streetNamePlate } from "./builders";
+import { planStreetPlates } from "./streetPlates";
 import { planJunctionSigns, planParkingSigns, planVittoriaNoEntrySign, planEdgeSigns } from "./signs";
 
 function strip(parent: THREE.Object3D, a: Point, b: Point, width: number, y: number, height: number, color: number) {
@@ -123,6 +124,9 @@ export class World {
     for(const plan of planParkingSigns()) {
       signpost(scene,plan.position.x,plan.position.z,["P",plan.label.toUpperCase()],plan.angle,"#31594e",plan.width,plan.height);
     }
+    const streetPlates=planStreetPlates();
+    if(streetPlates.missing.length)console.warn("Missing readable street-name plates",streetPlates.missing);
+    for(const plate of streetPlates.plates)streetNamePlate(scene,plate);
     const plannedSigns=planJunctionSigns();
     if(plannedSigns.missing.length)console.warn("Missing clear junction sign positions",plannedSigns.missing);
     for(const plan of plannedSigns.signs) {
@@ -135,7 +139,7 @@ export class World {
     const batches=new Map<THREE.Material,THREE.BufferGeometry[]>();
     const originals:THREE.Mesh[]=[];
     scene.traverse((object)=>{
-      if(!(object instanceof THREE.Mesh)||!(object.material instanceof THREE.MeshLambertMaterial))return;
+      if(!(object instanceof THREE.Mesh)||!(object.material instanceof THREE.MeshLambertMaterial||object.material instanceof THREE.MeshBasicMaterial))return;
       const geometry=object.geometry.clone().applyMatrix4(object.matrixWorld);
       if(geometry.index) { const expanded=geometry.toNonIndexed();geometry.dispose();
         const group=batches.get(object.material)??[];group.push(expanded);batches.set(object.material,group);

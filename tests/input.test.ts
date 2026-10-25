@@ -75,7 +75,8 @@ test("keyboard and standard controller produce the same actions, with edge-trigg
   pad.axes[1] = -1;
   buttons[7].value = 1;
   buttons[0].value = 1;
-  assert.deepEqual(input.poll(), keyboard);
+  // F also requests information in the atlas; A places a manual estimate there.
+  assert.deepEqual(input.poll(), {...keyboard, information: false});
   pad.axes[1] = 0;
   assert.equal(input.device, "Controller");
   assert.match(input.controllerStatus, /Controller connected/);
@@ -169,4 +170,23 @@ test("atlas controls preserve quick taps and trigger once when held on keyboard 
   key("keydown", "KeyT");
   target.dispatchEvent(new Event("blur"));
   assert.equal(input.poll().atlas, false, "Blur clears a queued atlas request");
+});
+
+test('atlas information has its own keyboard/controller edge and cannot place a manual estimate',()=>{
+  const target=new EventTarget();
+  const pad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};
+  Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+  Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[pad]},configurable:true});
+  const input=new Input();
+  const key=(type:string,code:string)=>{const event=new Event(type);Object.defineProperty(event,'code',{value:code});target.dispatchEvent(event);};
+  key('keydown','KeyF');key('keyup','KeyF');
+  assert.equal(input.poll().information,true);assert.equal(input.poll().information,false);
+  pad.buttons[11].value=1;
+  const ask=input.poll();assert.equal(ask.information,true);assert.equal(ask.interact,false);
+  assert.equal(input.poll().information,false);
+  pad.buttons[11].value=0;input.poll();
+  pad.buttons[0].value=1;
+  const mark=input.poll();assert.equal(mark.interact,true);assert.equal(mark.information,false);
+  key('keydown','KeyF');target.dispatchEvent(new Event('blur'));
+  assert.equal(input.poll().information,false);
 });

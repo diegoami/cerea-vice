@@ -163,3 +163,36 @@ export function building(
     }
   }
 }
+
+const streetFaces = new Map<string, THREE.MeshBasicMaterial>();
+
+/** Small, arrow-free street identification plate, mounted on a façade or its own post. */
+export function streetNamePlate(
+  parent: THREE.Object3D,
+  plan: {name:string;position:{x:number;z:number};angle:number;width:number;height:number;mount:'wall'|'post'},
+) {
+  let face=streetFaces.get(plan.name);
+  if(!face) {
+    const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=192;
+    const ctx=canvas.getContext('2d')!;
+    ctx.fillStyle='#eeeadd';ctx.fillRect(0,0,1024,192);
+    ctx.strokeStyle='#344b56';ctx.lineWidth=10;ctx.strokeRect(10,10,1004,172);
+    ctx.fillStyle='#233e4a';ctx.font='bold 140px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(plan.name.toUpperCase(),512,101,956);
+    const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+    texture.magFilter=THREE.LinearFilter;texture.anisotropy=4;
+    face=new THREE.MeshBasicMaterial({map:texture});
+    streetFaces.set(plan.name,face);
+  }
+  const geometry=new THREE.PlaneGeometry(plan.width,plan.width*192/1024);
+  const group=new THREE.Group();group.name=`street-name:${plan.name}`;
+  for(const side of plan.mount==='post'?[0,1]:[0]){
+    const mesh=new THREE.Mesh(geometry,face);mesh.position.set(0,plan.height,side===0?.02:-.02);mesh.rotation.y=side*Math.PI;group.add(mesh);
+  }
+  if(plan.mount==='post'){
+    const poleHeight=plan.height-plan.width*192/1024/2;
+    box(group,0,poleHeight/2,0,.09,poleHeight,.09,0x68726d);
+  }
+  group.position.set(plan.position.x,0,plan.position.z);group.rotation.y=plan.angle;parent.add(group);
+  return group;
+}

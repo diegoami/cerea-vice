@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { junctionDirections } from "./directions";
-import { box, building, material, sign, signpost } from "./builders";
+import { planJunctionSigns } from "./signs";
+import { planStreetPlates } from "./streetPlates";
+import { box, building, material, sign, signpost, streetNamePlate } from "./builders";
 import {
-  nodes,
   roads,
   nodeById,
   roadRect,
@@ -230,22 +230,9 @@ export class HarborWorld {
     signpost(scene, -12, 29, ["OLD TOWN"], 0);
     signpost(scene, -12, 60, ["HARBOR WARD"], 0);
 
-    // Each approach has its own board, facing the incoming driver on the right verge.
-    for (const node of nodes) {
-      for (const road of roads.filter((r) => r.a === node.id || r.b === node.id)) {
-        const from = nodeById(road.a === node.id ? road.b : road.a);
-        const dx = Math.sign(node.x - from.x);
-        const dz = Math.sign(node.z - from.z);
-        signpost(
-          scene,
-          node.x - dx * 23 - dz * 10,
-          node.z - dz * 23 + dx * 10,
-          junctionDirections(node.id, from.id),
-          Math.atan2(-dx, -dz),
-          "#163b3d",
-          11,
-        );
-      }
+    for(const plate of planStreetPlates().plates)streetNamePlate(scene,plate);
+    for(const plan of planJunctionSigns().signs) {
+      signpost(scene,plan.position.x,plan.position.z,plan.rows,plan.angle,"#163b3d",plan.width,plan.height);
     }
 
     // Small deterministic scenery, outside the driving corridors.

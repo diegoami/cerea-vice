@@ -12,7 +12,7 @@ The Cerea Centro pilot uses a modern OpenStreetMap subset around Via Paride, Pia
 
 © OpenStreetMap contributors. The source extract and derived OpenStreetMap database content are provided under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/). See [OpenStreetMap copyright and attribution](https://www.openstreetmap.org/copyright). The game displays attribution in the driving view, briefing and atlas.
 
-Road shape points, shared junction IDs, street names and one-way tags are retained. The largest connected named-road component within the boundary is used. Boundary stubs are marked as leaving the playable area. No live map service is required by the game.
+Road shape points, shared junction IDs, street names, highway classes and one-way tags are retained. Highway classes distinguish major-road direction boards from normal street-name plates. The largest connected named-road component within the boundary is used. Boundary stubs are marked as leaving the playable area. No live map service is required by the game.
 
 Building outlines come from the source data; heights, materials and landmark silhouettes are simplified. Named school/library areas are associated with a building on their grounds. The complete road width, junction caps, sidewalks and stopping bays are subtracted from building footprints with a build-time polygon-clipping step. Ninety-seven footprints are trimmed and five have no usable remainder. Source IDs are recorded under `provenance.trimmedFootprints` and `provenance.omittedConflictingFootprints`. The derived polygons are shared by the scenery, collisions and atlas. This is a practical low-poly interpretation, not a measured building reconstruction.
 

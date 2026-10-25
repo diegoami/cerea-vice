@@ -39,7 +39,7 @@ for element in source['elements']:
         if tags.get('oneway')=='-1':aid,bid=bid,aid
         width=float(tags.get('width','8').split(';')[0]) if tags.get('width','8').replace('.','',1).isdigit() else 8
         width=max(6,min(10,width))
-        roads.append({'a':aid,'b':bid,'name':tags['name'],'width':width,'oneWay':tags.get('oneway') in ('yes','1','-1') or tags.get('junction')=='roundabout','bridge':tags.get('bridge')=='yes','osmId':element['id']})
+        roads.append({'a':aid,'b':bid,'name':tags['name'],'width':width,'roadClass':tags['highway'],'oneWay':tags.get('oneway') in ('yes','1','-1') or tags.get('junction')=='roundabout','bridge':tags.get('bridge')=='yes','osmId':element['id']})
 # Keep one coherent connected road network; discard severed pieces outside the selected boundary.
 adjacency={id:set() for id in nodes}
 for r in roads:adjacency[r['a']].add(r['b']);adjacency[r['b']].add(r['a'])

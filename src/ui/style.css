@@ -937,3 +937,20 @@ h1 em {
 .modal .district-switch button[aria-pressed="true"] { background:var(--accent);color:#17262c; }
 .atlas-attribution { font:9px/1.4 monospace; padding:4px 18px;color:#516254; }
 .map-credit { position:absolute;right:16px;bottom:5px;font:9px monospace;color:#c7cbb9;z-index:3;background:#17252cd9;padding:3px 6px; }
+/* Street plates use native-resolution rendering rather than nearest-neighbour upscaling. */
+#viewport { image-rendering: auto; }
+.atlas-information { border-bottom:1px solid #9d9f87;padding:10px 18px;background:#e5e3c8; }
+.atlas-information[hidden] { display:none; }
+.atlas-information strong { font:10px monospace;letter-spacing:1px;color:#365950; }
+.atlas-information p { font:13px/1.5 monospace;margin:5px 0 0; }
+.atlas-tools { flex-wrap:wrap; }
+.atlas-tools > span { min-width:180px;flex:1; }
+.atlas-information-sidebar { padding:0 0 12px;background:transparent; }
+.atlas-information-sidebar p { font-size:12px;line-height:1.6; }
+.atlas-introduction[hidden] { display:none; }
+@media(max-width:760px) {
+  .atlas-book.has-information .atlas-content { flex-direction:column; }
+  .atlas-book.has-information .atlas-sheet { min-height:200px; }
+  .atlas-book.has-information .atlas-margin { display:block;width:100%;padding:12px;border-left:0; }
+  .atlas-book.has-information .atlas-margin > :not(.atlas-information) { display:none; }
+}
