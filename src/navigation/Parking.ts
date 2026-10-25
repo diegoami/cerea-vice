@@ -1,4 +1,4 @@
-import { inRect, parkingZones, type Point } from "../world/district";
+import { district, inRect, parkingZones, type Point } from "../world/district";
 
 export class Parking {
   private stillTime = 0;
@@ -6,6 +6,7 @@ export class Parking {
   unsafeStops = 0;
   stopped = false;
   zone: string | undefined;
+  get legal() { return district.stoppingPolicy === "anywhere" || Boolean(this.zone); }
 
   reset() {
     this.stillTime = 0;
@@ -22,7 +23,7 @@ export class Parking {
     this.stopped = this.stillTime >= 0.45;
     if (Math.abs(speed) > 1) this.armed = true;
     if (this.stopped && this.armed) {
-      if (!this.zone) this.unsafeStops++;
+      if (!this.legal) this.unsafeStops++;
       this.armed = false;
     }
   }

@@ -249,11 +249,11 @@ export class Hud {
     this.stopState.textContent = parking.stopped
       ? parking.zone
         ? "P · LEGAL STOP"
-        : "STOPPED · UNSAFE"
+        : parking.legal ? "STOPPED · ALLOWED" : "STOPPED · UNSAFE"
       : car.speed === 0
         ? "SETTLING"
         : "ON THE MOVE";
-    this.stopState.classList.toggle("unsafe", parking.stopped && !parking.zone);
+    this.stopState.classList.toggle("unsafe", parking.stopped && !parking.legal);
     this.location.textContent = nearestRoad(car).edge.name;
     this.device.textContent =
       device === "Controller"
@@ -266,7 +266,7 @@ export class Hud {
       : "";
     this.wheel.style.transform = `rotate(${car.steering * 65}deg)`;
     this.prompt.innerHTML = parking.stopped
-      ? `<kbd>${device === "Controller" ? "A" : "F"}</kbd> Ask for directions &nbsp; <kbd>${device === "Controller" ? "Y" : "T"}</kbd> Atlas <span>· ${parking.zone ?? "unsafe stopping place"}</span>`
+      ? `<kbd>${device === "Controller" ? "A" : "F"}</kbd> Ask for directions &nbsp; <kbd>${device === "Controller" ? "Y" : "T"}</kbd> Atlas <span>· ${parking.zone ?? (parking.legal ? "stopping allowed" : "unsafe stopping place")}</span>`
       : "Stop fully for the atlas or directions";
   }
 }

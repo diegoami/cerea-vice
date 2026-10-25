@@ -126,7 +126,7 @@ export class Game {
         else if (
           this.mission.recordDirectionRequest(
             this.parking.stopped,
-            Boolean(this.parking.zone),
+            this.parking.legal,
           )
         ) {
           this.hud.setHint(directionHint(this.car, this.car.heading));

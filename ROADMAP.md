@@ -69,7 +69,7 @@ A stopped-only atlas is now implemented. Cerea Centro is now an initial modern-g
 
 ## Milestone 5 Build the real-place pilot
 
-**Status:** First playable pilot implemented: loadable JSON, angled roads, mapped building footprints, named civic landmarks, one-way directions, adaptive atlas and Municipio-to-library journey. Physical playtesting and tuning remain.
+**Status:** First playable pilot implemented, followed by smaller clearance-checked signs, complete named-junction coverage, trimmed road-edge building polygons, and unrestricted stopping for Cerea playtests: loadable JSON, angled roads, mapped building footprints, named civic landmarks, one-way directions, adaptive atlas and Municipio-to-library journey. Physical playtesting and tuning remain.
 
 **Deliverable:** the existing navigation loop running in one recognisable real district.
 

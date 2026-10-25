@@ -1,9 +1,9 @@
 export interface Point { x: number; z: number }
-export interface Rect extends Point { width: number; depth: number; points?: Point[] }
+export interface Rect extends Point { width: number; depth: number; points?: Point[]; holes?: Point[][] }
 export interface RoadNode extends Point { id: string; label: string }
 export interface Road { a: string; b: string; name: string; width?: number; oneWay?: boolean; bridge?: boolean; osmId?: number }
 export interface ParkingZone extends Rect { id: string; name: string }
-export interface Landmark extends Rect { id: string; name: string; road: string; kind?: string; height?: number }
+export interface Landmark extends Rect { id: string; name: string; road: string; kind?: string; height?: number; osmId?: number }
 export interface Bounds { minX: number; maxX: number; minZ: number; maxZ: number }
 export interface MapBuilding extends Rect { height: number; color: number; osmId?: number }
 export interface MapLine { name: string; kind: "water" | "rail"; width: number; points: Point[] }
@@ -14,6 +14,7 @@ export interface DistrictDefinition {
   description: string;
   attribution: string;
   sourceUrl: string;
+  stoppingPolicy?: "marked-bays" | "anywhere";
   bounds: Bounds;
   nodes: RoadNode[];
   roads: Road[];

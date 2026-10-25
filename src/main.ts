@@ -1,5 +1,6 @@
 import "./ui/style.css";
 import { district } from "./world/district";
+import { version } from "../package.json";
 import { Game } from "./game/Game";
 import { loadSelectedDistrict } from "./world/load";
 
@@ -8,7 +9,7 @@ async function start() {
   try {
     app.innerHTML='<div class="fatal"><h1>Opening the district…</h1></div>';
     await loadSelectedDistrict();
-    document.title = `Cerea Vice · ${district.name}`;
+    document.title = `Cerea Vice ${version} · ${district.name}`;
     app.replaceChildren();
     new Game(app);
   } catch (error) {

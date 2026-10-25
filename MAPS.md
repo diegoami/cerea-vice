@@ -4,9 +4,11 @@ Cerea Vice now loads a selected district from a bundled JSON file. Cerea Centro 
 
 ## Cerea Centro pilot
 
-The approximately 667 × 779 metre subset includes 29 named streets, Piazza Fratelli Sommariva's roundabout, Via Paride, Viale della Vittoria, Via Roma, Via Venticinque Aprile, the Menago and eastern railway lines. San Zeno in Santa Maria Assunta, Municipio di Cerea, Biblioteca di Cerea and Scuola Olga Visentini are named landmarks. There are 580 retained building footprints; seven conflicting masses are omitted to keep the mapped roads passable.
+The approximately 667 × 779 metre subset includes 29 named streets, Piazza Fratelli Sommariva's roundabout, Via Paride, Viale della Vittoria, Via Roma, Via Venticinque Aprile, the Menago and eastern railway lines. San Zeno in Santa Maria Assunta, Municipio di Cerea, Biblioteca di Cerea and Scuola Olga Visentini are named landmarks. There are 582 retained building masses. Ninety-seven source footprints are trimmed back from the full road/sidewalk envelope and five have no usable remainder. The same trimmed geometry is used for rendering, collisions and the atlas.
 
 Start at Sosta Municipio beside Via Venticinque Aprile. Find Biblioteca di Cerea on Viale della Vittoria and stop in Sosta Biblioteca within six minutes. Streets, one-way routing, atlas, manual position estimates and information-request marker updates work together. Stopping alone still does not move the marker.
+
+For this pilot, stopping and requesting information are allowed everywhere without unsafe-stop counts. Marked bays remain orientation cues and the mission arrival area. Stopping by itself still does not move the atlas marker.
 
 This uses modern geography with a retro visual presentation. The source outlines and topology are real; building heights, façade details, the church silhouette and stopping bays are simplified gameplay interpretations. Marked bays are not statements about real parking permissions. Traffic and detailed turn restrictions are outside this pilot.
 
@@ -20,6 +22,8 @@ The default mission is a first real-place playtest, not a final challenge balanc
 - `src/world/district.ts`: validation, active district state and shared spatial helpers.
 - `src/world/load.ts`: local selection and JSON loading.
 - `tools/import-cerea.py`: deterministic offline conversion of the checked-in source extract.
+- `tools/prepare-cerea.mjs`: build-time polygon clipping for road, sidewalk, junction and bay clearance.
+- `src/world/signs.ts`: compact, unobstructed sign placement and coverage.
 - `data/README.md`: source, projection, attribution and simplification notes.
 
 The running game loads only the local JSON files; it does not contact OpenStreetMap or require an internet connection. Editable JSON is district content, not executable code. The current UI selects bundled districts; there is no arbitrary file picker or map editor yet.
@@ -34,7 +38,7 @@ The running game loads only the local JSON files; it does not contact OpenStreet
 6. Put the file in `public/maps/` and register its ID and name in `availableDistricts` in `src/world/load.ts`.
 7. Check validation, connectivity, road/footprint clearance, legal stopping and arrival. Run unit and desktop tests, inspect both the atlas and driving view, then playtest the journey.
 
-Generic map rendering supports angled segments, shared junction caps, polygon building collisions, local landmark signs and source attribution. Static untextured meshes are batched to keep the denser district economical. The original Harbor scenery and its familiar navigation wording are retained in dedicated legacy builders, rather than requiring the new renderer to reproduce its handcrafted decorations.
+Generic map rendering supports angled segments, shared junction caps, polygon building collisions, local landmark signs and source attribution. Compact junction boards are placed by a clearance planner that follows short mapped approach segments and checks the complete board against buildings and roads. All 81 valid named-street approaches are covered, including the Borghetto turn into Viale della Vittoria. Its west end has an explicit one-way/no-entry warning. Parking and boundary signs use the same clearance checks. Static untextured meshes are batched to keep the denser district economical. The original Harbor scenery and its familiar navigation wording are retained in dedicated legacy builders, rather than requiring the new renderer to reproduce its handcrafted decorations.
 
 ## Rebuild
 

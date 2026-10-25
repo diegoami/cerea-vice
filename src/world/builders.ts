@@ -76,9 +76,9 @@ export function sign(
     ctx.fill();
     ctx.restore();
     ctx.textAlign = "left";
-    ctx.font = "bold 48px monospace";
+    ctx.font = "bold 52px Arial";
     ctx.fillText(line.text, 142, y - 18, 590);
-    ctx.font = "32px monospace";
+    ctx.font = "32px Arial";
     ctx.fillText(line.detail, 142, y + 30, 590);
     if (i > 0) {
       ctx.fillRect(24, i * 128, 720, 2);
@@ -116,11 +116,11 @@ export function signpost(
   angle = 0,
   color?: string,
   width = lines.length > 1 ? 11 : 8,
+  height = 4.2,
 ) {
-  const directional = lines.some((line) => typeof line !== "string");
-  const postHeight = directional ? 4.2 - (width * lines.length) / 12 : 4;
+  const postHeight = height - (width * lines.length) / 12;
   box(parent, x, postHeight / 2, z, 0.22, postHeight, 0.22, 0x43575a);
-  sign(parent, x, 4.2, z, lines, width, angle, color);
+  sign(parent, x, height, z, lines, width, angle, color);
 }
 
 export function building(

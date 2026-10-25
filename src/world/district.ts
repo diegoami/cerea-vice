@@ -19,6 +19,7 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   if (data.version !== 1 || !data.id || !data.name || !Array.isArray(data.nodes) || !Array.isArray(data.roads) || !Array.isArray(data.parkingZones) || !Array.isArray(data.landmarks) || !Array.isArray(data.buildings) || !Array.isArray(data.features) || !Array.isArray(data.areas)) throw new Error("Incomplete district file");
   const plainText = (value: unknown) => typeof value === "string" && value.length > 0 && value.length < 500 && !/[<>]/.test(value);
   if (!plainText(data.name) || !plainText(data.description) || !plainText(data.attribution) || data.nodes.some((node) => !plainText(node.label)) || data.roads.some((road) => !plainText(road.name))) throw new Error("District names must be plain text");
+  if (data.stoppingPolicy !== undefined && !["marked-bays","anywhere"].includes(data.stoppingPolicy)) throw new Error("Invalid stopping policy");
   const validPoint = (point: Point) => point && Number.isFinite(point.x) && Number.isFinite(point.z);
   const ids = new Set(data.nodes.map((node) => node.id));
   if (!ids.size || ids.size !== data.nodes.length || data.nodes.some((node) => !validPoint(node))) throw new Error("Invalid district nodes");
@@ -28,6 +29,7 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   for (const rect of [...data.parkingZones, ...data.landmarks, ...data.buildings, ...data.areas]) {
     if (!validPoint(rect) || !(rect.width > 0) || !(rect.depth > 0) || !Number.isFinite(rect.width) || !Number.isFinite(rect.depth) || (rect.points && (rect.points.length < 3 || rect.points.some((point) => !validPoint(point))))) throw new Error("Invalid district footprint");
   }
+  if ([...data.buildings,...data.landmarks].some(shape=>shape.holes?.some(hole=>hole.length<3||hole.some(point=>!validPoint(point))))) throw new Error("Invalid footprint holes");
   if (data.buildings.some((building)=>!Number.isFinite(building.height)||building.height<=0||!Number.isFinite(building.color))) throw new Error("Invalid building dimensions");
   if (data.id !== "harbor" && !ids.has(data.mission.nodeId)) throw new Error("Missing destination road node");
   if (!plainText(data.mission.name)||!plainText(data.mission.objective)||!plainText(data.mission.hint)||!plainText(data.spawn.name)) throw new Error("Invalid journey text");
@@ -65,11 +67,11 @@ export function pointInPolygon(point: Point, vertices: Point[]): boolean {
 }
 export function inRect(point: Point, rect: Rect, margin = 0): boolean {
   if (rect.points) {
-    if (pointInPolygon(point, rect.points)) return true;
-    return margin < 0 && rect.points.some((a,i) => {
-      const nearest = projectToSegment(point,a,rect.points![(i+1)%rect.points!.length]);
+    if (pointInPolygon(point, rect.points) && !(rect.holes??[]).some(hole=>pointInPolygon(point,hole))) return true;
+    return margin < 0 && [rect.points,...(rect.holes??[])].some(ring=>ring.some((a,i) => {
+      const nearest = projectToSegment(point,a,ring[(i+1)%ring.length]);
       return Math.hypot(point.x-nearest.x,point.z-nearest.z) <= -margin;
-    });
+    }));
   }
   return Math.abs(point.x-rect.x) <= rect.width/2-margin && Math.abs(point.z-rect.z) <= rect.depth/2-margin;
 }

@@ -2,7 +2,7 @@
 """Convert the checked-in OSM extract into the small, offline Cerea Centro district.
 No network is needed to rebuild. Coordinates preserve local metre scale and north.
 """
-import json, math
+import json, math, subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 source=json.loads((ROOT/'data/sources/cerea-osm.json').read_text())
@@ -74,7 +74,7 @@ for e in source['elements']:
     except ValueError:pass
     if e['id'] in landmark_specs:
         id,name,road,kind,h=landmark_specs[e['id']]
-        landmarks.append({'id':id,'name':name,'road':road,'kind':kind,'height':h,**footprint,'points':pts})
+        landmarks.append({'id':id,'name':name,'road':road,'kind':kind,'height':h,'osmId':e['id'],**footprint,'points':pts})
         height=h
     buildings.append({**footprint,'points':pts,'height':min(30,max(3,height)),'color':[0xb9a287,0xc7b08c,0xb8a58f,0xc2bda6,0xb79a83][e['id']%5],'osmId':e['id']})
 
@@ -88,23 +88,10 @@ for e in source['elements']:
     chosen=max(candidates,key=lambda b:b['width']*b['depth'])
     id,name,road,kind,height=landmark_specs[e['id']]
     chosen['height']=height
-    landmarks.append({'id':id,'name':name,'road':road,'kind':kind,'height':height,**{k:chosen[k] for k in ['x','z','width','depth','points']}})
+    landmarks.append({'id':id,'name':name,'road':road,'kind':kind,'height':height,'osmId':chosen['osmId'],**{k:chosen[k] for k in ['x','z','width','depth','points']}})
 
-# A small number of source footprints overlap road centre lines in this 2D
-# simplification. Omit these masses instead of blocking a mapped street with a wall.
-# The original extract is retained and the omission is recorded in provenance.
-road_samples=[]
-for road in roads:
-    a,b=nodes[road['a']],nodes[road['b']];steps=max(1,math.ceil(dist(a,b)/1.5))
-    road_samples.extend({'x':a['x']+(b['x']-a['x'])*i/steps,'z':a['z']+(b['z']-a['z'])*i/steps} for i in range(steps+1))
+# Building/road clearance is applied by the polygon preparation step after export.
 omitted=[]
-for building in buildings:
-    for p in road_samples:
-        if abs(p['x']-building['x'])>building['width']/2+1.5 or abs(p['z']-building['z'])>building['depth']/2+1.5:continue
-        edges=zip(building['points'],building['points'][1:]+building['points'][:1])
-        if inside(p,building['points']) or any(dist(p,project(p,a,b))<1.3 for a,b in edges if dist(a,b)>0):
-            omitted.append(building['osmId']);break
-buildings=[b for b in buildings if b['osmId'] not in omitted]
 
 def bay_for(landmark_id,name):
     place=next(p for p in landmarks if p['id']==landmark_id)
@@ -151,7 +138,8 @@ for e in source['elements']:
     for run in runs:
         if len(run)>1:features.append({'name':t.get('name','Ferrovia' if t.get('railway') else 'Canale'),'kind':'rail' if t.get('railway') else 'water','width':3 if t.get('railway') else 7 if t.get('name')=='Menago' else 3,'points':run})
 
-district={'version':1,'id':'cerea','name':'Cerea Centro','description':'Modern Cerea: Via Paride, Piazza Fratelli Sommariva, San Zeno and Viale della Vittoria. Real street connections and building footprints; simplified scenery and game stopping bays.','attribution':'© OpenStreetMap contributors · ODbL 1.0','sourceUrl':'https://www.openstreetmap.org/copyright','bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':[spawn_bay,library_bay,church_bay,school_bay],'landmarks':landmarks,'buildings':buildings,'features':features,'areas':[{'name':'Centro di Cerea','x':(bounds['minX']+bounds['maxX'])/2,'z':0,'width':bounds['maxX']-bounds['minX'],'depth':bounds['maxZ']-bounds['minZ']}],'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':'Biblioteca di Cerea','objective':'Reach Biblioteca di Cerea on Viale della Vittoria and stop in Sosta Biblioteca.','hint':'Start beside the Municipio on Via Venticinque Aprile. Find the Biblioteca on Viale della Vittoria, north of here. Use the street signs and the atlas; stop anywhere to ask for information.','duration':360,'bayId':'library','nodeId':target_node},'provenance':{'source':'OpenStreetMap / Overpass API','osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':['Modern road geometry at local metre scale; no claim of historical reconstruction.','Designated stopping bays are gameplay placements, not verified real parking permissions.','Building footprints are sourced; heights, materials and landmark silhouettes are simplified.','One-way tags are used for directions; road-rule enforcement and traffic are not simulated.']}}
+district={'version':1,'id':'cerea','stoppingPolicy':'anywhere','name':'Cerea Centro','description':'Modern Cerea: Via Paride, Piazza Fratelli Sommariva, San Zeno and Viale della Vittoria. Real street connections and building footprints; simplified scenery and game stopping bays.','attribution':'© OpenStreetMap contributors · ODbL 1.0','sourceUrl':'https://www.openstreetmap.org/copyright','bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':[spawn_bay,library_bay,church_bay,school_bay],'landmarks':landmarks,'buildings':buildings,'features':features,'areas':[{'name':'Centro di Cerea','x':(bounds['minX']+bounds['maxX'])/2,'z':0,'width':bounds['maxX']-bounds['minX'],'depth':bounds['maxZ']-bounds['minZ']}],'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':'Biblioteca di Cerea','objective':'Reach Biblioteca di Cerea on Viale della Vittoria and stop in Sosta Biblioteca.','hint':'Start beside the Municipio on Via Venticinque Aprile. Find the Biblioteca on Viale della Vittoria, north of here. Use the street signs and the atlas; stop anywhere to ask for information.','duration':360,'bayId':'library','nodeId':target_node},'provenance':{'source':'OpenStreetMap / Overpass API','osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':['Modern road geometry at local metre scale; no claim of historical reconstruction.','Designated stopping bays are gameplay placements, not verified real parking permissions.','Building footprints are sourced; heights, materials and landmark silhouettes are simplified.','One-way tags are used for directions; road-rule enforcement and traffic are not simulated.']}}
 (ROOT/'public/maps/cerea.json').write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')
-print('Cerea:',len(nodes),'road shape/junction nodes,',len(roads),'segments,',len({r['name'] for r in roads}),'streets,',len(buildings),'buildings')
-print('Landmarks:',[(p['name'],p['x'],p['z']) for p in landmarks]);print('Bays:',district['parkingZones']);print('Bounds:',bounds);print('Omitted road-overlap footprints:',omitted)
+subprocess.run(['node', str(ROOT/'tools/prepare-cerea.mjs')], check=True)
+prepared=json.loads((ROOT/'public/maps/cerea.json').read_text())
+print('Cerea:',len(nodes),'road shape/junction nodes,',len(roads),'segments,',len({r['name'] for r in roads}),'streets,',len(prepared['buildings']),'prepared building masses')

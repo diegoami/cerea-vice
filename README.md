@@ -2,7 +2,7 @@
 
 [Game vision](VISION.md) defines the direction and scope. [Loadable districts](MAPS.md) describes the map format, sources and the new real-place pilot.
 
-**Cerea Centro** is the default: a small modern neighbourhood in Cerea, Italy, with actual street connections and building footprints. Start beside the Municipio on Via Venticinque Aprile and find Biblioteca di Cerea on Viale della Vittoria within six minutes. The visual style remains retro; historical reconstruction is not required.
+**Cerea Centro** is the default: a small modern neighbourhood in Cerea, Italy, with actual street connections and building footprints. Start beside the Municipio on Via Venticinque Aprile and find Biblioteca di Cerea on Viale della Vittoria within six minutes. The visual style remains retro; historical reconstruction is not required. For this pilot, stopping anywhere is allowed without unsafe-stop counts; marked bays remain landmarks and the arrival area.
 
 **Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline.
 
@@ -100,7 +100,7 @@ Connect a controller and press a button so the browser exposes it. The game sele
 
 Stop fully for 0.45 seconds, then press **T** or **Y / Triangle** to open the atlas anywhere, including outside a marked parking bay. Requests while moving explain how to stop first. The car and mission timer freeze while reading; closing the atlas resumes the drive.
 
-The first page is a north-up street map with district names, landmarks, the canal bridge, rail spur, harbor and four legal stopping bays. The second page is an alphabetical place index with street/area descriptions and grid references. Roads, main landmark footprints, water and parking bays use the same district data as the world. The atlas contains no live car marker, route line or destination arrow.
+The first page is a north-up street map with district names, landmarks, the canal bridge, rail spur, harbor and four legal stopping bays. The second page is an alphabetical place index with street/area descriptions and grid references. Roads, main landmark footprints, water and parking bays use the same district data as the world. The atlas contains no live car marker, route line or destination arrow. Cerea currently allows stopping anywhere; Harbor retains its marked-bay legal/unsafe distinction.
 
 Use **LB / RB** or **Q / E** to change pages. The page tabs also work with the mouse. Close with **B / Circle**, **T**, **Y / Triangle**, **Escape**, or the close button; **Start** also returns to the road. Driving inputs are ignored while reading. Switching away from the window or disconnecting the controller closes the atlas into the pause screen, requiring an explicit resume.
 
