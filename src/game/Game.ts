@@ -77,6 +77,7 @@ export class Game {
       this.car.reset();
       this.parking.reset();
       this.mission.reset();
+      this.hud.resetAtlasNotes();
       this.hud.setHint(
         "Blue Hotel is on East Quay, northeast of here. Follow the street signs. Stop anywhere to ask for more.",
       );
@@ -98,8 +99,13 @@ export class Game {
       this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
     }
     if (this.screen === "atlas") {
-      if (actions.atlas || actions.back || actions.pause || actions.interact) this.activate();
-      else if (actions.atlasPage) this.hud.turnAtlasPage(actions.atlasPage);
+      if (actions.atlas || actions.back || actions.pause) this.activate();
+      else {
+        if (actions.atlasPage) this.hud.turnAtlasPage(actions.atlasPage);
+        this.hud.moveAtlasCursor(dt, actions.atlasMoveX, actions.atlasMoveY);
+        if (actions.interact) this.hud.placeAtlasMarker();
+        if (actions.clearMarker) this.hud.removeAtlasMarker();
+      }
     } else if (!this.input.controllerDisconnected) {
       if (actions.pause) {
         if (this.screen !== "running") this.activate();
@@ -112,9 +118,10 @@ export class Game {
             this.parking.stopped,
             Boolean(this.parking.zone),
           )
-        )
+        ) {
           this.hud.setHint(directionHint(this.car, this.car.heading));
-        else
+          this.hud.confirmAtlasPosition(this.car, this.parking.zone);
+        } else
           this.hud.setHint(
             "Come to a complete stop first. Hold the handbrake, then ask again.",
           );

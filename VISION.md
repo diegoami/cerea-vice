@@ -31,6 +31,7 @@ The main progression is personal familiarity: a district that initially feels co
 - No GPS, minimap, floating destination marker or route line.
 - A visible compass shows the car’s heading—not the direction of the objective.
 - The atlas is available only while stopped.
+- Its position marker updates only after a successful information request or when the player manually marks where they think they are. Driving and parking alone do not update it; manual estimates may be wrong.
 - Asking for your location or directions is possible anywhere, provided the car is stopped. It is not restricted to designated buildings or special interaction points.
 - There are a few clearly identifiable places where stopping and parking are allowed.
 - Directions use street names, compass directions, junctions and landmarks rather than exact coordinates or automatic navigation.

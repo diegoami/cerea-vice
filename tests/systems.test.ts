@@ -19,6 +19,9 @@ const idle: Actions = {
   atlas: false,
   back: false,
   atlasPage: 0,
+  atlasMoveX: 0,
+  atlasMoveY: 0,
+  clearMarker: false,
 };
 
 test("district contains a connected loop, T-junctions and crossroads", () => {
