@@ -43,6 +43,8 @@ A stopped-only atlas is now implemented. Cerea Centro is now an initial modern-g
 
 ## Milestone 3 Make journeys reusable and test learning
 
+**Status:** Implemented as an initial Cerea taxi shift with nine destinations, continuing pickup/dropoff jobs, a 07:00–17:00 clock, earnings and speed bonuses. Playtesting and balance remain. See [TAXI.md](TAXI.md).
+
 **Deliverable:** several short journeys across the same fictional district.
 
 - Replace hotel-specific assumptions in missions and directions with data for named destinations, arrival areas, starting positions and optional deadlines.
@@ -69,7 +71,7 @@ A stopped-only atlas is now implemented. Cerea Centro is now an initial modern-g
 
 ## Milestone 5 Build the real-place pilot
 
-**Status:** First playable pilot implemented, followed by a major-road/street-name signage hierarchy, street-facing plates that name their own frontage, repeated street identification, full-circle right-stick/mouse looking, higher-resolution rendering, trimmed road-edge building polygons, and unrestricted stopping for Cerea playtests: loadable JSON, angled roads, mapped building footprints, named civic landmarks, one-way directions, adaptive atlas and Municipio-to-library journey. Physical playtesting and tuning remain.
+**Status:** First playable pilot implemented, followed by a major-road/street-name signage hierarchy, street-facing plates that name their own frontage, repeated street identification, full-circle right-stick/mouse looking, higher-resolution rendering, trimmed road-edge building polygons, and unrestricted stopping for Cerea playtests: loadable JSON, angled roads, mapped building footprints, named civic landmarks, one-way directions, adaptive atlas and an expanded taxi district with changing destinations and shift scoring. Physical playtesting and tuning remain.
 
 **Deliverable:** the existing navigation loop running in one recognisable real district.
 
@@ -102,8 +104,8 @@ Fleet management, company finances, production chains, vehicle collections, comb
 
 ## Immediate next work
 
-1. Playtest the Cerea Centro journey in the Windows build.
-2. Tune sign placement, narrow turns, atlas readability and the arrival bay.
-3. Add further journeys in Cerea and a distinct stopped-only location request.
+1. Playtest the taxi shift, including route variety, the 20-minute day and speed bonuses.
+2. Tune signs, narrow turns, atlas readability and pickup/dropoff areas in the expanded district.
+3. Refine customer variety and navigation help from that feedback.
 
 Keep the Cerea subset bounded while evaluating navigation and familiarity. Expand only after the first journeys are comfortable and geographically recognisable.

@@ -65,7 +65,7 @@ The driving and navigation foundation should support different themes without be
 | Courier work | Carry an item between specified locations |
 | Detective work | Reach a witness, suspect or scheduled meeting |
 
-Detective work is one possible application—not the defining identity of the engine. Initially, one generic timed journey is enough.
+Detective work is one possible application—not the defining identity of the engine. The initial generic journey now also supports a taxi game: a 07:00–17:00 shift, passengers giving new destinations, and completed rides paying a base fare plus a bonus for faster delivery. The shift ends with an earnings score; pausing or using the atlas stops the clock.
 
 ## Driving experience
 

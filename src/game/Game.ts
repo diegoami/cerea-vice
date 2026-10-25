@@ -27,6 +27,7 @@ export class Game {
   private accumulator = 0;
   private districtSwitchReady = false;
   private ignorePauseUntil = 0;
+  private missionRevision = -1;
 
   constructor(root: HTMLElement) {
     this.renderer.setPixelRatio(1);
@@ -113,7 +114,7 @@ export class Game {
   private requestInformation() {
     if (this.screen !== "running" && this.screen !== "atlas") return;
     if (this.mission.recordDirectionRequest(this.parking.stopped, this.parking.legal)) {
-      const message = directionHint(this.car, this.car.heading);
+      const message = directionHint(this.car, this.car.heading, this.mission.target);
       this.hud.setHint(message);
       this.hud.confirmAtlasPosition(this.car, this.parking.zone);
       this.hud.setAtlasInformation(message);
@@ -156,8 +157,13 @@ export class Game {
         if (this.screen !== "running") this.activate();
         else this.pause();
       }
-      if (actions.interact && this.screen !== "running") this.activate();
-      else if (actions.information) this.requestInformation();
+      if (actions.interact) {
+        if(this.screen !== "running")this.activate();
+        else if(this.mission.taxiMode) {
+          if(!this.mission.serveAtStop(this.car,this.parking.stopped))this.hud.setHint(`Stop in ${this.mission.target.bay.name} at ${this.mission.target.name}, then press A / Enter to ${this.mission.taxiStage === "pickup" ? "collect" : "drop off"} ${this.mission.passenger}.`);
+        }
+      }
+      if (actions.information) this.requestInformation();
       if (actions.reminder && this.screen === "running") {
         this.hud.remindMission(this.mission);
       }
@@ -188,6 +194,12 @@ export class Game {
       }
       this.cockpit.update(dt, this.car, actions.glance, actions);
     }
+    if(this.mission.revision!==this.missionRevision) {
+      this.missionRevision=this.mission.revision;
+      if(this.mission.taxiMode)this.hud.setTaxiMessage(this.mission.notice);
+      this.world.setTaxiPassenger(this.mission.taxiMode&&!this.mission.finished&&this.mission.taxiStage==='pickup'?this.mission.target.bay:undefined);
+    }
+    if(this.mission.taxiMode)this.world.updateDaylight(this.mission.clockHours);
     this.hud.show(this.screen, this.mission, this.car, this.parking);
     this.hud.update(
       this.car,

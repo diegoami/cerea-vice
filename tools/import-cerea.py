@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 source=json.loads((ROOT/'data/sources/cerea-osm.json').read_text())
 lat0,lon0=45.1943,11.2112
-west,south,east,north=11.207,45.1908,11.2155,45.1978
+west,south,east,north=11.2055,45.1888,11.2185,45.1985
 
 def point(geo):
     return {'x':round((geo['lon']-lon0)*111320*math.cos(math.radians(lat0)),2),'z':round(-(geo['lat']-lat0)*111320,2)}
@@ -61,7 +61,7 @@ def project(p,a,b):
 def dist(a,b):return math.hypot(a['x']-b['x'],a['z']-b['z'])
 
 buildings=[];landmarks=[]
-landmark_specs={125815115:('library','Biblioteca di Cerea','Viale della Vittoria','library',9),208200123:('church','San Zeno in Santa Maria Assunta','Via Cordioli','church',22),208200127:('municipio','Municipio di Cerea','Via Venticinque Aprile','civic',13),327164664:('school','Scuola Olga Visentini','Via Canonica','school',9)}
+landmark_specs={125815115:('library','Biblioteca di Cerea','Viale della Vittoria','library',9),208200123:('church','San Zeno in Santa Maria Assunta','Via Cordioli','church',22),208200127:('municipio','Municipio di Cerea','Via Venticinque Aprile','civic',13),327164664:('school','Scuola Olga Visentini','Via Canonica','school',9),208200136:('post','Ufficio Postale di Cerea','Via Dante','post',8),208200130:('oratory','Oratorio dello Spasimo','Via Cesare Battisti','oratory',12),194101723:('teatro','Teatro del Gusto','Via Quattro Novembre','restaurant',9)}
 for e in source['elements']:
     tags=e.get('tags',{});geo=e.get('geometry',[])
     if not tags.get('building') or len(geo)<4:continue
@@ -90,6 +90,22 @@ for e in source['elements']:
     chosen['height']=height
     landmarks.append({'id':id,'name':name,'road':road,'kind':kind,'height':height,'osmId':chosen['osmId'],**{k:chosen[k] for k in ['x','z','width','depth','points']}})
 
+# Cinema POIs have a precise mapped point rather than their own named footprint.
+# Associate each with the containing/nearest building, retaining the POI position.
+for osm_id,id,road in [(3214419210,'principe','Via Roma'),(1402598138,'mignon','Via Cordioli')]:
+    element=next(e for e in source['elements'] if e['id']==osm_id)
+    location=point(element)
+    candidates=[building for building in buildings if inside(location,building['points'])]
+    chosen=min(candidates or buildings,key=lambda building:dist(building,location))
+    if dist(chosen,location)>45:raise RuntimeError('No close building for cinema '+id)
+    landmarks.append({'id':id,'name':element['tags']['name'],'road':road,'kind':'cinema','height':chosen['height'],'osmId':chosen['osmId'],**{key:chosen[key] for key in ['x','z','width','depth','points']}})
+
+# Newly introduced POIs use their nearest mapped street as the game stopping
+# frontage. This is a practical pickup location, not a claim about a postal address.
+for place in landmarks:
+    if place['id'] in ['post','oratory','teatro']:
+        place['road']=min(roads,key=lambda road:dist(place,project(place,nodes[road['a']],nodes[road['b']])) )['name']
+
 # Building/road clearance is applied by the polygon preparation step after export.
 omitted=[]
 
@@ -109,10 +125,17 @@ def bay_for(landmark_id,name):
     if not candidates:raise RuntimeError('No accessible stopping bay for '+landmark_id)
     _,p,r,size=min(candidates,key=lambda item:item[0]);node=min((r['a'],r['b']),key=lambda id:dist(nodes[id],p))
     return {'id':landmark_id,'name':name,**p,'width':size,'depth':size},r,node
-spawn_bay,spawn_road,_=bay_for('municipio','Sosta Municipio')
-library_bay,_,target_node=bay_for('library','Sosta Biblioteca')
-church_bay,_,_=bay_for('church','Sosta San Zeno')
-school_bay,_,_=bay_for('school','Sosta Olga Visentini')
+bay_names={'municipio':'Sosta Municipio','library':'Sosta Biblioteca','church':'Sosta San Zeno','school':'Sosta Olga Visentini','post':'Sosta Poste','oratory':'Sosta Spasimo','teatro':'Sosta Teatro del Gusto','principe':'Sosta Cinema Principe','mignon':'Sosta Cinema Mignon'}
+bays=[];stop_data=[]
+for place in landmarks:
+    zone,road,node=bay_for(place['id'],bay_names[place['id']]);bays.append(zone)
+    stop_data.append({'id':place['id'],'name':place['name'],'road':road['name'],'bayId':zone['id'],'nodeId':node,'description':'Stop in '+zone['name']+'.'})
+    if place['id']=='municipio':spawn_bay,spawn_road=zone,road
+    if place['id']=='library':library_bay,target_node=zone,node
+# Keep the starting bay first for legacy district tools.
+bays.sort(key=lambda zone:(zone['id']!='municipio',zone['id']))
+fare_pairs=[('Elena','municipio','post'),('Marco','principe','church'),('Giulia','school','teatro'),('Paolo','oratory','municipio'),('Sara','teatro','principe'),('Luca','post','school'),('Anna','church','oratory'),('Davide','library','mignon'),('Chiara','municipio','teatro'),('Carlo','mignon','post')]
+taxi={'startHour':7,'endHour':17,'clockRate':30,'baseCents':400,'perKmCents':120,'maxBonusCents':600,'stops':stop_data,'fares':[{'passenger':name,'pickupId':pickup,'destinationId':dropoff} for name,pickup,dropoff in fare_pairs]}
 a,b=nodes[spawn_road['a']],nodes[spawn_road['b']]
 if not spawn_road['oneWay'] and b['z']>a['z']:a,b=b,a
 features=[]
@@ -138,7 +161,7 @@ for e in source['elements']:
     for run in runs:
         if len(run)>1:features.append({'name':t.get('name','Ferrovia' if t.get('railway') else 'Canale'),'kind':'rail' if t.get('railway') else 'water','width':3 if t.get('railway') else 7 if t.get('name')=='Menago' else 3,'points':run})
 
-district={'version':1,'id':'cerea','stoppingPolicy':'anywhere','name':'Cerea Centro','description':'Modern Cerea: Via Paride, Piazza Fratelli Sommariva, San Zeno and Viale della Vittoria. Real street connections and building footprints; simplified scenery and game stopping bays.','attribution':'© OpenStreetMap contributors · ODbL 1.0','sourceUrl':'https://www.openstreetmap.org/copyright','bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':[spawn_bay,library_bay,church_bay,school_bay],'landmarks':landmarks,'buildings':buildings,'features':features,'areas':[{'name':'Centro di Cerea','x':(bounds['minX']+bounds['maxX'])/2,'z':0,'width':bounds['maxX']-bounds['minX'],'depth':bounds['maxZ']-bounds['minZ']}],'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':'Biblioteca di Cerea','objective':'Reach Biblioteca di Cerea on Viale della Vittoria and stop in Sosta Biblioteca.','hint':'Start beside the Municipio on Via Venticinque Aprile. Find the Biblioteca on Viale della Vittoria, north of here. Use the street signs and the atlas; stop anywhere to ask for information.','duration':360,'bayId':'library','nodeId':target_node},'provenance':{'source':'OpenStreetMap / Overpass API','osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':['Modern road geometry at local metre scale; no claim of historical reconstruction.','Designated stopping bays are gameplay placements, not verified real parking permissions.','Building footprints are sourced; heights, materials and landmark silhouettes are simplified.','One-way tags are used for directions; road-rule enforcement and traffic are not simulated.']}}
+district={'version':1,'id':'cerea','stoppingPolicy':'anywhere','name':'Cerea Centro','description':'Modern Cerea taxi district, from Sommariva and Via Paride to the post office and Oratorio dello Spasimo. Real street connections, named destinations and simplified scenery.','attribution':'© OpenStreetMap contributors · ODbL 1.0','sourceUrl':'https://www.openstreetmap.org/copyright','bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,'areas':[{'name':'Centro di Cerea','x':(bounds['minX']+bounds['maxX'])/2,'z':0,'width':bounds['maxX']-bounds['minX'],'depth':bounds['maxZ']-bounds['minZ']}],'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':'Cerea Taxi Shift','objective':'Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.','hint':'Your first passenger is Elena at Sosta Municipio. Stop and press A / Enter to pick her up, then follow her destination request. Faster completed rides earn a larger bonus.','duration':360,'bayId':'library','nodeId':target_node},'provenance':{'source':'OpenStreetMap / Overpass API','osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':['Modern road geometry at local metre scale; no claim of historical reconstruction.','Designated stopping bays are gameplay placements, not verified real parking permissions.','Building footprints are sourced; heights, materials and landmark silhouettes are simplified.','One-way tags are used for directions; road-rule enforcement and traffic are not simulated.']}}
 (ROOT/'public/maps/cerea.json').write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')
 subprocess.run(['node', str(ROOT/'tools/prepare-cerea.mjs')], check=True)
 prepared=json.loads((ROOT/'public/maps/cerea.json').read_text())

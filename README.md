@@ -2,7 +2,7 @@
 
 [Game vision](VISION.md) defines the direction and scope. [Loadable districts](MAPS.md) describes the map format, sources and the new real-place pilot.
 
-**Cerea Centro** is the default: a small modern neighbourhood in Cerea, Italy, with actual street connections and building footprints. Start beside the Municipio on Via Venticinque Aprile and find Biblioteca di Cerea on Viale della Vittoria within six minutes. The visual style remains retro; historical reconstruction is not required. For this pilot, stopping anywhere is allowed without unsafe-stop counts; marked bays remain landmarks and the arrival area.
+**Cerea Centro** now offers a [taxi shift](TAXI.md): work from 07:00 to 17:00, collect passengers and follow their requests to nine real places across an expanded neighbourhood with 51 named streets. Completed rides pay a base fare plus a speed bonus. The accelerated day takes about 20 active minutes; the atlas and pause screens stop the clock. Start at the Municipio, where Elena wants a ride to the post office. The library is now just one of several places to learn.
 
 **Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline. Small street-name plates identify lateral streets at crossings and repeat along longer stretches; larger arrow boards are reserved for major thoroughfares.
 
@@ -77,7 +77,7 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 | Look around                        | Right stick           | Click windshield, move mouse |
 | Look forward                       | Right stick press (R3) | C                            |
 | Glance left / right                | LB / RB               | Q / E                        |
-| Confirm / start / retry            | A / Cross (south face button) | Enter                   |
+| Confirm / passenger pickup / dropoff / retry            | A / Cross (south face button) | Enter                   |
 | Open / close atlas (while stopped) | Y / Triangle          | T                            |
 | Turn atlas page                    | LB / RB               | Q / E                        |
 | Move atlas crosshair               | Left stick / D-pad    | WASD / arrow keys            |
@@ -95,6 +95,10 @@ Connect a controller and press a button so the browser exposes it. The game sele
 Move the **right stick** to look around independently of steering, including a full 360-degree turn. Press **R3** or **C** to look forward again. Keyboard and mouse players click the windshield to capture the mouse, then move it freely; the pointer is not limited by screen edges. **Escape** releases the mouse and pauses. Opening the atlas also releases the mouse, so its map and buttons remain usable. Mouse capture is never required for controller looking.
 
 The compass continues to show the car’s heading while you look around. LB / RB or Q / E still provide quick held glances. Information uses **View / Select (PS Share)** or **F** both on the road and in the atlas; R3 is reserved for recentering the view.
+
+## Taxi mode
+
+Stop in the current pickup or dropoff area and press **A / Cross / Enter**. Dispatch continues with new customers after every paid ride. The HUD shows passenger, destination, street, shift clock, earnings and the active speed bonus. See [TAXI.md](TAXI.md) for the scoring rules and destination list.
 
 ## How to play Harbor District
 
@@ -169,14 +173,14 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 - A vehicle's centre must be at least 1.1 metres inside a marked bay to count as legally parked or arrived. Direction requests need exact zero speed, followed by the brief settling interval. Coasting eventually settles; the handbrake is faster.
 - Unsafe stops count once per stopped episode after the car has moved above 1 m/s. Impact counting has a cooldown so one contact does not inflate the count every frame. These are feedback metrics, with no extra penalties.
 - The deadline measures active simulation time. Hidden windows pause, and a frame delay contributes at most 0.1 seconds to avoid unstable catch-up after a stalled browser.
-- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The steering wheel is a lightweight HUD element, with no full interior, sound, suspension, traffic, NPCs, or dialogue.
-- All state lives in memory. Reloading resets the drive. No storage API, save system, backend, paid service, or multiplayer is present.
+- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The steering wheel is HUD-based. Taxi mode adds a simple waiting passenger and short text requests.
+- Drive and taxi-shift progress, markers and earnings live in memory; reloading starts a fresh drive or shift. District selection is stored locally within the current profile. There is no backend or save-game system.
 - Automated controller checks use simulated standard gamepad input. Browser and operating-system mappings still warrant testing on a physical controller before a public playtest.
 
 ## Next steps
 
 See the [tentative development roadmap](ROADMAP.md) for milestones and playable checkpoints leading to the [game vision](VISION.md).
 
-1. Playtest Cerea Centro on Windows: navigation, narrow streets, signs, atlas and arrival.
-2. Tune the first real-place journey from that feedback.
-3. Add more destinations and a distinct “Where am I?” request.
+1. Playtest the taxi shift: pickup/dropoff clarity, route variety, shift pace and bonuses.
+2. Tune the expanded district from driving and sign feedback.
+3. Add a distinct “Where am I?” request if it improves navigation help.

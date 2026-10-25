@@ -218,12 +218,19 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     page.on('pageerror',error=>errors.push(error.message));
     page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
     await page.getByRole('button',{name:'Cerea Centro',exact:true,pressed:true}).waitFor();
-    await page.getByRole('heading',{name:'Find Biblioteca di Cerea.'}).waitFor();
+    await page.getByRole('heading',{name:'Drive a taxi in Cerea.'}).waitFor();
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
     await page.getByRole('button',{name:'Start the engine'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.match(await page.locator('#location').innerText(),/Via Venticinque Aprile/);
+    assert.match(await page.locator('#objective-title').innerText(),/Collect Elena/);
+    assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
+    assert.match(await page.locator('#timer').innerText(),/^07:/);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
+    assert.match(await page.locator('#hint').innerText(),/Elena boarded/);
+    assert.match(await page.locator('#taxi-status').innerText(),/speed bonus/);
     const beforeLook=await page.locator('#viewport').screenshot({style:'#hud { visibility:hidden !important; }'});
     const carHeading=await page.locator('#heading').innerText();
     await page.evaluate(()=>{
@@ -262,7 +269,10 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await page.mouse.click(manualPoint.x,manualPoint.y);
     await page.waitForFunction(()=>document.querySelector('#atlas-marker-status').textContent.includes('Your estimated position'));
     await page.keyboard.press('e');
-    await page.getByRole('row',{name:/Biblioteca di Cerea Viale della Vittoria/}).waitFor();
+    await page.getByRole('row',{name:/Biblioteca di Cerea Viale della Vittoria/}).waitFor({state:'attached'});
+    await page.keyboard.down('ArrowDown');
+    await page.waitForFunction(()=>document.querySelector('.atlas-index').scrollTop>0);
+    await page.keyboard.up('ArrowDown');
     await page.getByRole('button',{name:/Ask for information/}).click();
     await page.waitForFunction(()=>document.querySelector('#atlas-marker-status').textContent.includes('Last information received'));
     assert.equal(await page.getByRole('heading',{name:'Places and parking'}).isVisible(),true);
@@ -287,4 +297,25 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await page.screenshot({path:'test-results/cerea-driving.png'});
     assert.deepEqual(errors,[]);
   } finally {await electronApp.close();await rm(profile,{recursive:true,force:true});}
+});
+
+test('taxi shift ends at 17:00 with an earnings summary and can restart', {timeout:90000}, async()=>{
+  const profile=await mkdtemp(path.join(tmpdir(),'cerea-shift-test-'));
+  const electronApp=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+  try{
+    const page=await electronApp.firstWindow();
+    // Start the test fixture just before 17:00; production still starts at 07:00.
+    await page.route('**/maps/cerea.json',async route=>{
+      const fs=await import('node:fs/promises');const data=JSON.parse(await fs.readFile('public/maps/cerea.json','utf8'));
+      data.taxi.startHour=16.99;
+      await route.fulfill({json:data});
+    });
+    await page.reload();
+    await page.getByRole('button',{name:'Start the engine'}).click();
+    await page.getByRole('heading',{name:'You earned €0.00.'}).waitFor();
+    assert.equal(await page.locator('#timer').innerText(),'17:00');
+    await page.screenshot({path:'test-results/taxi-shift-results.png'});
+    await page.getByRole('button',{name:'Start another shift'}).click();
+    await page.waitForFunction(()=>document.querySelector('#overlay').hidden);
+  }finally{await electronApp.close();await rm(profile,{recursive:true,force:true});}
 });

@@ -33,7 +33,7 @@ test("Cerea loads real street geometry, connected routes, named landmarks and ac
     }
   }
   assert.match(directionHint(spawn,spawn.heading),/Via Venticinque Aprile/);
-  const mission=new Mission();mission.update(1,hotelBay,true);assert.equal(mission.state,"success");
+  const mission=new Mission();mission.update(1,spawn,true);assert.equal(mission.taxiMode,true);assert.equal(mission.state,"active");assert.equal(mission.serveAtStop(spawn,true),true);assert.equal(mission.target.name,"Ufficio Postale di Cerea");
   const parking=new Parking();parking.update(1,spawn,0);assert.equal(parking.zone,"Sosta Municipio");
   const notes=new AtlasNotes();assert.equal(notes.label,"Sosta Municipio");
   assert.equal(nodes.length,new Set(nodes.map((node)=>node.id)).size);
@@ -42,6 +42,7 @@ test("Cerea loads real street geometry, connected routes, named landmarks and ac
 test("angled road paving uses distance to the road rather than filling its bounding rectangle",()=>{
   const data=structuredClone(cerea);
   data.nodes=[{id:"a",x:0,z:0,label:"A"},{id:"b",x:100,z:100,label:"B"}];
+  delete (data as {taxi?:unknown}).taxi;
   data.mission.nodeId="b";
   data.roads=[{a:"a",b:"b",name:"Diagonal",width:8,oneWay:false,bridge:false,osmId:1}];
   activateDistrict(data);

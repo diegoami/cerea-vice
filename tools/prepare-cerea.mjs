@@ -16,13 +16,21 @@ for(const road of data.roads) {
 }
 for(const bay of data.parkingZones) corridors.push([[[bay.x-bay.width/2-.5,bay.z-bay.depth/2-.5],[bay.x+bay.width/2+.5,bay.z-bay.depth/2-.5],[bay.x+bay.width/2+.5,bay.z+bay.depth/2+.5],[bay.x-bay.width/2-.5,bay.z+bay.depth/2+.5]]]);
 const snapped=corridors.map(polygon=>polygon.map(ring=>ring.map(point=>point.map(value=>Math.round(value*1e6)/1e6))));
-const roadEnvelope=clipping.union(...snapped);
+// Clip locally, one convex road piece at a time. A global union of thousands of
+// touching caps is unnecessarily prone to floating-point sweep-line degeneracy.
+const pieces=[...new Map(snapped.map(polygon=>[JSON.stringify(polygon),polygon])).values()].map(polygon=>({polygon,minX:Math.min(...polygon[0].map(p=>p[0])),maxX:Math.max(...polygon[0].map(p=>p[0])),minZ:Math.min(...polygon[0].map(p=>p[1])),maxZ:Math.max(...polygon[0].map(p=>p[1]))}));
+const snap=geometry=>geometry.map(polygon=>polygon.map(ring=>ring.map(point=>point.map(value=>Math.round(value*1e6)/1e6))));
 const area=ring=>Math.abs(ring.reduce((sum,a,i)=>{const b=ring[(i+1)%ring.length];return sum+a[0]*b[1]-b[0]*a[1];},0)/2);
 const bounds=ring=>{const xs=ring.map(p=>p[0]),zs=ring.map(p=>p[1]);return {x:(Math.min(...xs)+Math.max(...xs))/2,z:(Math.min(...zs)+Math.max(...zs))/2,width:Math.max(...xs)-Math.min(...xs),depth:Math.max(...zs)-Math.min(...zs)};};
 const buildings=[],changed=[],removed=[];
 for(const building of data.buildings) {
   const original=[building.points.map(p=>[p.x,p.z])];
-  const difference=clipping.difference(original,roadEnvelope);
+  let difference=[original];
+  for(const piece of pieces) {
+    if(building.x+building.width/2<piece.minX||building.x-building.width/2>piece.maxX||building.z+building.depth/2<piece.minZ||building.z-building.depth/2>piece.maxZ)continue;
+    if(!difference.length)break;
+    difference=snap(clipping.difference(difference,piece.polygon));
+  }
   const useful=difference.filter(polygon=>area(polygon[0])>4);
   if(!useful.length){removed.push(building.osmId);continue;}
   if(Math.abs(useful.reduce((sum,p)=>sum+area(p[0])-p.slice(1).reduce((s,h)=>s+area(h),0),0)-area(original[0]))>.01)changed.push(building.osmId);

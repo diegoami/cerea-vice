@@ -1,6 +1,6 @@
 import harborData from "../../public/maps/harbor.json";
 import type { DistrictDefinition, Point, Rect, Road, RoadNode, Landmark } from "./schema";
-export type { Point, Rect, Road, RoadNode, Landmark, DistrictDefinition } from "./schema";
+export type { Point, Rect, Road, RoadNode, ParkingZone, Landmark, DistrictDefinition } from "./schema";
 
 export let district = harborData as DistrictDefinition;
 export let nodes = district.nodes;
@@ -34,6 +34,15 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   if (data.id !== "harbor" && !ids.has(data.mission.nodeId)) throw new Error("Missing destination road node");
   if (!plainText(data.mission.name)||!plainText(data.mission.objective)||!plainText(data.mission.hint)||!plainText(data.spawn.name)) throw new Error("Invalid journey text");
   if ([...data.landmarks,...data.parkingZones,...data.areas].some((place)=>!plainText(place.name))) throw new Error("Invalid place name");
+  if(data.taxi) {
+    const taxi=data.taxi;
+    if(!Number.isFinite(taxi.startHour)||!Number.isFinite(taxi.endHour)||taxi.startHour<0||taxi.endHour>24||taxi.startHour>=taxi.endHour||!Number.isFinite(taxi.clockRate)||taxi.clockRate<=0||taxi.clockRate>120)throw new Error("Invalid taxi shift clock");
+    if([taxi.baseCents,taxi.perKmCents,taxi.maxBonusCents].some(value=>!Number.isFinite(value)||value<0))throw new Error("Invalid taxi fares");
+    if(!Array.isArray(taxi.stops)||taxi.stops.length<3||!Array.isArray(taxi.fares)||!taxi.fares.length)throw new Error("Missing taxi goals");
+    const stops=new Set(taxi.stops.map(stop=>stop.id));
+    if(stops.size!==taxi.stops.length||taxi.stops.some(stop=>!plainText(stop.name)||!plainText(stop.road)||!plainText(stop.description)||!ids.has(stop.nodeId)||!data.parkingZones.some(bay=>bay.id===stop.bayId)))throw new Error("Invalid taxi stop");
+    if(taxi.fares.some(fare=>!plainText(fare.passenger)||!stops.has(fare.pickupId)||!stops.has(fare.destinationId)||fare.pickupId===fare.destinationId))throw new Error("Invalid taxi itinerary");
+  }
   for (const feature of data.features) if (!(feature.width>0) || feature.points?.length<2 || feature.points.some((point) => !validPoint(point)) || !["water", "rail"].includes(feature.kind)) throw new Error("Invalid map feature");
 }
 

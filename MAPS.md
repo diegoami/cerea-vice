@@ -4,15 +4,17 @@ Cerea Vice now loads a selected district from a bundled JSON file. Cerea Centro 
 
 ## Cerea Centro pilot
 
-The approximately 667 × 779 metre subset includes 29 named streets, Piazza Fratelli Sommariva's roundabout, Via Paride, Viale della Vittoria, Via Roma, Via Venticinque Aprile, the Menago and eastern railway lines. San Zeno in Santa Maria Assunta, Municipio di Cerea, Biblioteca di Cerea and Scuola Olga Visentini are named landmarks. There are 582 retained building masses. Ninety-seven source footprints are trimmed back from the full road/sidewalk envelope and five have no usable remainder. The same trimmed geometry is used for rendering, collisions and the atlas.
+The approximately 1,020 × 1,080 metre modern subset includes 51 named streets, the Sommariva roundabout, Via Paride, Viale della Vittoria, Via Roma, Via Venticinque Aprile, the Menago and railway lines. It now reaches the post office and Oratorio dello Spasimo area to the south/east, with Teatro del Gusto and additional street connections to the north/west. There are 1,081 retained building masses; 137 source footprints are trimmed and five removed to keep road, sidewalk and stopping areas clear.
 
-Start at Sosta Municipio beside Via Venticinque Aprile. Find Biblioteca di Cerea on Viale della Vittoria and stop in Sosta Biblioteca within six minutes. Streets, one-way routing, atlas, manual position estimates and information-request marker updates work together. View / Select (PS Share), or F, asks for information in both driving and atlas views; A / Enter is reserved for confirmation and manual estimates. LT is brake only, with B / Circle (R) selecting forward/reverse at a settled stop and RT accelerating in that selected direction. Stopping alone still does not move the marker.
+The default game is a [07:00–17:00 taxi shift](TAXI.md) with nine pickup/dropoff locations and ten authored customer requests. The JSON carries a `taxi` definition with clock rate, game fare parameters, named stops, bay IDs, road node IDs and customer pickup/destination pairs. Stops and fares are validated on load; all nine-stop directed route pairs are covered by tests.
+
+Passenger service uses A / Enter after a full stop in the current target area. Information uses View / Select (PS Share) / F in both road and atlas views. LT is brake only; B / Circle (R) selects forward/reverse while stopped, and RT accelerates in that direction. Stopping or serving a passenger does not move the atlas marker.
 
 For this pilot, stopping and requesting information are allowed everywhere without unsafe-stop counts. Marked bays remain orientation cues and the mission arrival area. Stopping by itself still does not move the atlas marker.
 
 This uses modern geography with a retro visual presentation. The source outlines and topology are real; building heights, façade details, the church silhouette and stopping bays are simplified gameplay interpretations. Marked bays are not statements about real parking permissions. Traffic and detailed turn restrictions are outside this pilot.
 
-The default mission is a first real-place playtest, not a final challenge balance. Test turn approaches, small signs, narrow streets and the arrival bay on a physical controller before expanding the area.
+The taxi shift is an initial gameplay balance, with an accelerated clock and speed rewards to tune through playtesting. Test turn approaches, small signs, narrow streets and the arrival bay on a physical controller before expanding the area.
 
 ## Files and loading
 
@@ -35,7 +37,7 @@ The running game loads only the local JSON files; it does not contact OpenStreet
 2. Use local metre coordinates: north is negative Z and east is positive X. Preserve a consistent scale. Roads connect node IDs; intermediate shape points retain curves. Different elevation crossings must not share a junction ID unless the roads actually connect.
 3. Supply road widths, `roadClass` and one-way direction where needed. `primary`, `secondary` and `tertiary` receive major-road direction boards where they meet other major roads; other classes use name plates. A one-way segment runs from `a` to `b`. Road-rule enforcement is not simulated, but route hints and onward signs honour this direction.
 4. Supply bounds, building polygons, water/rail polylines, named landmarks and rectangular game stopping areas.
-5. Set the starting position, heading and name. Define the mission's destination bay and a reachable road node near its entrance, plus its objective, hint and duration.
+5. Set the starting position, heading and name. A basic district can define one mission destination bay and road node. For taxi mode, add `taxi.stops` and `taxi.fares`, start/end hours, clock rate and fare parameters; every referenced stop needs an accessible bay and a reachable road node.
 6. Put the file in `public/maps/` and register its ID and name in `availableDistricts` in `src/world/load.ts`.
 7. Check validation, connectivity, road/footprint clearance, legal stopping and arrival. Run unit and desktop tests, inspect both the atlas and driving view, then playtest the journey.
 

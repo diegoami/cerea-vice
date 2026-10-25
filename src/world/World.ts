@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { district, roads, nodeById, parkingZones, landmarks, inRect, isPaved, projectToSegment, pointInPolygon, type Point, type Rect } from "./district";
+import { district, roads, nodeById, parkingZones, landmarks, inRect, isPaved, projectToSegment, pointInPolygon, type Point, type Rect, type ParkingZone } from "./district";
 import { HarborWorld } from "./HarborWorld";
 import { box, sign, signpost, material, streetNamePlate } from "./builders";
 import { planStreetPlates } from "./streetPlates";
@@ -21,14 +21,17 @@ function footprint(parent:THREE.Object3D, points:Point[], height:number,color:nu
 export class World {
   readonly scene: THREE.Scene;
   readonly colliders: Rect[];
+  private passenger=new THREE.Group();
+  private daylightSun?:THREE.DirectionalLight;
+  private daylightAmbient?:THREE.HemisphereLight;
   constructor() {
     if(district.id==="harbor") { const legacy=new HarborWorld();this.scene=legacy.scene;this.colliders=legacy.colliders;return; }
     this.scene=new THREE.Scene();this.colliders=[];
     const scene=this.scene,bounds=district.bounds;
     const width=bounds.maxX-bounds.minX,depth=bounds.maxZ-bounds.minZ;
     scene.background=new THREE.Color(0xa3b6b4);scene.fog=new THREE.Fog(0xa3b6b4,160,1100);
-    scene.add(new THREE.HemisphereLight(0xffe3bf,0x62776d,2.3));
-    const sun=new THREE.DirectionalLight(0xffdfae,2);sun.position.set(-200,300,100);scene.add(sun);
+    this.daylightAmbient=new THREE.HemisphereLight(0xffe3bf,0x62776d,2.3);scene.add(this.daylightAmbient);
+    const sun=new THREE.DirectionalLight(0xffdfae,2);sun.position.set(-200,300,100);scene.add(sun);this.daylightSun=sun;
     box(scene,(bounds.minX+bounds.maxX)/2,-0.4,(bounds.minZ+bounds.maxZ)/2,width+100,0.7,depth+100,0x7d876b);
     for(const feature of district.features) {
       for(let i=0;i<feature.points.length-1;i++) {
@@ -110,7 +113,7 @@ export class World {
         const dx=wall.nearest.x-wall.mid.x,dz=wall.nearest.z-wall.mid.z;
         let nx=-(wall.b.z-wall.a.z)/wall.length,nz=(wall.b.x-wall.a.x)/wall.length;
         if(nx*dx+nz*dz<0){nx=-nx;nz=-nz;}
-        const text=place.kind==="church"?["SAN ZENO"]:place.kind==="civic"?["MUNICIPIO"]:place.kind==="library"?["BIBLIOTECA","DI CEREA"]:["SCUOLA","OLGA VISENTINI"];
+        const text=place.kind==="church"?["SAN ZENO"]:place.kind==="civic"?["MUNICIPIO"]:place.kind==="library"?["BIBLIOTECA","DI CEREA"]:place.kind==="school"?["SCUOLA","OLGA VISENTINI"]:place.kind==="post"?["POSTE"]:place.kind==="oratory"?["ORATORIO","DELLO SPASIMO"]:place.name.length>24?place.name.toUpperCase().split(/ (.+)/).filter(Boolean):[place.name.toUpperCase()];
         sign(scene,wall.mid.x+nx*0.12,h,wall.mid.z+nz*0.12,text,Math.min(6.5,wall.length-1),Math.atan2(-(wall.b.z-wall.a.z),wall.b.x-wall.a.x),place.kind==="church"?"#774e3c":"#31594e");
       }
     }
@@ -152,5 +155,23 @@ export class World {
       for(const geometry of geometries)geometry.dispose();
     }
     for(const mesh of originals){mesh.removeFromParent();mesh.geometry.dispose();}
+    // This passenger stays dynamic; the static scenery has already been batched.
+    box(this.passenger,0,1.05,0,.5,.9,.3,0x3b5772);
+    for(const side of [-1,1])box(this.passenger,side*.14,.35,0,.18,.7,.22,0x33464a);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),material(0xd1ab88));head.position.y=1.7;this.passenger.add(head);
+    this.passenger.visible=false;scene.add(this.passenger);
   }
+  setTaxiPassenger(bay?:ParkingZone) {
+    this.passenger.visible=Boolean(bay);
+    if(bay)this.passenger.position.set(bay.x+bay.width/2-1,0,bay.z+bay.depth/2-1);
+  }
+  updateDaylight(hour:number) {
+    if(!this.daylightSun||!this.daylightAmbient)return;
+    const daylight=Math.max(0,Math.sin((hour-6)/12*Math.PI));
+    const sky=new THREE.Color(0xc6ad94).lerp(new THREE.Color(0x9fb6bf),daylight);
+    (this.scene.background as THREE.Color).copy(sky);this.scene.fog?.color.copy(sky);
+    this.daylightSun.intensity=1.2+daylight;this.daylightAmbient.intensity=1.6+daylight*.7;
+    const angle=(hour-6)/12*Math.PI;this.daylightSun.position.set(Math.cos(angle)*350,Math.max(70,Math.sin(angle)*350),100);
+  }
+
 }

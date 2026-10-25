@@ -954,3 +954,6 @@ h1 em {
   .atlas-book.has-information .atlas-margin { display:block;width:100%;padding:12px;border-left:0; }
   .atlas-book.has-information .atlas-margin > :not(.atlas-information) { display:none; }
 }
+.objective { max-width:min(690px,75vw); }
+#taxi-status { margin-top:8px;font:12px/1.5 monospace;color:var(--accent); }
+.objective h2 { overflow-wrap:anywhere; }
