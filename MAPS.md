@@ -1,6 +1,6 @@
 # Loadable districts
 
-Cerea Vice now loads a selected district from a bundled JSON file. Cerea Centro is the default; Harbor District remains available from the briefing. Select with the map buttons or LB / RB (Q / E on keyboard) before starting. Selection is remembered locally and also recorded in the URL hash. Loading another district restarts the drive.
+Cerea Vice now loads a selected district from a bundled JSON file. Cerea Centro is the default; Harbor District remains available from the briefing. Select with the map buttons or LB / RB (Q / E on keyboard) before starting. Selection is remembered locally and also recorded in the URL hash. The WSL playtest launcher uses a fresh temporary profile for each launch. Loading another district restarts the drive.
 
 ## Cerea Centro pilot
 

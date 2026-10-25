@@ -35,7 +35,7 @@ Build and launch the Windows x64 client from WSL:
 npm run desktop:win
 ```
 
-This rebuilds the Windows package, copies it to a fresh local Windows temporary folder and opens Cerea Centro. To package without launching:
+This rebuilds the Windows package, copies it to a fresh local Windows temporary folder and opens Cerea Centro. Each playtest launch uses an isolated temporary profile and checks that a game window opens. To package without launching:
 
 ```sh
 npm ci

@@ -1,9 +1,10 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const root=path.resolve(import.meta.dirname,'..');
 const bundle=path.join(root,'release','Cerea Vice-win32-x64');
+const version=JSON.parse(readFileSync(path.join(root,'package.json'),'utf8')).version;
 if(!existsSync(path.join(bundle,'cerea-vice.exe'))) throw new Error('Build the Windows bundle with npm run desktop:package:win first.');
 const requested=process.argv[2]??'cerea';
 if(!['cerea','harbor'].includes(requested))throw new Error('Choose cerea or harbor.');
@@ -11,11 +12,22 @@ const source=process.platform==='win32'?bundle:execFileSync('wslpath',['-w',bund
 const literal=(text)=>`'${text.replaceAll("'","''")}'`;
 const script=`$ErrorActionPreference = 'Stop'
 $source = ${literal(source)}
-$target = Join-Path $env:TEMP ('CereaVice-0.2-' + [guid]::NewGuid().ToString('N').Substring(0,8))
+$target = Join-Path $env:TEMP (${literal('CereaVice-'+version+'-')} + [guid]::NewGuid().ToString('N').Substring(0,8))
 New-Item -ItemType Directory -Path $target -Force | Out-Null
 Copy-Item -Path (Join-Path $source '*') -Destination $target -Recurse -Force
-$process = Start-Process -FilePath (Join-Path $target 'cerea-vice.exe') -ArgumentList ${literal('--district='+requested)} -WorkingDirectory $target -PassThru
-Write-Output ('Opened Cerea Vice ${requested} (PID ' + $process.Id + ') from ' + $target)
+$profile = Join-Path $target 'profile'
+$arguments = @(${literal('--district='+requested)}, ('--user-data-dir="' + $profile + '"'))
+$process = Start-Process -FilePath (Join-Path $target 'cerea-vice.exe') -ArgumentList $arguments -WorkingDirectory $target -PassThru
+for ($attempt = 0; $attempt -lt 30; $attempt++) {
+  Start-Sleep -Milliseconds 500
+  $process.Refresh()
+  if ($process.HasExited) { throw ('Game exited during startup with code ' + $process.ExitCode) }
+  if ($process.MainWindowTitle) {
+    Write-Output ('Opened ' + $process.MainWindowTitle + ' (PID ' + $process.Id + ') from ' + $target)
+    exit 0
+  }
+}
+throw 'The game did not open a window within 15 seconds.'
 `;
 const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{stdio:'inherit',shell:false});
 child.on('error',error=>{console.error(error.message);process.exitCode=1;});
