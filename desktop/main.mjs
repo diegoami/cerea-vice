@@ -46,7 +46,9 @@ app.whenReady().then(() => {
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
     { label: 'Game', submenu: [{ role: 'togglefullscreen' }, { type: 'separator' }, { role: 'quit' }] },
   ]));
-  session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+  const gameOrigin = value => { try { const url = new URL(value); return url.protocol === 'cerea:' && url.host === 'game'; } catch { return false; } };
+  session.defaultSession.setPermissionCheckHandler((contents, permission, origin) => permission === 'pointerLock' && gameOrigin(origin) && Boolean(contents && gameOrigin(contents.getURL())));
+  session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => callback(permission === 'pointerLock' && gameOrigin(contents.getURL())));
   protocol.handle('cerea', async (request) => {
     try {
       const file = assetPath(request.url, path.join(app.getAppPath(), 'dist'));

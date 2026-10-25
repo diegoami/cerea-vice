@@ -205,6 +205,8 @@ export class Hud {
       <div><span>Accelerate</span><b>RT</b><b>W / ↑</b></div>
       <div><span>Brake / reverse</span><b>LT</b><b>S / ↓</b></div>
       <div><span>Handbrake</span><b>X / Square</b><b>Space</b></div>
+      <div><span>Look around</span><b>Right stick</b><b>Click view + mouse</b></div>
+      <div><span>Look forward</span><b>R3</b><b>C</b></div>
       <div><span>Glance</span><b>LB / RB</b><b>Q / E</b></div>
       <div><span>Ask for directions</span><b>A / Cross</b><b>F / Enter</b></div>
       <div><span>Atlas (while stopped)</span><b>Y / Triangle</b><b>T</b></div>

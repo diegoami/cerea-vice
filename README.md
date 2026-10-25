@@ -73,19 +73,27 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 | Accelerate                         | Right trigger         | W or up arrow                |
 | Brake, then reverse                | Left trigger          | S or down arrow              |
 | Handbrake                          | X / Square (west face button)  | Space                        |
+| Look around                        | Right stick           | Click windshield, move mouse |
+| Look forward                       | Right stick press (R3) | C                            |
 | Glance left / right                | LB / RB               | Q / E                        |
 | Start / request directions / retry | A / Cross (south face button) | F or Enter                   |
 | Open / close atlas (while stopped) | Y / Triangle          | T                            |
 | Turn atlas page                    | LB / RB               | Q / E                        |
 | Move atlas crosshair               | Left stick / D-pad    | WASD / arrow keys            |
 | Mark estimated position            | A / Cross             | Enter / click map            |
-| Ask for information with atlas open | Right stick press (R3) | F / information button       |
+| Ask for information with atlas open | View / Select (PS Share) | F / information button       |
 | Erase atlas marker                 | X / Square            | Delete / Backspace           |
 | Close atlas                        | B / Circle            | Escape                       |
 | Repeat mission and time remaining  | D-pad up              | Tab or M                     |
 | Pause / resume                     | Start / Options                 | Escape or P                  |
 
 Connect a controller and press a button so the browser exposes it. The game selects the first connected controller with the browser's `standard` mapping; equivalent PlayStation face buttons work through that mapping. A 16% stick deadzone suppresses drift. Keyboard remains available while a controller is connected. Embedded previews may block the browser Gamepad API; the game falls back to keyboard controls instead of failing to render. Open the preview in a new browser tab to use a controller if the embedded view restricts it. There are no touch controls.
+
+## Looking around
+
+Move the **right stick** to look around independently of steering, including a full 360-degree turn. Press **R3** or **C** to look forward again. Keyboard and mouse players click the windshield to capture the mouse, then move it freely; the pointer is not limited by screen edges. **Escape** releases the mouse and pauses. Opening the atlas also releases the mouse, so its map and buttons remain usable. Mouse capture is never required for controller looking.
+
+The compass continues to show the car’s heading while you look around. LB / RB or Q / E still provide quick held glances. Information in the atlas now uses **View / Select (PS Share)** or **F**; R3 is reserved for recentering the view.
 
 ## How to play Harbor District
 
@@ -107,7 +115,7 @@ Use **LB / RB** or **Q / E** to change pages. The page tabs also work with the m
 
 The atlas marker changes only when you **successfully ask for information while stopped**, or **move it yourself** to where you think you are. Simply driving, parking in a bay, opening the atlas or repeating the mission reminder does not update it. Rejected requests while moving do not update it either. Information can be requested at any settled stop, including outside a legal bay.
 
-A successful A / F information request records that position as a snapshot, labelled **Last information received**. While the atlas is open, press **F**, **the right stick (R3)**, or its **Ask for information** button. The directions appear beside the map, the marker updates, and the car and timer stay paused. A / Enter still places your manual estimate in the atlas. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete / Backspace erases it. The marker remains fixed until the next successful information request or manual change. A new drive starts with its given starting position: Sosta Municipio in Cerea or Harbor lay-by in Harbor District. It never follows the car or creates a route line.
+A successful A / F information request records that position as a snapshot, labelled **Last information received**. While the atlas is open, press **F**, **View / Select (PS Share)**, or its **Ask for information** button. The directions appear beside the map, the marker updates, and the car and timer stay paused. A / Enter still places your manual estimate in the atlas. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete / Backspace erases it. The marker remains fixed until the next successful information request or manual change. A new drive starts with its given starting position: Sosta Municipio in Cerea or Harbor lay-by in Harbor District. It never follows the car or creates a route line.
 
 ## Harbor District
 
@@ -127,7 +135,7 @@ src/
   game/Game.ts                Render loop, fixed simulation steps, screen states
   driving/
     Car.ts                    Arcade acceleration, steering, reverse, collisions
-    CockpitCamera.ts          First-person forward view and bumper/key glance
+    CockpitCamera.ts          Full-circle stick/mouse look, pitch and quick glances
   input/Input.ts              Keyboard + Gamepad API → abstract Actions
   navigation/
     Navigation.ts             Compass, nearest road, graph search, textual hints
@@ -160,7 +168,7 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 - A vehicle's centre must be at least 1.1 metres inside a marked bay to count as legally parked or arrived. Direction requests need exact zero speed, followed by the brief settling interval. Coasting eventually settles; the handbrake is faster.
 - Unsafe stops count once per stopped episode after the car has moved above 1 m/s. Impact counting has a cooldown so one contact does not inflate the count every frame. These are feedback metrics, with no extra penalties.
 - The deadline measures active simulation time. Hidden windows pause, and a frame delay contributes at most 0.1 seconds to avoid unstable catch-up after a stalled browser.
-- The view is fixed forward with a held left/right glance. The steering wheel is a lightweight HUD element, with no full interior, sound, suspension, traffic, NPCs, or dialogue.
+- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The steering wheel is a lightweight HUD element, with no full interior, sound, suspension, traffic, NPCs, or dialogue.
 - All state lives in memory. Reloading resets the drive. No storage API, save system, backend, paid service, or multiplayer is present.
 - Automated controller checks use simulated standard gamepad input. Browser and operating-system mappings still warrant testing on a physical controller before a public playtest.
 

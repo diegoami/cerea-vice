@@ -128,7 +128,7 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     assert.equal(await page.locator('.atlas-pin').getAttribute('transform'), clickedPin, 'Parking and rejected moving requests leave the estimate unchanged');
     assert.match(await page.locator('#atlas-marker-status').innerText(), /Your estimated position/);
     const readingTimer=await page.locator('#timer').innerText();
-    await button(11,1); await button(11,0);
+    await button(8,1); await button(8,0);
     await page.locator('.atlas-information:not([hidden])').waitFor();
     assert.equal(await page.locator('.atlas-map').isVisible(),true,'Controller information request keeps the map open');
     assert.notEqual(await page.locator('.atlas-pin').getAttribute('transform'), clickedPin, 'Information replaces the estimate');
@@ -201,8 +201,29 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await page.getByRole('button',{name:'Start the engine'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.match(await page.locator('#location').innerText(),/Via Venticinque Aprile/);
+    const beforeLook=await page.locator('#viewport').screenshot({style:'#hud { visibility:hidden !important; }'});
+    const carHeading=await page.locator('#heading').innerText();
+    await page.evaluate(()=>{
+      window.lookPad={connected:true,mapping:'standard',axes:[0,0,1,0],buttons:Array.from({length:17},()=>({value:0}))};
+      Object.defineProperty(navigator,'getGamepads',{value:()=>[window.lookPad],configurable:true});
+    });
+    await page.waitForTimeout(600);
+    await page.evaluate(()=>{window.lookPad.axes[2]=0;});
+    assert.notDeepEqual(await page.locator('#viewport').screenshot({style:'#hud { visibility:hidden !important; }'}),beforeLook,'Right-stick input rotates the rendered view');
+    assert.equal(await page.locator('#heading').innerText(),carHeading,'Looking does not steer the car');
+    await page.keyboard.press('c');
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await page.locator('#viewport').click({position:{x:500,y:250}});
+    await page.waitForFunction(()=>document.pointerLockElement?.id==='viewport');
+    const beforeMouse=await page.locator('#viewport').screenshot({style:'#hud { visibility:hidden !important; }'});
+    await page.mouse.move(950,400);
+    await page.waitForTimeout(200);
+    assert.notDeepEqual(await page.locator('#viewport').screenshot({style:'#hud { visibility:hidden !important; }'}),beforeMouse,'Captured mouse movement rotates the rendered view');
+    assert.equal(await page.locator('#heading').innerText(),carHeading);
+
     await page.keyboard.press('t');
     await page.getByRole('dialog',{name:'Cerea Centro'}).waitFor();
+    assert.equal(await page.evaluate(()=>document.pointerLockElement===null),true,'Opening the atlas releases mouse capture without pausing out of the atlas');
     assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position: Sosta Municipio/);
     assert.match(await page.locator('.atlas-attribution').innerText(),/OpenStreetMap/);
     assert.match(await page.locator('.atlas-map').innerHTML(),/VIA PARIDE/);
@@ -224,6 +245,15 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     assert.equal(await page.getByRole('heading',{name:'Places and parking'}).isVisible(),true);
     assert.equal(await page.locator('#timer').innerText(),readingTimer);
     await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>document.querySelector('#overlay').hidden);
+    await page.locator('#viewport').click({position:{x:500,y:250}});
+    await page.waitForFunction(()=>document.pointerLockElement?.id==='viewport');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button',{name:'Back to the road'}).waitFor();
+    assert.equal(await page.evaluate(()=>document.pointerLockElement===null),true);
+    await page.waitForTimeout(400);
+    assert.equal(await page.getByRole('button',{name:'Back to the road'}).isVisible(),true,'Escape must leave the game paused');
+    await page.getByRole('button',{name:'Back to the road'}).click();
     await page.waitForFunction(()=>document.querySelector('#overlay').hidden);
     await page.keyboard.down('w');
     await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>12);

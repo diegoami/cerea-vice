@@ -14,6 +14,11 @@ export interface Actions {
   atlasMoveY: number;
   clearMarker: boolean;
   information: boolean;
+  lookX: number;
+  lookY: number;
+  mouseX: number;
+  mouseY: number;
+  resetLook: boolean;
 }
 const blockedKeys = new Set([
   "ArrowUp",
@@ -33,6 +38,11 @@ const deadzone = (value: number) =>
 
 /** Poll once per rendered frame; consume edge actions once per simulation update. */
 export class Input {
+  private mouseCaptured = false;
+  private mouseX = 0;
+  private mouseY = 0;
+  private previousResetLook = false;
+  private queuedResetLook = false;
   private keys = new Set<string>();
   private previousInteract = false;
   private previousPause = false;
@@ -66,6 +76,7 @@ export class Input {
         if (event.code === "Escape" || event.code === "KeyP")
           this.queuedPause = true;
         if (event.code === "KeyF") this.queuedInformation = true;
+        if (event.code === "KeyC") this.queuedResetLook = true;
         if (event.code === "KeyT") this.queuedAtlas = true;
         if (event.code === "Escape") this.queuedBack = true;
         if (event.code === "Delete" || event.code === "Backspace") this.queuedClearMarker = true;
@@ -75,6 +86,9 @@ export class Input {
           this.queuedReminder = true;
       }
       this.keys.add(event.code);
+    });
+    window.addEventListener("mousemove", (event) => {
+      if(this.mouseCaptured) {this.mouseX+=event.movementX;this.mouseY+=event.movementY;}
     });
     window.addEventListener("keyup", (event) => this.keys.delete(event.code));
     window.addEventListener("blur", () => {
@@ -87,7 +101,14 @@ export class Input {
       this.queuedAtlasPage = 0;
       this.queuedClearMarker = false;
       this.queuedInformation = false;
+      this.queuedResetLook = false;
+      this.setMouseCaptured(false);
     });
+  }
+
+  setMouseCaptured(captured: boolean) {
+    this.mouseCaptured=captured;
+    this.mouseX=0;this.mouseY=0;
   }
 
   poll(): Actions {
@@ -125,7 +146,8 @@ export class Input {
     const back = down("Escape") || button(1) > 0.5;
     const atlasPage = Number(down("KeyE") || button(5) > 0.5)
       - Number(down("KeyQ") || button(4) > 0.5);
-    const information = down("KeyF") || button(11) > 0.5;
+    const information = down("KeyF") || button(8) > 0.5;
+    const resetLook = down("KeyC") || button(11) > 0.5;
     const clearMarker = down("Delete", "Backspace") || button(2) > 0.5;
     const keyboardSteer =
       Number(down("KeyD", "ArrowRight")) - Number(down("KeyA", "ArrowLeft"));
@@ -148,7 +170,15 @@ export class Input {
         || (Number(button(13) > 0.5) - Number(button(12) > 0.5)) || deadzone(pad?.axes[1] ?? 0),
       clearMarker: this.queuedClearMarker || (clearMarker && !this.previousClearMarker),
       information: this.queuedInformation || (information && !this.previousInformation),
+      lookX: deadzone(pad?.axes[2] ?? 0),
+      lookY: deadzone(pad?.axes[3] ?? 0),
+      mouseX: this.mouseX,
+      mouseY: this.mouseY,
+      resetLook: this.queuedResetLook || (resetLook && !this.previousResetLook),
     };
+    this.mouseX=0;this.mouseY=0;
+    this.previousResetLook=resetLook;
+    this.queuedResetLook=false;
     this.previousInformation = information;
     this.queuedInformation = false;
     this.previousClearMarker = clearMarker;

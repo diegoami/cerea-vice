@@ -26,6 +26,7 @@ export class Game {
   private previousTime = 0;
   private accumulator = 0;
   private districtSwitchReady = false;
+  private ignorePauseUntil = 0;
 
   constructor(root: HTMLElement) {
     this.renderer.setPixelRatio(1);
@@ -37,6 +38,17 @@ export class Game {
     );
     root.append(this.renderer.domElement);
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation());
+    this.renderer.domElement.addEventListener("click", () => {
+      if(this.screen!=="running" || document.pointerLockElement===this.renderer.domElement)return;
+      try { const result=this.renderer.domElement.requestPointerLock(); result?.catch(()=>this.hud.setHint("Mouse look could not capture the pointer. Click the windshield again, or use the right stick / Q and E.")); }
+      catch { this.hud.setHint("Click the windshield to capture mouse look, or use the right stick / Q and E."); }
+    });
+    document.addEventListener("pointerlockchange", () => {
+      const captured=document.pointerLockElement===this.renderer.domElement;
+      if(captured&&this.screen!=="running") {this.releaseMouseLook();return;}
+      this.input.setMouseCaptured(captured);
+      if(!captured&&this.screen==="running") {this.pause();this.ignorePauseUntil=performance.now()+250;}
+    });
     this.resize();
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("blur", () => this.pause());
@@ -71,7 +83,13 @@ export class Game {
     if (this.screen === "running" || this.screen === "atlas") {
       this.screen = "paused";
       this.accumulator = 0;
+      this.releaseMouseLook();
     }
+  }
+
+  private releaseMouseLook() {
+    this.input.setMouseCaptured(false);
+    if(document.pointerLockElement===this.renderer.domElement)document.exitPointerLock();
   }
 
   private activate() {
@@ -81,6 +99,7 @@ export class Game {
       this.parking.reset();
       this.mission.reset();
       this.hud.resetAtlasNotes();
+      this.cockpit.reset();
       this.hud.setHint(
         district.mission.hint,
       );
@@ -128,7 +147,7 @@ export class Game {
         if (actions.clearMarker) this.hud.removeAtlasMarker();
       }
     } else if (!this.input.controllerDisconnected) {
-      if (actions.pause) {
+      if (actions.pause && performance.now() >= this.ignorePauseUntil) {
         if (this.screen !== "running") this.activate();
         else this.pause();
       }
@@ -143,6 +162,7 @@ export class Game {
         if (this.parking.stopped && this.car.speed === 0) {
           this.screen = "atlas";
           this.accumulator = 0;
+          this.releaseMouseLook();
         } else {
           this.hud.setHint("Come to a complete stop before opening the atlas. Hold the handbrake, then press Y / Triangle or T.");
         }
@@ -159,10 +179,11 @@ export class Game {
         if (this.mission.finished) {
           this.screen = "result";
           this.accumulator = 0;
+          this.releaseMouseLook();
           break;
         }
       }
-      this.cockpit.update(dt, this.car, actions.glance);
+      this.cockpit.update(dt, this.car, actions.glance, actions);
     }
     this.hud.show(this.screen, this.mission, this.car, this.parking);
     this.hud.update(

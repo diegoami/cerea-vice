@@ -181,12 +181,27 @@ test('atlas information has its own keyboard/controller edge and cannot place a 
   const key=(type:string,code:string)=>{const event=new Event(type);Object.defineProperty(event,'code',{value:code});target.dispatchEvent(event);};
   key('keydown','KeyF');key('keyup','KeyF');
   assert.equal(input.poll().information,true);assert.equal(input.poll().information,false);
-  pad.buttons[11].value=1;
+  pad.buttons[8].value=1;
   const ask=input.poll();assert.equal(ask.information,true);assert.equal(ask.interact,false);
   assert.equal(input.poll().information,false);
-  pad.buttons[11].value=0;input.poll();
+  pad.buttons[8].value=0;input.poll();
   pad.buttons[0].value=1;
   const mark=input.poll();assert.equal(mark.interact,true);assert.equal(mark.information,false);
   key('keydown','KeyF');target.dispatchEvent(new Event('blur'));
   assert.equal(input.poll().information,false);
+});
+
+test('right-stick axes and captured mouse movement control view independently of driving and information',()=>{
+  const target=new EventTarget();
+  const pad={connected:true,mapping:'standard',axes:[0,0,1,-.5],buttons:Array.from({length:17},()=>({value:0}))};
+  Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+  Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[pad]},configurable:true});
+  const input=new Input();const look=input.poll();
+  assert.equal(look.lookX,1);assert.ok(look.lookY<0);assert.equal(look.steer,0);assert.equal(look.throttle,0);
+  pad.buttons[11].value=1;const centred=input.poll();assert.equal(centred.resetLook,true);assert.equal(centred.information,false);
+  assert.equal(input.poll().resetLook,false);
+  const move=()=>{const event=new Event('mousemove');Object.defineProperties(event,{movementX:{value:80},movementY:{value:-20}});target.dispatchEvent(event);};
+  move();assert.equal(input.poll().mouseX,0);
+  input.setMouseCaptured(true);move();const mouse=input.poll();assert.equal(mouse.mouseX,80);assert.equal(mouse.mouseY,-20);assert.equal(input.poll().mouseX,0);
+  move();target.dispatchEvent(new Event('blur'));assert.equal(input.poll().mouseX,0);
 });
