@@ -51,7 +51,7 @@ export class Hud {
       <div class="navigation-message"><div class="hint-header"><span class="live-dot"></span><span id="hint-label">LOCAL DIRECTIONS</span><span>NO SIGNAL REQUIRED</span></div><p id="hint" role="status">${district.mission.hint}</p></div>
       <div class="interaction" id="prompt"></div>
       <footer class="dashboard">
-        <div class="dashboard-left"><div class="speed-line"><strong id="speed">00</strong><span>KM/H<br><b id="gear">N</b></span></div><div class="stop-state" id="stop-state">SETTLING</div></div>
+        <div class="dashboard-left"><div class="speed-line"><strong id="speed">00</strong><span>KM/H<br><b id="gear">D</b></span></div><div class="stop-state" id="stop-state">SETTLING</div></div>
         <div class="dashboard-center"><div class="wheel" aria-hidden="true"><div class="wheel-spoke"></div><div class="wheel-hub">CV</div></div><span class="car-label">CEREA / 1986</span></div>
         <div class="dashboard-right"><span class="eyebrow">CURRENT ROAD</span><strong id="location">Harbor Road</strong><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div></div>
       </footer>
@@ -203,12 +203,13 @@ export class Hud {
       <div class="control-heading"><span>ACTION</span><span>CONTROLLER</span><span>KEYBOARD</span></div>
       <div><span>Steer</span><b>Left stick</b><b>A D / ← →</b></div>
       <div><span>Accelerate</span><b>RT</b><b>W / ↑</b></div>
-      <div><span>Brake / reverse</span><b>LT</b><b>S / ↓</b></div>
+      <div><span>Brake only</span><b>LT</b><b>S / ↓</b></div>
+      <div><span>Forward / reverse (stopped)</span><b>B / Circle</b><b>R</b></div>
       <div><span>Handbrake</span><b>X / Square</b><b>Space</b></div>
       <div><span>Look around</span><b>Right stick</b><b>Click view + mouse</b></div>
       <div><span>Look forward</span><b>R3</b><b>C</b></div>
       <div><span>Glance</span><b>LB / RB</b><b>Q / E</b></div>
-      <div><span>Ask for directions</span><b>A / Cross</b><b>F / Enter</b></div>
+      <div><span>Ask for information (road / atlas)</span><b>View / Select</b><b>F</b></div>
       <div><span>Atlas (while stopped)</span><b>Y / Triangle</b><b>T</b></div>
       <div><span>Mission reminder</span><b>D-pad up</b><b>Tab / M</b></div>
       <div><span>Pause</span><b>Start</b><b>Esc / P</b></div>
@@ -221,7 +222,7 @@ export class Hud {
           <button type="button">Start the engine <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER TO BEGIN · ${Math.round(district.mission.duration/60)} MINUTE DRIVE</span>
         </div>
         <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><h2>Find ${district.mission.name}.</h2><p>${district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${availableDistricts.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${map.name}</button>`).join("")}</div><small class="controller-note">LB / RB or Q / E: change district before starting.</small><small class="controller-note">${district.attribution}</small>
-          <div class="briefing-tip"><b>Lost? Pull over.</b><p>Come to a full stop anywhere. Press Y / T for the atlas, or A / F for a local direction hint. Marked P bays are legal stopping places.</p></div>
+          <div class="briefing-tip"><b>Lost? Pull over.</b><p>Come to a full stop anywhere. Press Y / T for the atlas, or View / F for a local direction hint. Marked P bays are legal stopping places.</p></div>
           ${controls}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
       </section>`;
@@ -265,7 +266,7 @@ export class Hud {
       .toString()
       .padStart(2, "0");
     document.querySelector("#gear")!.textContent =
-      car.speed < -0.1 ? "R" : car.speed > 0.1 ? "D" : "N";
+      car.gear;
     this.timer.textContent =
       mission.state === "overdue" || mission.state === "late"
         ? "LATE"
@@ -291,7 +292,7 @@ export class Hud {
       : "";
     this.wheel.style.transform = `rotate(${car.steering * 65}deg)`;
     this.prompt.innerHTML = parking.stopped
-      ? `<kbd>${device === "Controller" ? "A" : "F"}</kbd> Ask for directions &nbsp; <kbd>${device === "Controller" ? "Y" : "T"}</kbd> Atlas <span>· ${parking.zone ?? (parking.legal ? "stopping allowed" : "unsafe stopping place")}</span>`
+      ? `<kbd>${device === "Controller" ? "View" : "F"}</kbd> Ask for information &nbsp; <kbd>${device === "Controller" ? "Y" : "T"}</kbd> Atlas &nbsp; <kbd>${device === "Controller" ? "B" : "R"}</kbd> ${car.gear === "D" ? "Select reverse" : "Select forward"} <span>· ${parking.zone ?? (parking.legal ? "stopping allowed" : "unsafe stopping place")}</span>`
       : "Stop fully for the atlas or directions";
   }
 }

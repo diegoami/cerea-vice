@@ -71,17 +71,18 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 | ---------------------------------- | --------------------- | ---------------------------- |
 | Steer                              | Left stick            | A / D or left / right arrows |
 | Accelerate                         | Right trigger         | W or up arrow                |
-| Brake, then reverse                | Left trigger          | S or down arrow              |
+| Brake only                       | Left trigger          | S or down arrow              |
+| Forward / reverse (fully stopped)  | B / Circle            | R                            |
 | Handbrake                          | X / Square (west face button)  | Space                        |
 | Look around                        | Right stick           | Click windshield, move mouse |
 | Look forward                       | Right stick press (R3) | C                            |
 | Glance left / right                | LB / RB               | Q / E                        |
-| Start / request directions / retry | A / Cross (south face button) | F or Enter                   |
+| Confirm / start / retry            | A / Cross (south face button) | Enter                   |
 | Open / close atlas (while stopped) | Y / Triangle          | T                            |
 | Turn atlas page                    | LB / RB               | Q / E                        |
 | Move atlas crosshair               | Left stick / D-pad    | WASD / arrow keys            |
 | Mark estimated position            | A / Cross             | Enter / click map            |
-| Ask for information with atlas open | View / Select (PS Share) | F / information button       |
+| Ask for information (road or atlas) | View / Select (PS Share) | F / information button       |
 | Erase atlas marker                 | X / Square            | Delete / Backspace           |
 | Close atlas                        | B / Circle            | Escape                       |
 | Repeat mission and time remaining  | D-pad up              | Tab or M                     |
@@ -93,13 +94,13 @@ Connect a controller and press a button so the browser exposes it. The game sele
 
 Move the **right stick** to look around independently of steering, including a full 360-degree turn. Press **R3** or **C** to look forward again. Keyboard and mouse players click the windshield to capture the mouse, then move it freely; the pointer is not limited by screen edges. **Escape** releases the mouse and pauses. Opening the atlas also releases the mouse, so its map and buttons remain usable. Mouse capture is never required for controller looking.
 
-The compass continues to show the car’s heading while you look around. LB / RB or Q / E still provide quick held glances. Information in the atlas now uses **View / Select (PS Share)** or **F**; R3 is reserved for recentering the view.
+The compass continues to show the car’s heading while you look around. LB / RB or Q / E still provide quick held glances. Information uses **View / Select (PS Share)** or **F** both on the road and in the atlas; R3 is reserved for recentering the view.
 
 ## How to play Harbor District
 
-- Begin in the Harbor lay-by, facing east. Turn gently left to join Harbor Road. Slow down for junctions; holding the handbrake stops quickly. Holding the brake trigger/key after braking engages reverse.
+- Begin in the Harbor lay-by, facing east. Turn gently left to join Harbor Road. Slow down for junctions; holding the handbrake stops quickly. LT / S only brakes, in either direction. At a settled full stop, release the accelerator and press B / Circle or R to switch D (forward) / R (reverse). RT / W accelerates in the selected gear; the dashboard shows it even while stopped.
 - Head toward East Quay in the northeast. The Blue Hotel is the tall blue building outside the eastern loop. Its marked forecourt is on the east side of the road.
-- Stop **anywhere**, hold still for 0.45 seconds, then press A / F to ask for a short direction hint. Requests while moving only explain that you must stop. No route graphics are created.
+- Stop **anywhere**, hold still for 0.45 seconds, then press View / Select or F to ask for a short direction hint. Requests while moving only explain that you must stop. No route graphics are created.
 - Four marked **P** zones are legal: Harbor lay-by, Market stopping bay, Water Tower lay-by, and Blue Hotel forecourt. A full stop elsewhere is tracked as unsafe, but you may still ask for help there.
 - Reach the hotel forecourt and stop fully before the three-minute deadline for success. If time expires, continue driving: stopping at the hotel produces a late-arrival result. Results show elapsed arrival time, unsafe stops, collisions, and direction requests broken down into legal and unsafe stops. Repeated requests at the same stop count separately; rejected moving requests do not count. Retry starts a fresh drive.
 - Repeat the objective and time remaining at any speed with D-pad up, Tab, or M. A mission reminder does not request directions or add to the request count.
@@ -115,7 +116,7 @@ Use **LB / RB** or **Q / E** to change pages. The page tabs also work with the m
 
 The atlas marker changes only when you **successfully ask for information while stopped**, or **move it yourself** to where you think you are. Simply driving, parking in a bay, opening the atlas or repeating the mission reminder does not update it. Rejected requests while moving do not update it either. Information can be requested at any settled stop, including outside a legal bay.
 
-A successful A / F information request records that position as a snapshot, labelled **Last information received**. While the atlas is open, press **F**, **View / Select (PS Share)**, or its **Ask for information** button. The directions appear beside the map, the marker updates, and the car and timer stay paused. A / Enter still places your manual estimate in the atlas. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete / Backspace erases it. The marker remains fixed until the next successful information request or manual change. A new drive starts with its given starting position: Sosta Municipio in Cerea or Harbor lay-by in Harbor District. It never follows the car or creates a route line.
+A successful View / Select or F information request records that position as a snapshot, labelled **Last information received**. While the atlas is open, press **F**, **View / Select (PS Share)**, or its **Ask for information** button. The directions appear beside the map, the marker updates, and the car and timer stay paused. A / Enter still places your manual estimate in the atlas. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete / Backspace erases it. The marker remains fixed until the next successful information request or manual change. A new drive starts with its given starting position: Sosta Municipio in Cerea or Harbor lay-by in Harbor District. It never follows the car or creates a route line.
 
 ## Harbor District
 

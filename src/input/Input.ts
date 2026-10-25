@@ -14,6 +14,7 @@ export interface Actions {
   atlasMoveY: number;
   clearMarker: boolean;
   information: boolean;
+  shiftGear: boolean;
   lookX: number;
   lookY: number;
   mouseX: number;
@@ -56,6 +57,8 @@ export class Input {
   private previousAtlas = false;
   private previousBack = false;
   private previousAtlasPage = 0;
+  private previousShiftGear = false;
+  private queuedShiftGear = false;
   private previousInformation = false;
   private queuedInformation = false;
   private previousClearMarker = false;
@@ -71,11 +74,12 @@ export class Input {
       if (blockedKeys.has(event.code)) event.preventDefault();
       // Preserve quick taps that begin and end between render frames.
       if (!this.keys.has(event.code) && !event.repeat) {
-        if (event.code === "KeyF" || event.code === "Enter")
+        if (event.code === "Enter")
           this.queuedInteract = true;
         if (event.code === "Escape" || event.code === "KeyP")
           this.queuedPause = true;
         if (event.code === "KeyF") this.queuedInformation = true;
+        if (event.code === "KeyR") this.queuedShiftGear = true;
         if (event.code === "KeyC") this.queuedResetLook = true;
         if (event.code === "KeyT") this.queuedAtlas = true;
         if (event.code === "Escape") this.queuedBack = true;
@@ -102,6 +106,7 @@ export class Input {
       this.queuedClearMarker = false;
       this.queuedInformation = false;
       this.queuedResetLook = false;
+      this.queuedShiftGear = false;
       this.setMouseCaptured(false);
     });
   }
@@ -131,7 +136,7 @@ export class Input {
     this.controllerDisconnected = this.hadController && !pad;
     this.hadController = Boolean(pad);
     this.controllerStatus = pad
-      ? "Controller connected · Left stick: steer · RT: accelerate · A / Cross: start or ask."
+      ? "Controller connected · Left stick: steer · RT: accelerate · A / Cross: confirm · View / Select: information."
       : this.gamepadBlocked
         ? "Controller access restricted. Open in a new browser tab or use the desktop app."
         : pads.some((p) => p?.connected)
@@ -139,7 +144,7 @@ export class Input {
           : "Connect a controller and press any button. Keyboard works immediately.";
     const button = (index: number) => pad?.buttons[index]?.value ?? 0;
     this.device = pad ? "Controller" : "Keyboard";
-    const interact = down("KeyF", "Enter") || button(0) > 0.5;
+    const interact = down("Enter") || button(0) > 0.5;
     const pause = down("Escape", "KeyP") || button(9) > 0.5;
     const reminder = down("Tab", "KeyM") || button(12) > 0.5;
     const atlas = down("KeyT") || button(3) > 0.5;
@@ -147,6 +152,7 @@ export class Input {
     const atlasPage = Number(down("KeyE") || button(5) > 0.5)
       - Number(down("KeyQ") || button(4) > 0.5);
     const information = down("KeyF") || button(8) > 0.5;
+    const shiftGear = down("KeyR") || button(1) > 0.5;
     const resetLook = down("KeyC") || button(11) > 0.5;
     const clearMarker = down("Delete", "Backspace") || button(2) > 0.5;
     const keyboardSteer =
@@ -170,6 +176,7 @@ export class Input {
         || (Number(button(13) > 0.5) - Number(button(12) > 0.5)) || deadzone(pad?.axes[1] ?? 0),
       clearMarker: this.queuedClearMarker || (clearMarker && !this.previousClearMarker),
       information: this.queuedInformation || (information && !this.previousInformation),
+      shiftGear: this.queuedShiftGear || (shiftGear && !this.previousShiftGear),
       lookX: deadzone(pad?.axes[2] ?? 0),
       lookY: deadzone(pad?.axes[3] ?? 0),
       mouseX: this.mouseX,
@@ -179,6 +186,8 @@ export class Input {
     this.mouseX=0;this.mouseY=0;
     this.previousResetLook=resetLook;
     this.queuedResetLook=false;
+    this.previousShiftGear=shiftGear;
+    this.queuedShiftGear=false;
     this.previousInformation = information;
     this.queuedInformation = false;
     this.previousClearMarker = clearMarker;

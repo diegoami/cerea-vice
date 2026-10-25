@@ -36,7 +36,7 @@ The main progression is personal familiarity: a district that initially feels co
 - There are a few clearly identifiable places where stopping and parking are allowed.
 - Directions use street names, compass directions, junctions and landmarks rather than exact coordinates or automatic navigation.
 - Major thoroughfares may use larger direction boards. Normal streets use small name plates at crossings, including building-mounted plates where practical, with occasional repeat plates between junctions. Plates run along and face into the street they name. Players should be able to identify lateral streets before turning.
-- Information can be requested while the atlas remains open, with separate controls for asking and marking an estimated position.
+- Information can be requested while the atlas remains open. The same dedicated information control works on the road and in the atlas: View / Select (PS Share), or F on keyboard. A / Cross / Enter confirms menus or places an estimated marker.
 - Consulting the atlas and asking for help are legitimate parts of play, not failures.
 
 ## Geography is the foundation
@@ -74,7 +74,7 @@ The aim is accessible, credible driving rather than hardcore automotive simulati
 - First-person view.
 - Controller support from the beginning, with keyboard fallback.
 - Analog steering, acceleration and braking.
-- Simple reversing and parking.
+- Simple reversing and parking. LT is brake only; B / Circle (R on keyboard) selects forward or reverse while fully stopped, and RT accelerates in the selected direction.
 - Free looking with the right stick and mouse, including full 360-degree horizontal rotation, plus left/right glances for junctions and signs.
 - Basic collisions and readable vehicle behaviour.
 

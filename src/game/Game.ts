@@ -137,6 +137,11 @@ export class Game {
       this.pause();
       this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
     }
+    if (this.screen === "running" && !this.input.controllerDisconnected && actions.shiftGear) {
+      if (this.parking.stopped && actions.throttle < .1 && this.car.shiftGear())
+        this.hud.setHint(`${this.car.gear === "R" ? "Reverse" : "Forward"} selected. RT / W accelerates; LT / S brakes.`);
+      else this.hud.setHint("Stop fully and release the accelerator before switching forward / reverse (B / Circle or R).");
+    }
     if (this.screen === "atlas") {
       if (actions.atlas || actions.back || actions.pause) this.activate();
       else {
@@ -151,10 +156,8 @@ export class Game {
         if (this.screen !== "running") this.activate();
         else this.pause();
       }
-      if (actions.interact || actions.information) {
-        if (this.screen !== "running" && actions.interact) this.activate();
-        else this.requestInformation();
-      }
+      if (actions.interact && this.screen !== "running") this.activate();
+      else if (actions.information) this.requestInformation();
       if (actions.reminder && this.screen === "running") {
         this.hud.remindMission(this.mission);
       }

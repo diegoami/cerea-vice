@@ -62,7 +62,7 @@ test("keyboard and standard controller produce the same actions, with edge-trigg
   const input = new Input();
   key("keydown", "KeyW");
   key("keydown", "KeyD");
-  key("keydown", "KeyF");
+  key("keydown", "Enter");
   const keyboard = input.poll();
   assert.equal(keyboard.throttle, 1);
   assert.equal(keyboard.steer, 1);
@@ -75,8 +75,7 @@ test("keyboard and standard controller produce the same actions, with edge-trigg
   pad.axes[1] = -1;
   buttons[7].value = 1;
   buttons[0].value = 1;
-  // F also requests information in the atlas; A places a manual estimate there.
-  assert.deepEqual(input.poll(), {...keyboard, information: false});
+  assert.deepEqual(input.poll(), keyboard);
   pad.axes[1] = 0;
   assert.equal(input.device, "Controller");
   assert.match(input.controllerStatus, /Controller connected/);
@@ -105,8 +104,8 @@ test("keyboard and standard controller produce the same actions, with edge-trigg
   input.poll();
   assert.equal(input.controllerDisconnected, false, "Disconnect is reported once");
   assert.equal(input.device, "Keyboard");
-  key("keydown", "KeyF");
-  key("keyup", "KeyF");
+  key("keydown", "Enter");
+  key("keyup", "Enter");
   assert.equal(
     input.poll().interact,
     true,
@@ -180,7 +179,7 @@ test('atlas information has its own keyboard/controller edge and cannot place a 
   const input=new Input();
   const key=(type:string,code:string)=>{const event=new Event(type);Object.defineProperty(event,'code',{value:code});target.dispatchEvent(event);};
   key('keydown','KeyF');key('keyup','KeyF');
-  assert.equal(input.poll().information,true);assert.equal(input.poll().information,false);
+  const keyboardAsk=input.poll();assert.equal(keyboardAsk.information,true);assert.equal(keyboardAsk.interact,false);assert.equal(input.poll().information,false);
   pad.buttons[8].value=1;
   const ask=input.poll();assert.equal(ask.information,true);assert.equal(ask.interact,false);
   assert.equal(input.poll().information,false);
@@ -204,4 +203,17 @@ test('right-stick axes and captured mouse movement control view independently of
   move();assert.equal(input.poll().mouseX,0);
   input.setMouseCaptured(true);move();const mouse=input.poll();assert.equal(mouse.mouseX,80);assert.equal(mouse.mouseY,-20);assert.equal(input.poll().mouseX,0);
   move();target.dispatchEvent(new Event('blur'));assert.equal(input.poll().mouseX,0);
+});
+
+
+test('gear selection is a separate edge from braking and information',()=>{
+  const target=new EventTarget();const pad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};
+  Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+  Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[pad]},configurable:true});
+  const input=new Input();pad.buttons[6].value=1;
+  const brake=input.poll();assert.equal(brake.brake,1);assert.equal(brake.shiftGear,false);assert.equal(brake.information,false);
+  pad.buttons[1].value=1;assert.equal(input.poll().shiftGear,true);assert.equal(input.poll().shiftGear,false);
+  pad.buttons[1].value=0;input.poll();
+  for(const type of ['keydown','keyup']){const event=new Event(type);Object.defineProperty(event,'code',{value:'KeyR'});target.dispatchEvent(event);}
+  assert.equal(input.poll().shiftGear,true);assert.equal(input.poll().shiftGear,false);
 });

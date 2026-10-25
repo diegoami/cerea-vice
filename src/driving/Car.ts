@@ -6,6 +6,7 @@ export class Car {
   z = spawn.z;
   heading = spawn.heading;
   speed = 0;
+  gear: "D" | "R" = "D";
   steering = 0;
   collisions = 0;
   private impactCooldown = 0;
@@ -15,9 +16,16 @@ export class Car {
     this.z = spawn.z;
     this.heading = spawn.heading;
     this.speed = 0;
+    this.gear = "D";
     this.steering = 0;
     this.collisions = 0;
     this.impactCooldown = 0;
+  }
+
+  shiftGear(): boolean {
+    if (this.speed !== 0) return false;
+    this.gear = this.gear === "D" ? "R" : "D";
+    return true;
   }
 
   update(dt: number, input: Actions, colliders: Rect[]) {
@@ -25,16 +33,16 @@ export class Car {
     this.steering += (input.steer - this.steering) * Math.min(1, dt * 7);
     const paved = isPaved(this);
     const drag = paved ? 0.45 : 2.4;
-    // Holding brake slows forward motion first, then smoothly engages reverse.
-    let acceleration = input.throttle * (this.speed < -0.2 ? 17 : 9);
-    acceleration -= input.brake * (this.speed > 0.2 ? 19 : 5);
-    this.speed += (acceleration - this.speed * drag) * dt;
-    if (input.handbrake)
-      this.speed =
-        Math.sign(this.speed) * Math.max(0, Math.abs(this.speed) - 28 * dt);
-    if (!input.throttle && !input.brake && Math.abs(this.speed) < 0.12)
-      this.speed = 0;
-    this.speed = Math.max(-6, Math.min(paved ? 21 : 7, this.speed));
+    // The trigger controls speed in the explicitly selected direction. Braking
+    // removes motion and cannot cross zero or select another gear.
+    const direction = this.gear === "D" ? 1 : -1;
+    let magnitude = Math.max(0, this.speed * direction);
+    magnitude += (input.throttle * (this.gear === "D" ? 9 : 5) - magnitude * drag) * dt;
+    magnitude = Math.max(0, magnitude - input.brake * 19 * dt);
+    if (input.handbrake) magnitude = Math.max(0, magnitude - 28 * dt);
+    if (!input.throttle && magnitude < .12) magnitude = 0;
+    magnitude = Math.min(this.gear === "R" ? 6 : paved ? 21 : 7, magnitude);
+    this.speed = magnitude === 0 ? 0 : direction * magnitude;
     const grip = input.handbrake ? 1.4 : 1;
     this.heading +=
       (((this.steering * this.speed) / 2.8) * 0.6 * grip * dt) /
@@ -53,7 +61,7 @@ export class Car {
         this.collisions++;
         this.impactCooldown = 0.9;
       }
-      this.speed *= -0.22;
+      this.speed = 0;
     } else {
       this.x = next.x;
       this.z = next.z;

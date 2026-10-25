@@ -23,6 +23,7 @@ const idle: Actions = {
   atlasMoveY: 0,
   clearMarker: false,
   information: false,
+  shiftGear: false,
   lookX: 0, lookY: 0, mouseX: 0, mouseY: 0, resetLook: false,
 };
 
@@ -123,11 +124,20 @@ test("car brakes, reverses, handbrakes to exact zero and collides with solid geo
   for (let i = 0; i < 60; i++) car.update(1 / 60, { ...idle, throttle: 1 }, []);
   assert.ok(car.speed > 0);
   for (let i = 0; i < 120; i++) car.update(1 / 60, { ...idle, brake: 1 }, []);
+  assert.equal(car.speed, 0, "Holding brake stops without reversing");
+  assert.equal(car.gear, "D");
+  assert.equal(car.shiftGear(), true);
+  for (let i = 0; i < 60; i++) car.update(1 / 60, { ...idle, throttle: 1 }, []);
   assert.ok(car.speed < 0);
+  assert.equal(car.shiftGear(), false, "Direction changes are rejected while moving");
+  for (let i = 0; i < 120; i++) car.update(1 / 60, { ...idle, brake: 1 }, []);
+  assert.equal(car.speed, 0);
+  assert.equal(car.gear, "R", "Braking in reverse does not select forward");
   for (let i = 0; i < 60; i++)
     car.update(1 / 60, { ...idle, handbrake: true }, []);
   assert.equal(car.speed, 0);
   car.reset();
+  assert.equal(car.gear, "D");
   car.x = 0;
   car.z = 10;
   car.heading = 0;
