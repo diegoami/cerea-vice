@@ -58,6 +58,9 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     assert.match(map, /HARBOR ROAD/);
     assert.match(map, /BLUE HOTEL/);
     assert.equal(await page.locator('.atlas-parking').count(), 4);
+    assert.equal(await page.locator('.atlas-pin').getAttribute('transform'), 'translate(-52 90)');
+    assert.match(await page.locator('#atlas-marker-status').innerText(), /Last known position.*Harbor lay-by.*B4/s);
+    const knownParkingPin = await page.locator('.atlas-pin').getAttribute('transform');
     await button(7,1);
     await page.evaluate(() => { window.testController.axes[0] = 1; });
     await page.waitForTimeout(1200);
@@ -68,29 +71,12 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     await button(7,0);
     await button(3,0);
     await page.evaluate(() => { window.testController.axes[0] = 0; });
-    const beforeCursor = await page.locator('.atlas-cursor').getAttribute('transform');
-    await button(15,1);
-    await page.waitForFunction((before) => document.querySelector('.atlas-cursor').getAttribute('transform') !== before, beforeCursor);
-    await button(15,0);
-    await button(0,1); await button(0,0);
-    assert.equal(await page.locator('.atlas-pin').isVisible(), true);
-    assert.equal(await page.locator('.atlas-book').isVisible(), true, 'A places a marker without closing the atlas');
-    const manualPin = await page.locator('.atlas-pin').getAttribute('transform');
     await button(5,1); await button(5,0);
     await page.getByRole('heading', {name:'Places and parking'}).waitFor();
     assert.equal(await page.getByRole('row', {name:/Blue Hotel East Quay Waterfront D2/}).count(), 1);
     await button(4,1); await button(4,0);
     await page.locator('.atlas-map').waitFor();
-    assert.equal(await page.locator('.atlas-pin').getAttribute('transform'), manualPin);
-    await button(2,1); await button(2,0);
-    assert.equal(await page.locator('.atlas-pin').isVisible(), false);
-    const hotelPoint = await page.locator('.atlas-map').evaluate((map) => {
-      const point = new DOMPoint(93,-44).matrixTransform(map.getScreenCTM());
-      return {x:point.x, y:point.y};
-    });
-    await page.mouse.click(hotelPoint.x, hotelPoint.y);
-    await page.waitForFunction(() => document.querySelector('#atlas-marker-status').textContent.includes('D2'));
-    const clickedPin = await page.locator('.atlas-pin').getAttribute('transform');
+    assert.equal(await page.locator('.atlas-pin').getAttribute('transform'), knownParkingPin);
     await mkdir('test-results', {recursive:true});
     await page.screenshot({path:'test-results/desktop-atlas.png'});
     await button(1,1); await button(1,0);
@@ -110,23 +96,16 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     await page.waitForFunction(() => document.querySelector('#stop-state').textContent.includes('STOP'));
     await page.keyboard.press('t');
     await page.locator('.atlas-map').waitFor();
-    await page.keyboard.press('e');
+    await page.keyboard.press('ArrowRight');
     await page.getByRole('heading', {name:'Places and parking'}).waitFor();
     await page.getByRole('button', {name:'01 · District map'}).click();
     await page.locator('.atlas-map').waitFor();
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#overlay').hidden);
-    // A hand-placed marker stays where it was left after driving and reopening.
+    // Driving does not turn the last parked position into a live car marker.
     await page.keyboard.press('t');
     await page.locator('.atlas-map').waitFor();
-    assert.equal(await page.locator('.atlas-pin').getAttribute('transform'), clickedPin);
-    await page.keyboard.down('ArrowRight');
-    await page.waitForTimeout(150);
-    await page.keyboard.up('ArrowRight');
-    await page.keyboard.press('Enter');
-    assert.equal(await page.locator('.atlas-book').isVisible(), true);
-    await page.keyboard.press('Delete');
-    await page.waitForFunction(() => document.querySelector('.atlas-pin').style.display === 'none');
+    assert.equal(await page.locator('.atlas-pin').getAttribute('transform'), knownParkingPin);
     await button(12,1);
     await button(12,0);
     assert.equal(await page.locator('.atlas-book').count(), 1);

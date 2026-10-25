@@ -68,10 +68,7 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 | Glance left / right                | LB / RB               | Q / E                        |
 | Start / request directions / retry | A / Cross (south face button) | F or Enter                   |
 | Open / close atlas (while stopped) | Y / Triangle          | T                            |
-| Turn atlas page                    | LB / RB               | Q / E                        |
-| Move atlas crosshair               | Left stick / D-pad    | WASD / arrow keys            |
-| Place atlas marker                 | A / Cross             | Enter / click map            |
-| Erase atlas marker                 | X / Square            | Delete / Backspace           |
+| Turn atlas page                    | LB / RB or D-pad ← / → | Q / E or left / right arrows |
 | Close atlas                        | B / Circle            | Escape                       |
 | Repeat mission and time remaining  | D-pad up              | Tab or M                     |
 | Pause / resume                     | Start / Options                 | Escape or P                  |
@@ -94,9 +91,9 @@ Stop fully for 0.45 seconds, then press **T** or **Y / Triangle** to open the at
 
 The first page is a north-up street map with district names, landmarks, the canal bridge, rail spur, harbor and four legal stopping bays. The second page is an alphabetical place index with street/area descriptions and grid references. Roads, main landmark footprints, water and parking bays use the same district data as the world. The atlas contains no live car marker, route line or destination arrow.
 
-Use **LB / RB** or **Q / E** to change pages. The page tabs also work with the mouse. Close with **B / Circle**, **T**, **Y / Triangle**, **Escape**, or the close button; **Start** also returns to the road. Driving inputs are ignored while reading. Switching away from the window or disconnecting the controller closes the atlas into the pause screen, requiring an explicit resume.
+Use **LB / RB**, **D-pad left / right**, **Q / E** or the **arrow keys** to change pages. The page tabs also work with the mouse. Close with **B / Circle**, **T**, **Y / Triangle**, **Escape**, or the close button; **A / Enter** and **Start** also return to the road. Driving inputs are ignored while reading. Switching away from the window or disconnecting the controller closes the atlas into the pause screen, requiring an explicit resume.
 
-Place one personal marker by **clicking the map**, or move the dashed crosshair with the **left stick / D-pad / WASD / arrow keys**, then press **A / Cross / Enter** or the Place marker button. A new placement moves the existing marker. **X / Square / Delete / Backspace** or Erase marker removes it. The marker remains fixed across page changes, driving and retries during this session; it resets when the app is reloaded or closed. It represents a note you placed by hand, not the car’s location, and creates no route guidance.
+The red marker records the **last known legal parking spot**. It starts at Harbor lay-by and updates only after a settled full stop inside another marked P bay. It stays at that bay while driving, passing through other bays or stopping elsewhere. The label names the bay and its atlas grid square. It does not follow the car, cannot be placed manually, and resets to Harbor lay-by on retry.
 
 ## District
 
