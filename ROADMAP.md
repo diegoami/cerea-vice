@@ -27,7 +27,7 @@ A stopped-only atlas is now implemented. Cerea Centro is now an initial modern-g
 
 ## Milestone 2 Complete the navigation tools
 
-**Status:** Atlas implemented with controller/keyboard page controls, paused reading time and a position marker updated by successful information requests or the player’s own estimate. Information can also be requested from within either atlas page using F, View / Select (PS Share) or its button, without closing the atlas. Atlas playtesting and a distinct location-only request remain.
+**Status:** Atlas implemented with controller/keyboard page controls, paused reading time and a position marker updated by successful information requests or the player’s own estimate. Information can also be requested from within either atlas page using F, View / Select (PS Share) or its button, without closing the atlas. The atlas now includes 1×–8× zoom, pan controls, readable detail labels and a street index that can focus an individual road. Atlas playtesting and a distinct location-only request remain.
 
 **Deliverable:** a usable paper-style atlas and clearer stopped-only help.
 

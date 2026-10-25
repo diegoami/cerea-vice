@@ -75,7 +75,7 @@ test("keyboard and standard controller produce the same actions, with edge-trigg
   pad.axes[1] = -1;
   buttons[7].value = 1;
   buttons[0].value = 1;
-  assert.deepEqual(input.poll(), keyboard);
+  assert.deepEqual(input.poll(), {...keyboard, atlasZoom: 1});
   pad.axes[1] = 0;
   assert.equal(input.device, "Controller");
   assert.match(input.controllerStatus, /Controller connected/);
@@ -216,4 +216,14 @@ test('gear selection is a separate edge from braking and information',()=>{
   pad.buttons[1].value=0;input.poll();
   for(const type of ['keydown','keyup']){const event=new Event(type);Object.defineProperty(event,'code',{value:'KeyR'});target.dispatchEvent(event);}
   assert.equal(input.poll().shiftGear,true);assert.equal(input.poll().shiftGear,false);
+});
+
+test('atlas zoom and pan work independently of marker movement and information',()=>{
+  const target=new EventTarget(),pad={connected:true,mapping:'standard',axes:[0,0,.8,-.6],buttons:Array.from({length:17},()=>({value:0}))};
+  Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+  Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[pad]},configurable:true});
+  const input=new Input();pad.buttons[7].value=.8;pad.buttons[6].value=.2;
+  const actions=input.poll();assert.ok(Math.abs(actions.atlasZoom-.6)<1e-8);assert.ok(actions.atlasPanX>0);assert.ok(actions.atlasPanY<0);assert.equal(actions.atlasMoveX,0);assert.equal(actions.information,false);
+  for(const type of ['keydown','keyup']){const event=new Event(type);Object.defineProperty(event,'code',{value:'Equal'});target.dispatchEvent(event);}
+  assert.equal(input.poll().atlasZoomStep,1);assert.equal(input.poll().atlasZoomStep,0);
 });

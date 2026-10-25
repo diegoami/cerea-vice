@@ -1,5 +1,6 @@
+import { AtlasView } from "../navigation/AtlasView";
 import { AtlasNotes } from "../navigation/AtlasNotes";
-import { atlasFrame, atlasReference, atlasMarkup, type AtlasPage } from "./Atlas";
+import { atlasFrame, atlasStreetEntries, atlasReference, atlasMarkup, type AtlasPage } from "./Atlas";
 import type { Car } from "../driving/Car";
 import type { Mission } from "../mission/Mission";
 import type { Parking } from "../navigation/Parking";
@@ -19,6 +20,13 @@ export const formatTime = (seconds: number) =>
 export class Hud {
   private overlay: HTMLElement;
   private atlasInformation = "";
+  private readonly atlasView = new AtlasView();
+  private selectedStreet = "";
+  private indexStreet = -1;
+  private indexSelectDelay = 0;
+  private indexSelectDirection = 0;
+  private atlasDrag?:{id:number;startX:number;startY:number;lastX:number;lastY:number;moved:boolean};
+  private suppressAtlasClick = false;
   private atlasPage: AtlasPage = "map";
   private readonly atlasNotes = new AtlasNotes();
   private currentScreen: Screen | undefined;
@@ -76,6 +84,7 @@ export class Hud {
     this.overlay.addEventListener("click", (e) => {
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
       if (!button) {
+        if(this.suppressAtlasClick){this.suppressAtlasClick=false;return;}
         const map = (e.target as Element).closest<SVGSVGElement>(".atlas-map");
         if (!map || this.currentScreen !== "atlas") return;
         const matrix = map.getScreenCTM();
@@ -87,6 +96,9 @@ export class Hud {
         this.placeAtlasMarker();
         return;
       }
+      if(button.dataset.atlasZoom) {this.zoomAtlas(Math.pow(1.5,Number(button.dataset.atlasZoom)));return;}
+      if(button.hasAttribute("data-atlas-overview")){this.resetAtlasView();return;}
+      if(button.dataset.atlasStreet){this.focusAtlasStreet(button.dataset.atlasStreet);return;}
       if (button.dataset.district) {
         selectDistrict(button.dataset.district);
       } else if (button.dataset.atlasPage) {
@@ -96,10 +108,109 @@ export class Hud {
       else if (button.hasAttribute("data-atlas-information")) onInformation();
       else onAction();
     });
+    this.overlay.addEventListener("wheel",event=>{
+      const map=(event.target as Element).closest<SVGSVGElement>(".atlas-map");
+      if(this.currentScreen!=="atlas"||!map)return;
+      event.preventDefault();
+      const point=this.mapPoint(map,event.clientX,event.clientY);
+      if(point)this.zoomAtlas(Math.exp(-event.deltaY*(event.deltaMode===1?16:1)*.0015),point);
+    },{passive:false});
+    this.overlay.addEventListener("pointerdown",event=>{
+      const map=(event.target as Element).closest<SVGSVGElement>(".atlas-map");
+      if(this.currentScreen!=="atlas"||!map||event.button!==0)return;
+      this.suppressAtlasClick=false;
+      this.atlasDrag={id:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,moved:false};
+      map.setPointerCapture(event.pointerId);
+    });
+    this.overlay.addEventListener("pointermove",event=>{
+      const drag=this.atlasDrag,map=this.overlay.querySelector<SVGSVGElement>(".atlas-map");
+      if(!drag||!map||event.pointerId!==drag.id)return;
+      if(Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)>4)drag.moved=true;
+      if(drag.moved){
+        const before=this.mapPoint(map,drag.lastX,drag.lastY),after=this.mapPoint(map,event.clientX,event.clientY);
+        if(before&&after){this.atlasView.pan(before.x-after.x,before.z-after.z);this.updateAtlasView();}
+      }
+      drag.lastX=event.clientX;drag.lastY=event.clientY;
+    });
+    this.overlay.addEventListener("pointerup",event=>{
+      if(this.atlasDrag?.id===event.pointerId){this.suppressAtlasClick=this.atlasDrag.moved;this.atlasDrag=undefined;}
+    });
+    this.overlay.addEventListener("pointercancel",()=>{this.atlasDrag=undefined;this.suppressAtlasClick=false;});
+    window.addEventListener("resize",()=>this.updateAtlasView());
+  }
+
+  private mapPoint(map:SVGSVGElement,x:number,y:number) {
+    const matrix=map.getScreenCTM();if(!matrix)return;
+    const p=new DOMPoint(x,y).matrixTransform(matrix.inverse());return {x:p.x,z:p.y};
+  }
+
+  private updateAtlasView() {
+    if(this.currentScreen!=="atlas"||this.atlasPage!=="map")return;
+    const map=this.overlay.querySelector<SVGSVGElement>(".atlas-map");if(!map)return;
+    const box=this.atlasView.box;
+    const oldCursor=this.atlasNotes.cursor;
+    if(oldCursor.x<box.x||oldCursor.x>box.x+box.width||oldCursor.z<box.z||oldCursor.z>box.z+box.height)this.atlasNotes.pointAt(this.atlasView.centre);
+    map.setAttribute("viewBox",`${box.x} ${box.z} ${box.width} ${box.height}`);
+    const scale=map.getScreenCTM()?.a??1;if(!(scale>0))return;
+    const pixels=Math.min(16,8+4*(this.atlasView.zoom-1));
+    for(const label of map.querySelectorAll<SVGTextElement>("[data-street]")){
+      const selected=label.dataset.street===this.selectedStreet;
+      label.style.fontSize=`${(selected?pixels+2:pixels)/scale}px`;
+      label.style.paintOrder="stroke";label.style.stroke="#f8f1dd";label.style.strokeWidth=`${3/scale}px`;
+      label.style.fill=selected?"#8f342c":"#29443f";
+    }
+    for(const label of map.querySelectorAll<SVGTextElement>('[data-map-label="place"]')){label.style.fontSize=`${(pixels+1)/scale}px`;label.style.strokeWidth=`${2/scale}px`;}
+    for(const label of map.querySelectorAll<SVGTextElement>('[data-map-label="parking"]'))label.style.fontSize=`${(pixels+2)/scale}px`;
+    const pin=map.querySelector<SVGGElement>(".atlas-pin"),cursor=map.querySelector<SVGGElement>(".atlas-cursor");
+    pin?.querySelector('circle')?.setAttribute('r',`${5/scale}`);
+    pin?.querySelector('path')?.setAttribute('d',`M ${-3/scale} ${-3/scale} L ${3/scale} ${3/scale} M ${-3/scale} ${3/scale} L ${3/scale} ${-3/scale}`);
+    if(pin)pin.style.strokeWidth=`${1.2/scale}px`;
+    cursor?.querySelector('circle')?.setAttribute('r',`${8/scale}`);
+    cursor?.querySelector('path')?.setAttribute('d',`M ${-12/scale} 0 H ${-4/scale} M ${4/scale} 0 H ${12/scale} M 0 ${-12/scale} V ${-4/scale} M 0 ${4/scale} V ${12/scale}`);
+    cursor?.setAttribute("transform",`translate(${this.atlasNotes.cursor.x} ${this.atlasNotes.cursor.z})`);
+    if(cursor)cursor.style.strokeWidth=`${1/scale}px`;
+    const output=this.overlay.querySelector('#atlas-zoom-level');if(output)output.textContent=`${Math.round(this.atlasView.zoom*100)}%`;
+    for(const [selector,disabled] of [['[data-atlas-zoom="-1"]',this.atlasView.zoom<=1],['[data-atlas-zoom="1"]',this.atlasView.zoom>=8]] as const){const button=this.overlay.querySelector<HTMLButtonElement>(selector);if(button)button.disabled=disabled;}
+  }
+
+  private zoomAtlas(factor:number,anchor?:Point) {
+    if(this.currentScreen!=="atlas"||this.atlasPage!=="map")return;
+    this.atlasView.zoomAt(factor,anchor??this.atlasView.centre);this.updateAtlasView();
+  }
+  private resetAtlasView(){this.atlasView.reset();this.updateAtlasView();}
+  private focusAtlasStreet(name:string){
+    const street=atlasStreetEntries().find(street=>street.name===name);if(!street)return;
+    this.selectedStreet=name;this.indexStreet=atlasStreetEntries().findIndex(street=>street.name===name);
+    this.atlasNotes.pointAt(street);this.atlasView.focus(street,5);
+    if(this.atlasPage!=="map")this.setAtlasPage("map");else this.updateAtlasView();
+  }
+
+  controlAtlasView(dt:number,zoom:number,step:number,panX:number,panY:number,overview:boolean){
+    if(this.currentScreen!=="atlas")return;
+    if(this.atlasPage==="index"){
+      const direction=Math.abs(panY)>.4?Math.sign(panY):0;this.indexSelectDelay-=dt;
+      if(direction&&(direction!==this.indexSelectDirection||this.indexSelectDelay<=0)){
+        const entries=atlasStreetEntries();this.indexStreet=this.indexStreet<0?0:Math.max(0,Math.min(entries.length-1,this.indexStreet+direction));
+        this.indexSelectDelay=.18;
+        for(const button of this.overlay.querySelectorAll<HTMLButtonElement>('[data-atlas-street]')){
+          const selected=button.dataset.atlasStreet===entries[this.indexStreet].name;button.setAttribute('aria-pressed',String(selected));
+          if(selected){button.focus();button.scrollIntoView({block:'nearest'});}
+        }
+      }
+      this.indexSelectDirection=direction;return;
+    }
+    if(overview)this.atlasView.reset();
+    else {
+      if(step)this.atlasView.zoomAt(Math.pow(1.5,step));
+      if(Math.abs(zoom)>.08)this.atlasView.zoomAt(Math.exp(zoom*dt*1.25));
+      if(panX||panY){const box=this.atlasView.box;this.atlasView.pan(panX*box.width*.55*dt,panY*box.height*.55*dt);}
+    }
+    if(overview||step||Math.abs(zoom)>.08||panX||panY)this.updateAtlasView();
   }
 
   private setAtlasPage(page: AtlasPage) {
     if (this.currentScreen !== "atlas" || this.atlasPage === page) return;
+    this.atlasDrag=undefined;this.suppressAtlasClick=false;
     this.atlasPage = page;
     this.overlay.innerHTML = atlasMarkup(page);
     this.updateAtlasNotes();
@@ -126,6 +237,7 @@ export class Hud {
 
   private updateAtlasNotes() {
     this.updateAtlasInformation();
+    this.updateAtlasView();
     const { cursor, marker } = this.atlasNotes;
     this.overlay.querySelector(".atlas-cursor")?.setAttribute("transform", `translate(${cursor.x} ${cursor.z})`);
     const pin = this.overlay.querySelector<SVGGElement>(".atlas-pin");
@@ -149,21 +261,24 @@ export class Hud {
 
   resetAtlasNotes() {
     this.atlasNotes.reset();
+    this.atlasView.reset();this.selectedStreet="";this.indexStreet=-1;
     this.atlasInformation = "";
   }
 
   confirmAtlasPosition(position: Point, parkingName?: string) {
     const label = parkingName ?? `${nearestRoad(position).edge.name}, ${areaAt(position)}`;
     this.atlasNotes.confirm(position, label);
+    this.atlasView.ensureVisible(position);
   }
 
   moveAtlasCursor(dt: number, x: number, z: number) {
     if(this.currentScreen!=="atlas")return;
     if(this.atlasPage==="index") { const index=this.overlay.querySelector<HTMLElement>(".atlas-index");if(index)index.scrollTop+=z*dt*300;return; }
-    if(this.atlasNotes.move(dt,x,z))this.updateAtlasNotes();
+    if(this.atlasNotes.move(dt/this.atlasView.zoom,x,z)){this.atlasView.ensureVisible(this.atlasNotes.cursor);this.updateAtlasNotes();}
   }
 
   placeAtlasMarker() {
+    if(this.currentScreen==="atlas"&&this.atlasPage==="index"&&this.indexStreet>=0){this.focusAtlasStreet(atlasStreetEntries()[this.indexStreet].name);return;}
     if (this.currentScreen !== "atlas" || this.atlasPage !== "map") return;
     this.atlasNotes.place();
     this.updateAtlasNotes();
@@ -197,6 +312,7 @@ export class Hud {
 
   show(screen: Screen, mission: Mission, car: Car, parking: Parking) {
     if (screen === this.currentScreen) return;
+    this.atlasDrag=undefined;this.suppressAtlasClick=false;
     this.currentScreen = screen;
     this.overlay.classList.toggle("atlas-open", screen === "atlas");
     this.overlay.hidden = screen === "running";

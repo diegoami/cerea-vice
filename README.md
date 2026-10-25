@@ -79,6 +79,9 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 | Glance left / right                | LB / RB               | Q / E                        |
 | Confirm / passenger pickup / dropoff / retry            | A / Cross (south face button) | Enter                   |
 | Open / close atlas (while stopped) | Y / Triangle          | T                            |
+| Atlas zoom (atlas only)             | RT / LT               | Mouse wheel / + / −          |
+| Pan atlas                          | Right stick           | Drag map / I J K L           |
+| Atlas overview                     | R3                    | Home / Overview button       |
 | Turn atlas page                    | LB / RB               | Q / E                        |
 | Move atlas crosshair               | Left stick / D-pad    | WASD / arrow keys            |
 | Mark estimated position            | A / Cross             | Enter / click map            |
@@ -114,7 +117,11 @@ Stop in the current pickup or dropoff area and press **A / Cross / Enter**. Disp
 
 Stop fully for 0.45 seconds, then press **T** or **Y / Triangle** to open the atlas anywhere, including outside a marked parking bay. Requests while moving explain how to stop first. The car and mission timer freeze while reading; closing the atlas resumes the drive.
 
-The first page is a north-up map of the selected district, with street names, landmarks, waterways, railway features and marked stopping bays. The second page is an alphabetical place index with street/area descriptions and grid references. Roads, main landmark footprints, water and parking bays use the same district data as the world. The atlas contains no live car marker, route line or destination arrow. Cerea currently allows stopping anywhere; Harbor retains its marked-bay legal/unsafe distinction.
+The first page is a north-up map of the selected district, with street names, landmarks, waterways, railway features and marked stopping bays. The second page has alphabetical place and street indexes with grid references. Choose a street name to open a detailed view, including Via Cordioli. Roads, main landmark footprints, water and parking bays use the same district data as the world. The atlas contains no live car marker, route line or destination arrow. Cerea currently allows stopping anywhere; Harbor retains its marked-bay legal/unsafe distinction.
+
+Zoom from **1× to 8×** with **RT / LT**, **mouse wheel**, **+ / −**, or the on-map buttons. Pan using the **right stick**, **I J K L**, or **dragging the map**. **R3 / Home / Overview** returns to the full district. Left stick / D-pad / arrow keys still move the marker crosshair, with edge scrolling at higher zoom. A short click places a marker; dragging pans without changing it. Labels grow to readable sizes in detailed views, and zoom/pan are retained when closing the atlas or changing its pages.
+
+In the index, use the **right stick up/down** or **I / K** to select a street, then **A / Enter** to locate it on the map. Mouse users can click the street name. Lookup changes the view and crosshair, not your marked position. Left stick / D-pad scrolls the index. Taxi time and bonus timers remain paused throughout. The accelerator must be released after closing the atlas if it was held for zooming.
 
 Use **LB / RB** or **Q / E** to change pages. The page tabs also work with the mouse. Close with **B / Circle**, **T**, **Y / Triangle**, **Escape**, or the close button; **Start** also returns to the road. Driving inputs are ignored while reading. Switching away from the window or disconnecting the controller closes the atlas into the pause screen, requiring an explicit resume.
 

@@ -28,6 +28,7 @@ export class Game {
   private districtSwitchReady = false;
   private ignorePauseUntil = 0;
   private missionRevision = -1;
+  private waitForDrivingRelease = false;
 
   constructor(root: HTMLElement) {
     this.renderer.setPixelRatio(1);
@@ -95,6 +96,7 @@ export class Game {
 
   private activate() {
     if (this.screen === "running") return;
+    if(this.screen === "atlas")this.waitForDrivingRelease=true;
     if (this.screen === "briefing" || this.screen === "result") {
       this.car.reset();
       this.parking.reset();
@@ -147,6 +149,7 @@ export class Game {
       if (actions.atlas || actions.back || actions.pause) this.activate();
       else {
         if (actions.atlasPage) this.hud.turnAtlasPage(actions.atlasPage);
+        this.hud.controlAtlasView(dt,actions.atlasZoom,actions.atlasZoomStep,actions.atlasPanX,actions.atlasPanY,actions.resetLook);
         this.hud.moveAtlasCursor(dt, actions.atlasMoveX, actions.atlasMoveY);
         if (actions.information) this.requestInformation();
         else if (actions.interact) this.hud.placeAtlasMarker();
@@ -178,10 +181,12 @@ export class Game {
       }
     }
     if (this.screen === "running") {
+      if(this.waitForDrivingRelease&&actions.throttle<.1&&actions.brake<.1)this.waitForDrivingRelease=false;
+      const driving=this.waitForDrivingRelease?{...actions,throttle:0,brake:0}:actions;
       this.accumulator += dt;
       // Fixed 60 Hz simulation keeps handling consistent across render rates.
       while (this.accumulator >= 1 / 60) {
-        this.car.update(1 / 60, actions, this.world.colliders);
+        this.car.update(1 / 60, driving, this.world.colliders);
         this.parking.update(1 / 60, this.car, this.car.speed);
         this.mission.update(1 / 60, this.car, this.parking.stopped);
         this.accumulator -= 1 / 60;

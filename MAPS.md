@@ -16,6 +16,12 @@ This uses modern geography with a retro visual presentation. The source outlines
 
 The taxi shift is an initial gameplay balance, with an accelerated clock and speed rewards to tune through playtesting. Test turn approaches, small signs, narrow streets and the arrival bay on a physical controller before expanding the area.
 
+## Atlas detail and street lookup
+
+The atlas supports 1×–8× zoom, panning, pointer-centred wheel zoom and a full overview reset. Street/place labels use readable detail sizes and street labels have a paper-colour halo. A street index can focus any printed street label at 5×, including Via Cordioli; this is a manual atlas lookup, with no route line or live tracking. Marker geometry stays a small screen size when zoomed.
+
+Map controls: RT / LT or + / − zoom, right stick / I J K L / mouse drag pan, R3 / Home restores overview. In the index, right stick up/down or I / K selects a street and A / Enter locates it. Mouse users click the indexed name. Left stick retains crosshair/index-scrolling control. Zooming and dragging never move the position marker, and reading keeps taxi time paused.
+
 ## Files and loading
 
 - `public/maps/cerea.json`: generated Cerea district, bundled into the Windows build.

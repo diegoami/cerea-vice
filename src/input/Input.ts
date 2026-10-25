@@ -20,6 +20,10 @@ export interface Actions {
   mouseX: number;
   mouseY: number;
   resetLook: boolean;
+  atlasZoom: number;
+  atlasZoomStep: number;
+  atlasPanX: number;
+  atlasPanY: number;
 }
 const blockedKeys = new Set([
   "ArrowUp",
@@ -31,6 +35,7 @@ const blockedKeys = new Set([
   "Tab",
   "Delete",
   "Backspace",
+  "Equal", "Minus", "NumpadAdd", "NumpadSubtract", "Home",
 ]);
 const deadzone = (value: number) =>
   Math.abs(value) < 0.16
@@ -39,6 +44,7 @@ const deadzone = (value: number) =>
 
 /** Poll once per rendered frame; consume edge actions once per simulation update. */
 export class Input {
+  private queuedAtlasZoomStep = 0;
   private mouseCaptured = false;
   private mouseX = 0;
   private mouseY = 0;
@@ -80,7 +86,9 @@ export class Input {
           this.queuedPause = true;
         if (event.code === "KeyF") this.queuedInformation = true;
         if (event.code === "KeyR") this.queuedShiftGear = true;
-        if (event.code === "KeyC") this.queuedResetLook = true;
+        if (event.code === "KeyC" || event.code === "Home") this.queuedResetLook = true;
+        if (event.code === "Equal" || event.code === "NumpadAdd") this.queuedAtlasZoomStep = 1;
+        if (event.code === "Minus" || event.code === "NumpadSubtract") this.queuedAtlasZoomStep = -1;
         if (event.code === "KeyT") this.queuedAtlas = true;
         if (event.code === "Escape") this.queuedBack = true;
         if (event.code === "Delete" || event.code === "Backspace") this.queuedClearMarker = true;
@@ -107,6 +115,7 @@ export class Input {
       this.queuedInformation = false;
       this.queuedResetLook = false;
       this.queuedShiftGear = false;
+      this.queuedAtlasZoomStep = 0;
       this.setMouseCaptured(false);
     });
   }
@@ -153,7 +162,7 @@ export class Input {
       - Number(down("KeyQ") || button(4) > 0.5);
     const information = down("KeyF") || button(8) > 0.5;
     const shiftGear = down("KeyR") || button(1) > 0.5;
-    const resetLook = down("KeyC") || button(11) > 0.5;
+    const resetLook = down("KeyC", "Home") || button(11) > 0.5;
     const clearMarker = down("Delete", "Backspace") || button(2) > 0.5;
     const keyboardSteer =
       Number(down("KeyD", "ArrowRight")) - Number(down("KeyA", "ArrowLeft"));
@@ -182,7 +191,12 @@ export class Input {
       mouseX: this.mouseX,
       mouseY: this.mouseY,
       resetLook: this.queuedResetLook || (resetLook && !this.previousResetLook),
+      atlasZoom: button(7)-button(6),
+      atlasZoomStep: this.queuedAtlasZoomStep,
+      atlasPanX: Number(down("KeyL"))-Number(down("KeyJ")) || deadzone(pad?.axes[2]??0),
+      atlasPanY: Number(down("KeyK"))-Number(down("KeyI")) || deadzone(pad?.axes[3]??0),
     };
+    this.queuedAtlasZoomStep=0;
     this.mouseX=0;this.mouseY=0;
     this.previousResetLook=resetLook;
     this.queuedResetLook=false;

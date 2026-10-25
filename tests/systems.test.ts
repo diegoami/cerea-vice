@@ -24,6 +24,7 @@ const idle: Actions = {
   clearMarker: false,
   information: false,
   shiftGear: false,
+  atlasZoom: 0, atlasZoomStep: 0, atlasPanX: 0, atlasPanY: 0,
   lookX: 0, lookY: 0, mouseX: 0, mouseY: 0, resetLook: false,
 };
 

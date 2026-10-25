@@ -957,3 +957,12 @@ h1 em {
 .objective { max-width:min(690px,75vw); }
 #taxi-status { margin-top:8px;font:12px/1.5 monospace;color:var(--accent); }
 .objective h2 { overflow-wrap:anywhere; }
+.atlas-sheet { position:relative;overflow:hidden;touch-action:none;user-select:none; }
+.atlas-zoom-controls { position:absolute;left:14px;top:10px;z-index:1;display:flex;align-items:center;border:1px solid #8b8e76;box-shadow:0 2px 6px #263d3d22;background:#eee5cdeb; }
+.atlas-book .atlas-zoom-controls button { padding:8px 12px;background:transparent; }
+.atlas-zoom-controls output { min-width:52px;text-align:center;font:11px monospace; }
+.atlas-zoom-controls button:disabled { opacity:.4;cursor:default; }
+.atlas-map { cursor:grab; }
+.atlas-map:active { cursor:grabbing; }
+.atlas-book .atlas-street-link { background:transparent;padding:2px 0;font:inherit;text-align:left;text-decoration:underline;text-underline-offset:3px; }
+.atlas-book .atlas-street-link[aria-pressed="true"] { color:#8f342c;font-weight:bold; }
