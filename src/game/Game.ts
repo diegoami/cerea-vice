@@ -1,3 +1,5 @@
+import { district } from "../world/district";
+import { availableDistricts, selectDistrict } from "../world/load";
 import { WebGLRenderer } from "three";
 import { Car } from "../driving/Car";
 import { CockpitCamera } from "../driving/CockpitCamera";
@@ -23,6 +25,7 @@ export class Game {
   private screen: Screen = "briefing";
   private previousTime = 0;
   private accumulator = 0;
+  private districtSwitchReady = false;
 
   constructor(root: HTMLElement) {
     this.renderer.setPixelRatio(1);
@@ -79,7 +82,7 @@ export class Game {
       this.mission.reset();
       this.hud.resetAtlasNotes();
       this.hud.setHint(
-        "Blue Hotel is on East Quay, northeast of here. Follow the street signs. Stop anywhere to ask for more.",
+        district.mission.hint,
       );
       this.cockpit.update(1, this.car, 0);
     }
@@ -94,6 +97,13 @@ export class Game {
       : 0;
     this.previousTime = time;
     const actions = this.input.poll();
+    if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
+    if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
+      this.districtSwitchReady = false;
+      const index=availableDistricts.findIndex((map)=>map.id===district.id);
+      selectDistrict(availableDistricts[(index+availableDistricts.length+Math.sign(actions.atlasPage))%availableDistricts.length].id);
+      return;
+    }
     if (this.input.controllerDisconnected) {
       this.pause();
       this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");

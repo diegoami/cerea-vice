@@ -1,10 +1,9 @@
-import { hotelBay, inRect, type Point } from "../world/district";
+import { district, hotelBay, inRect, type Point } from "../world/district";
 
 export type MissionState = "active" | "overdue" | "success" | "late";
 export class Mission {
-  readonly duration = 180;
-  readonly objective =
-    "Reach the Blue Hotel in Waterfront and stop in its marked forecourt.";
+  readonly duration = district.mission.duration;
+  readonly objective = district.mission.objective;
   directionRequests = { legal: 0, unsafe: 0 };
   elapsed = 0;
   state: MissionState = "active";

@@ -10,7 +10,7 @@ The prototype already has first-person driving, analog controller input with key
 
 A portable Windows client has been built and launched. Automated tests cover driving and navigation systems and a desktop drive with simulated controller input. The user confirmed milestone 1 complete on 25 October 2026, covering the driving and signs playtest. Longer-term geography learning will be evaluated through multiple journeys.
 
-A stopped-only atlas is now implemented. The main missing pieces are a distinct location request, reusable destinations and journeys, real geography, and evidence that repeated journeys produce familiarity.
+A stopped-only atlas is now implemented. Cerea Centro is now an initial modern-geography pilot with loadable district data. The main missing pieces are a distinct location request, multiple selectable journeys within a district, and evidence that repeated journeys produce familiarity.
 
 ## Milestone 1 Validate the driving and signs
 
@@ -55,6 +55,8 @@ A stopped-only atlas is now implemented. The main missing pieces are a distinct 
 
 ## Milestone 4 Choose and model a small real district
 
+**Status:** Cerea Centro selected and modelled from a modern OpenStreetMap subset. The user explicitly accepts modern geography with retro presentation; exact historical reconstruction is unnecessary. See [MAPS.md](MAPS.md) and [data sources](data/README.md).
+
 **Deliverable:** a reviewed geographic specification for the first real-place pilot.
 
 - Choose the town or district, its boundary and an approximate year in the 1980s. Prefer a compact area with varied junctions, recognisable landmarks and several useful destinations.
@@ -66,6 +68,8 @@ A stopped-only atlas is now implemented. The main missing pieces are a distinct 
 **Checkpoint:** someone familiar with the place can review the road graph and map, recognise it, and identify no major misleading connections or directions. Record unresolved historical details explicitly.
 
 ## Milestone 5 Build the real-place pilot
+
+**Status:** First playable pilot implemented: loadable JSON, angled roads, mapped building footprints, named civic landmarks, one-way directions, adaptive atlas and Municipio-to-library journey. Physical playtesting and tuning remain.
 
 **Deliverable:** the existing navigation loop running in one recognisable real district.
 
@@ -98,8 +102,8 @@ Fleet management, company finances, production chains, vehicle collections, comb
 
 ## Immediate next work
 
-1. Playtest the atlas in the Windows build.
-2. Add a separate stopped-only location request alongside destination directions.
-3. Generalise destinations and add several journeys in Harbor District.
+1. Playtest the Cerea Centro journey in the Windows build.
+2. Tune sign placement, narrow turns, atlas readability and the arrival bay.
+3. Add further journeys in Cerea and a distinct stopped-only location request.
 
-During these steps, choose the candidate real location and historical period. No map expansion or engine replacement is needed to begin.
+Keep the Cerea subset bounded while evaluating navigation and familiarity. Expand only after the first journeys are comfortable and geographically recognisable.

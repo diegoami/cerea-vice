@@ -1,7 +1,7 @@
 {
   "name": "cerea-vice",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -12,7 +12,8 @@
     "desktop": "npm run desktop:setup && npm run build && electron .",
     "desktop:package": "npm run desktop:setup && npm run build && node desktop/package.mjs",
     "test:desktop": "npm run desktop:setup && npm run build && node --test desktop/smoke.test.mjs",
-    "desktop:package:win": "npm run desktop:setup && npm run build && node desktop/package.mjs --platform=win32 --arch=x64"
+    "desktop:package:win": "npm run desktop:setup && npm run build && node desktop/package.mjs --platform=win32 --arch=x64",
+    "desktop:win": "npm run desktop:package:win && node desktop/run-windows.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"
@@ -27,7 +28,7 @@
     "vite": "^7.1.12"
   },
   "productName": "Cerea Vice",
-  "description": "A first-person driving and navigation experiment in Harbor District",
+  "description": "A geography-first driving game with loadable real-world neighbourhoods",
   "main": "desktop/main.mjs",
   "engines": {
     "node": ">=22.12.0"

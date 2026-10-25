@@ -932,3 +932,8 @@ h1 em {
   .atlas-tools > span { font-size: 9px; }
   .atlas-tools button { font-size: 10px; padding: 7px; }
 }
+.district-switch { display:flex;gap:8px;margin:16px 0 8px; }
+.modal .district-switch button { padding:10px;font:11px monospace;justify-content:center;background:#30453f;color:#dce4cf; }
+.modal .district-switch button[aria-pressed="true"] { background:var(--accent);color:#17262c; }
+.atlas-attribution { font:9px/1.4 monospace; padding:4px 18px;color:#516254; }
+.map-credit { position:absolute;right:16px;bottom:5px;font:9px monospace;color:#c7cbb9;z-index:3;background:#17252cd9;padding:3px 6px; }

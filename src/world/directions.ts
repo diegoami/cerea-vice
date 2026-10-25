@@ -1,4 +1,21 @@
-import { nodeById, roads } from "./district";
+import { district, landmarks, nodes, nodeById, roads } from "./district";
+
+import { shortestRoute } from "../navigation/Navigation";
+
+let cacheDistrict: object | undefined;
+const localDestinations = new Map<string, {exit:string;name:string;cost:number}[]>();
+function nearbyDestinations(nodeId:string) {
+  if(cacheDistrict!==district){localDestinations.clear();cacheDistrict=district;}
+  if(!localDestinations.has(nodeId)) {
+    const entries=landmarks.map((place)=>{
+      const target=[...nodes].sort((a,b)=>Math.hypot(a.x-place.x,a.z-place.z)-Math.hypot(b.x-place.x,b.z-place.z))[0];
+      const route=shortestRoute(nodeId,target.id);
+      return {exit:route.path[1],name:place.kind==="church"?"San Zeno":place.kind==="library"?"Biblioteca":place.kind==="civic"?"Municipio":place.name,cost:route.cost};
+    }).filter((entry)=>entry.exit&&entry.cost<220).sort((a,b)=>a.cost-b.cost);
+    localDestinations.set(nodeId,entries);
+  }
+  return localDestinations.get(nodeId)!;
+}
 
 export type SignDirection = "left" | "straight" | "right";
 export interface DirectionRow {
@@ -15,14 +32,15 @@ export function junctionDirections(nodeId: string, approachId: string): Directio
   return roads
     .filter((road) => road.a === nodeId || road.b === nodeId)
     .map((road) => ({ road, exit: nodeById(road.a === nodeId ? road.b : road.a) }))
-    .filter(({ exit }) => exit.id !== approachId)
+    .filter(({ road, exit }) => exit.id !== approachId && (!road.oneWay || road.a === nodeId))
     .map(({ road, exit }): DirectionRow => {
       const exitHeading = Math.atan2(exit.x - node.x, -(exit.z - node.z));
       const turn = Math.atan2(Math.sin(exitHeading - heading), Math.cos(exitHeading - heading));
       let detail = exit.label;
-      if (exit.id === "e" || exit.id === "ne") detail = "Blue Hotel";
-      if (exit.id === "nw") detail = "Water Tower";
-      if (exit.id === "w") detail = "Old Market";
+      if(district.id!=="harbor") detail=nearbyDestinations(nodeId).find((destination)=>destination.exit===exit.id)?.name ?? (road.oneWay?"Senso unico":"Centro");
+      if (district.id === "harbor" && (exit.id === "e" || exit.id === "ne")) detail = "Blue Hotel";
+      if (district.id === "harbor" && exit.id === "nw") detail = "Water Tower";
+      if (district.id === "harbor" && exit.id === "w") detail = "Old Market";
       return {
         text: road.name.toUpperCase(),
         detail: detail.toUpperCase(),

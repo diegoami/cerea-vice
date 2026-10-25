@@ -1,0 +1,59 @@
+import { test, afterEach } from "node:test";
+import assert from "node:assert/strict";
+import cerea from "../public/maps/cerea.json";
+import harbor from "../public/maps/harbor.json";
+import {activateDistrict,validateDistrict,district,nodes,roads,spawn,hotelBay,isPaved,inRect,nodeById,projectToSegment} from "../src/world/district";
+import {shortestRoute,nearestRoad,directionHint} from "../src/navigation/Navigation";
+import {Parking} from "../src/navigation/Parking";
+import {Mission} from "../src/mission/Mission";
+import {AtlasNotes} from "../src/navigation/AtlasNotes";
+
+afterEach(()=>activateDistrict(harbor));
+test("Cerea loads real street geometry, connected routes, named landmarks and accessible stopping bays",()=>{
+  activateDistrict(cerea);
+  assert.equal(district.name,"Cerea Centro");
+  assert.ok(new Set(roads.map((road)=>road.name)).size>=20);
+  assert.ok(roads.some((road)=>road.name==="Via Paride"&&road.oneWay));
+  assert.ok(roads.some((road)=>Math.abs(nodeById(road.a).x-nodeById(road.b).x)>2&&Math.abs(nodeById(road.a).z-nodeById(road.b).z)>2));
+  assert.ok(district.landmarks.some((place)=>place.name==="Biblioteca di Cerea"));
+  for(const bay of district.parkingZones) {
+    assert.ok(isPaved(bay));
+    assert.equal(district.buildings.some((building)=>inRect(bay,building,-1.05)),false,`${bay.name} must not be inside a building`);
+  }
+  const start=nearestRoad(spawn).edge;
+  const route=shortestRoute(start.a);
+  assert.ok(Number.isFinite(route.cost)&&route.cost>200);
+  for(let i=0;i<route.path.length-1;i++) assert.ok(roads.some((road)=>(road.a===route.path[i]&&road.b===route.path[i+1])||(!road.oneWay&&road.b===route.path[i]&&road.a===route.path[i+1])),"Route follows the imported one-way topology");
+  for(let i=0;i<route.path.length-1;i++) {
+    const a=nodeById(route.path[i]),b=nodeById(route.path[i+1]);
+    const steps=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z));
+    for(let step=0;step<=steps;step++) {
+      const point={x:a.x+(b.x-a.x)*step/steps,z:a.z+(b.z-a.z)*step/steps};
+      assert.equal(district.buildings.some((building)=>inRect(point,building,-1.05)),false,"A suggested road must not run through a solid building");
+    }
+  }
+  assert.match(directionHint(spawn,spawn.heading),/Via Venticinque Aprile/);
+  const mission=new Mission();mission.update(1,hotelBay,true);assert.equal(mission.state,"success");
+  const parking=new Parking();parking.update(1,spawn,0);assert.equal(parking.zone,"Sosta Municipio");
+  const notes=new AtlasNotes();assert.equal(notes.label,"Sosta Municipio");
+  assert.equal(nodes.length,new Set(nodes.map((node)=>node.id)).size);
+});
+
+test("angled road paving uses distance to the road rather than filling its bounding rectangle",()=>{
+  const data=structuredClone(cerea);
+  data.nodes=[{id:"a",x:0,z:0,label:"A"},{id:"b",x:100,z:100,label:"B"}];
+  data.mission.nodeId="b";
+  data.roads=[{a:"a",b:"b",name:"Diagonal",width:8,oneWay:false,bridge:false,osmId:1}];
+  activateDistrict(data);
+  assert.equal(isPaved({x:50,z:50}),true);
+  assert.equal(isPaved({x:10,z:90}),false);
+  assert.deepEqual(projectToSegment({x:10,z:90},data.nodes[0],data.nodes[1]),{x:50,z:50});
+});
+
+test("district validation rejects broken connections and degenerate bounds",()=>{
+  const data=structuredClone(cerea);
+  data.roads[0].a="missing";
+  assert.throws(()=>validateDistrict(data),/roads/);
+  data.roads=structuredClone(cerea.roads);data.bounds.maxX=data.bounds.minX;
+  assert.throws(()=>validateDistrict(data),/bounds/);
+});

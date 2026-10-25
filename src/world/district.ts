@@ -1,118 +1,85 @@
-export interface Point {
-  x: number;
-  z: number;
-}
-export const areaAt = (point: Point): string =>
-  point.x >= 50 ? "Waterfront" : point.z >= 35 ? "Harbor Ward" : "Old Town";
-export interface RoadNode extends Point {
-  id: string;
-  label: string;
-}
-export interface Road {
-  a: string;
-  b: string;
-  name: string;
-}
-export interface Rect {
-  x: number;
-  z: number;
-  width: number;
-  depth: number;
-}
-export interface ParkingZone extends Rect {
-  id: string;
-  name: string;
-}
+import harborData from "../../public/maps/harbor.json";
+import type { DistrictDefinition, Point, Rect, Road, RoadNode, Landmark } from "./schema";
+export type { Point, Rect, Road, RoadNode, Landmark, DistrictDefinition } from "./schema";
 
-// North is -Z, east is +X. All distances are game metres.
-export const nodes: RoadNode[] = [
-  { id: "sw", x: -80, z: 80, label: "Harbor bend" },
-  { id: "s", x: 0, z: 80, label: "Service Station junction" },
-  { id: "se", x: 80, z: 80, label: "East Quay bend" },
-  { id: "w", x: -80, z: 0, label: "Market junction" },
-  { id: "c", x: 0, z: 0, label: "Central Crossroads" },
-  { id: "e", x: 80, z: 0, label: "Hotel junction" },
-  { id: "nw", x: -80, z: -80, label: "Water Tower bend" },
-  { id: "n", x: 0, z: -80, label: "Tower junction" },
-  { id: "ne", x: 80, z: -80, label: "Blue Hotel bend" },
-];
-export const roads: Road[] = [
-  { a: "sw", b: "s", name: "Harbor Road" },
-  { a: "s", b: "se", name: "Harbor Road" },
-  { a: "sw", b: "w", name: "Market Street" },
-  { a: "w", b: "nw", name: "Market Street" },
-  { a: "w", b: "c", name: "Market Street" },
-  { a: "c", b: "e", name: "Market Street" },
-  { a: "nw", b: "n", name: "Tower Lane" },
-  { a: "n", b: "ne", name: "Tower Lane" },
-  { a: "s", b: "c", name: "Central Avenue" },
-  { a: "c", b: "n", name: "Central Avenue" },
-  { a: "se", b: "e", name: "East Quay" },
-  { a: "e", b: "ne", name: "East Quay" },
-];
-export const nodeById = (id: string): RoadNode =>
-  nodes.find((n) => n.id === id)!;
+export let district = harborData as DistrictDefinition;
+export let nodes = district.nodes;
+export let roads = district.roads;
+export let parkingZones = district.parkingZones;
+export let landmarks = district.landmarks;
+export let spawn = district.spawn;
+export let hotelBay = parkingZones.find((zone) => zone.id === district.mission.bayId)!;
 export const ROAD_WIDTH = 16;
-export const parkingZones: ParkingZone[] = [
-  { id: "harbor", name: "Harbor lay-by", x: -52, z: 90, width: 26, depth: 12 },
-  {
-    id: "market",
-    name: "Market stopping bay",
-    x: -90,
-    z: 32,
-    width: 12,
-    depth: 24,
-  },
-  {
-    id: "tower",
-    name: "Water Tower lay-by",
-    x: -35,
-    z: -90,
-    width: 24,
-    depth: 12,
-  },
-  {
-    id: "hotel",
-    name: "Blue Hotel forecourt",
-    x: 93,
-    z: -44,
-    width: 18,
-    depth: 28,
-  },
-];
-export const hotelBay = parkingZones.find((z) => z.id === "hotel")!;
-export const spawn = { x: -52, z: 90, heading: Math.PI / 2 };
-export const inRect = (p: Point, r: Rect, margin = 0): boolean =>
-  Math.abs(p.x - r.x) <= r.width / 2 - margin &&
-  Math.abs(p.z - r.z) <= r.depth / 2 - margin;
-
-export function roadRect(road: Road): Rect {
-  const a = nodeById(road.a),
-    b = nodeById(road.b);
-  return {
-    x: (a.x + b.x) / 2,
-    z: (a.z + b.z) / 2,
-    width: Math.abs(a.x - b.x) + ROAD_WIDTH,
-    depth: Math.abs(a.z - b.z) + ROAD_WIDTH,
-  };
-}
-export const isPaved = (p: Point): boolean =>
-  roads.some((r) => inRect(p, roadRect(r))) ||
-  parkingZones.some((r) => inRect(p, r));
-
-export interface Landmark extends Rect {
-  id: string;
-  name: string;
-  road: string;
-}
-
-// Shared by the scenery and the printed atlas.
-export const landmarks: Landmark[] = [
-  { id: "hotel", name: "Blue Hotel", road: "East Quay", x: 111, z: -44, width: 13, depth: 32 },
-  { id: "market", name: "Old Market", road: "Market Street", x: -42, z: -41, width: 38, depth: 37 },
-  { id: "tower", name: "Water Tower", road: "Tower Lane", x: -99, z: -93, width: 15, depth: 15 },
-  { id: "station", name: "Service Station", road: "Harbor Road", x: 24, z: 99, width: 28, depth: 12 },
-];
-export const landmarkById = (id: string): Landmark => landmarks.find((place) => place.id === id)!;
 export const canal = { x: 40, z: -88, width: 12, depth: 48 };
 export const harbor = { x: 0, z: 152, width: 600, depth: 80 };
+
+export function validateDistrict(value: unknown): asserts value is DistrictDefinition {
+  if (!value || typeof value !== "object") throw new Error("Invalid district file");
+  const data = value as DistrictDefinition;
+  if (data.version !== 1 || !data.id || !data.name || !Array.isArray(data.nodes) || !Array.isArray(data.roads) || !Array.isArray(data.parkingZones) || !Array.isArray(data.landmarks) || !Array.isArray(data.buildings) || !Array.isArray(data.features) || !Array.isArray(data.areas)) throw new Error("Incomplete district file");
+  const plainText = (value: unknown) => typeof value === "string" && value.length > 0 && value.length < 500 && !/[<>]/.test(value);
+  if (!plainText(data.name) || !plainText(data.description) || !plainText(data.attribution) || data.nodes.some((node) => !plainText(node.label)) || data.roads.some((road) => !plainText(road.name))) throw new Error("District names must be plain text");
+  const validPoint = (point: Point) => point && Number.isFinite(point.x) && Number.isFinite(point.z);
+  const ids = new Set(data.nodes.map((node) => node.id));
+  if (!ids.size || ids.size !== data.nodes.length || data.nodes.some((node) => !validPoint(node))) throw new Error("Invalid district nodes");
+  if (data.roads.some((road) => !ids.has(road.a) || !ids.has(road.b) || road.a === road.b || !road.name || (road.width !== undefined && (!(road.width > 2) || !Number.isFinite(road.width))))) throw new Error("Invalid district roads");
+  if (!data.bounds || !Object.values(data.bounds).every(Number.isFinite) || data.bounds.minX >= data.bounds.maxX || data.bounds.minZ >= data.bounds.maxZ) throw new Error("Invalid district bounds");
+  if (!validPoint(data.spawn) || !Number.isFinite(data.spawn.heading) || !data.spawn.name || !data.mission || !data.parkingZones.some((zone) => zone.id === data.mission.bayId) || !(data.mission.duration > 0)) throw new Error("Invalid district journey");
+  for (const rect of [...data.parkingZones, ...data.landmarks, ...data.buildings, ...data.areas]) {
+    if (!validPoint(rect) || !(rect.width > 0) || !(rect.depth > 0) || !Number.isFinite(rect.width) || !Number.isFinite(rect.depth) || (rect.points && (rect.points.length < 3 || rect.points.some((point) => !validPoint(point))))) throw new Error("Invalid district footprint");
+  }
+  if (data.buildings.some((building)=>!Number.isFinite(building.height)||building.height<=0||!Number.isFinite(building.color))) throw new Error("Invalid building dimensions");
+  if (data.id !== "harbor" && !ids.has(data.mission.nodeId)) throw new Error("Missing destination road node");
+  if (!plainText(data.mission.name)||!plainText(data.mission.objective)||!plainText(data.mission.hint)||!plainText(data.spawn.name)) throw new Error("Invalid journey text");
+  if ([...data.landmarks,...data.parkingZones,...data.areas].some((place)=>!plainText(place.name))) throw new Error("Invalid place name");
+  for (const feature of data.features) if (!(feature.width>0) || feature.points?.length<2 || feature.points.some((point) => !validPoint(point)) || !["water", "rail"].includes(feature.kind)) throw new Error("Invalid map feature");
+}
+
+export function activateDistrict(value: unknown) {
+  validateDistrict(value);
+  district = value;
+  nodes = district.nodes; roads = district.roads; parkingZones = district.parkingZones;
+  landmarks = district.landmarks; spawn = district.spawn;
+  hotelBay = parkingZones.find((zone) => zone.id === district.mission.bayId)!;
+}
+export const nodeById = (id: string): RoadNode => {
+  const node = nodes.find((node) => node.id === id);
+  if (!node) throw new Error(`Unknown road node: ${id}`);
+  return node;
+};
+export const landmarkById = (id: string): Landmark => landmarks.find((place) => place.id === id)!;
+export const areaAt = (point: Point): string => district.areas.find((area) => inRect(point, area))?.name ?? district.name;
+
+export function projectToSegment(point: Point, a: Point, b: Point): Point {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+  return { x: a.x + dx * t, z: a.z + dz * t };
+}
+export function pointInPolygon(point: Point, vertices: Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+    const a = vertices[i], b = vertices[j];
+    if ((a.z > point.z) !== (b.z > point.z) && point.x < (b.x-a.x)*(point.z-a.z)/(b.z-a.z)+a.x) inside = !inside;
+  }
+  return inside;
+}
+export function inRect(point: Point, rect: Rect, margin = 0): boolean {
+  if (rect.points) {
+    if (pointInPolygon(point, rect.points)) return true;
+    return margin < 0 && rect.points.some((a,i) => {
+      const nearest = projectToSegment(point,a,rect.points![(i+1)%rect.points!.length]);
+      return Math.hypot(point.x-nearest.x,point.z-nearest.z) <= -margin;
+    });
+  }
+  return Math.abs(point.x-rect.x) <= rect.width/2-margin && Math.abs(point.z-rect.z) <= rect.depth/2-margin;
+}
+export function roadRect(road: Road): Rect {
+  const a=nodeById(road.a), b=nodeById(road.b), width=road.width??ROAD_WIDTH;
+  return { x:(a.x+b.x)/2,z:(a.z+b.z)/2,width:Math.abs(a.x-b.x)+width,depth:Math.abs(a.z-b.z)+width };
+}
+export function isPaved(point: Point): boolean {
+  return roads.some((road) => {
+    const projected=projectToSegment(point,nodeById(road.a),nodeById(road.b));
+    return Math.hypot(point.x-projected.x,point.z-projected.z) <= (road.width??ROAD_WIDTH)/2;
+  }) || parkingZones.some((zone)=>inRect(point,zone));
+}

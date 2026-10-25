@@ -25,7 +25,10 @@ function createWindow() {
   });
   window.once('ready-to-show', () => window.show());
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  window.webContents.on('will-navigate', (event) => event.preventDefault());
+  window.webContents.on('will-navigate', (event, target) => {
+    const url = new URL(target);
+    if (url.protocol !== 'cerea:' || url.host !== 'game' || url.pathname !== '/') event.preventDefault();
+  });
   window.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && !input.isAutoRepeat &&
         (input.key === 'F11' || (input.alt && input.key === 'Enter'))) {
@@ -33,7 +36,9 @@ function createWindow() {
       window.setFullScreen(!window.isFullScreen());
     }
   });
-  window.loadURL('cerea://game/');
+  const requestedDistrict = app.commandLine.getSwitchValue('district');
+  const selected = ['cerea','harbor'].includes(requestedDistrict) ? `#district=${requestedDistrict}` : '';
+  window.loadURL(`cerea://game/${selected}`);
 }
 
 app.whenReady().then(() => {

@@ -1,5 +1,5 @@
 import type { Actions } from "../input/Input";
-import { inRect, isPaved, spawn, type Rect } from "../world/district";
+import { district, inRect, isPaved, spawn, type Rect } from "../world/district";
 
 export class Car {
   x = spawn.x;
@@ -45,8 +45,8 @@ export class Car {
       z: this.z - Math.cos(this.heading) * this.speed * dt,
     };
     const hit =
-      Math.abs(next.x) > 119 ||
-      Math.abs(next.z) > 112 ||
+      next.x < district.bounds.minX + 1 || next.x > district.bounds.maxX - 1 ||
+      next.z < district.bounds.minZ + 1 || next.z > district.bounds.maxZ - 1 ||
       colliders.some((r) => inRect(next, r, -1.05));
     if (hit) {
       if (Math.abs(this.speed) > 1 && this.impactCooldown === 0) {

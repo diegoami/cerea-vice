@@ -23,7 +23,10 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
     await page.getByRole('button', { name: 'Start the engine' }).waitFor();
-    assert.equal(page.url(), 'cerea://game/');
+    await page.getByRole('button', {name:'Harbor District',exact:true}).click();
+    await page.getByRole('button', {name:'Harbor District',exact:true,pressed:true}).waitFor();
+    await page.getByRole('button', { name: 'Start the engine' }).waitFor();
+    assert.equal(page.url(), 'cerea://game/#district=harbor');
     assert.equal(await page.evaluate(() => window.isSecureContext), true);
     assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
     assert.equal(await page.evaluate(() => typeof navigator.getGamepads), 'function');
@@ -180,4 +183,45 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     await electronApp.close();
     await rm(profile, {recursive:true, force:true});
   }
+});
+
+test('Cerea Centro runs offline with its real-place atlas, controller drive and information marker', {timeout:90000}, async()=>{
+  const profile=await mkdtemp(path.join(tmpdir(),'cerea-centro-test-'));
+  const errors=[];
+  const electronApp=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+  try {
+    const page=await electronApp.firstWindow();
+    page.on('pageerror',error=>errors.push(error.message));
+    page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
+    await page.getByRole('button',{name:'Cerea Centro',exact:true,pressed:true}).waitFor();
+    await page.getByRole('heading',{name:'Find Biblioteca di Cerea.'}).waitFor();
+    await mkdir('test-results',{recursive:true});
+    await page.screenshot({path:'test-results/cerea-briefing.png'});
+    await page.getByRole('button',{name:'Start the engine'}).click();
+    await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+    assert.match(await page.locator('#location').innerText(),/Via Venticinque Aprile/);
+    await page.keyboard.press('t');
+    await page.getByRole('dialog',{name:'Cerea Centro'}).waitFor();
+    assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position: Sosta Municipio/);
+    assert.match(await page.locator('.atlas-attribution').innerText(),/OpenStreetMap/);
+    assert.match(await page.locator('.atlas-map').innerHTML(),/VIA PARIDE/);
+    await page.screenshot({path:'test-results/cerea-atlas.png'});
+    await page.keyboard.press('e');
+    await page.getByRole('row',{name:/Biblioteca di Cerea Viale della Vittoria/}).waitFor();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>document.querySelector('#overlay').hidden);
+    await page.keyboard.press('f');
+    await page.waitForFunction(()=>document.querySelector('#hint').textContent.startsWith('On Via Venticinque Aprile'));
+    await page.keyboard.press('t');
+    await page.waitForFunction(()=>document.querySelector('#atlas-marker-status')?.textContent.includes('Last information received'));
+    await page.keyboard.press('Escape');
+    await page.keyboard.down('w');
+    await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>12);
+    await page.keyboard.up('w');
+    await page.keyboard.down('Space');
+    await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)===0);
+    await page.keyboard.up('Space');
+    await page.screenshot({path:'test-results/cerea-driving.png'});
+    assert.deepEqual(errors,[]);
+  } finally {await electronApp.close();await rm(profile,{recursive:true,force:true});}
 });

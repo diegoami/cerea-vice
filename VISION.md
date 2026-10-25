@@ -8,7 +8,7 @@ You drive an ordinary car through a simplified, recognizable real-world environm
 
 ## Setting and atmosphere
 
-The intended setting is the 1980s, before everyday satellite navigation and smartphones.
+The intended atmosphere is the 1980s, before everyday satellite navigation and smartphones. Modern street maps are acceptable for practical neighbourhood pilots; complete historical precision is not required.
 
 The presentation is deliberately economical: first-person driving with a simple cockpit, sparse low-poly scenery and a C64/Amiga-inspired appearance. It should convey a believable place without requiring photorealistic buildings or sophisticated vehicle simulation.
 

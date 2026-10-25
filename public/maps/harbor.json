@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "id": "harbor",
+  "name": "Harbor District",
+  "description": "The original fictional driving district.",
+  "attribution": "Handcrafted Cerea Vice prototype",
+  "sourceUrl": "",
+  "bounds": {
+    "minX": -120,
+    "maxX": 120,
+    "minZ": -112,
+    "maxZ": 112
+  },
+  "nodes": [
+    {
+      "id": "sw",
+      "x": -80,
+      "z": 80,
+      "label": "Harbor bend"
+    },
+    {
+      "id": "s",
+      "x": 0,
+      "z": 80,
+      "label": "Service Station junction"
+    },
+    {
+      "id": "se",
+      "x": 80,
+      "z": 80,
+      "label": "East Quay bend"
+    },
+    {
+      "id": "w",
+      "x": -80,
+      "z": 0,
+      "label": "Market junction"
+    },
+    {
+      "id": "c",
+      "x": 0,
+      "z": 0,
+      "label": "Central Crossroads"
+    },
+    {
+      "id": "e",
+      "x": 80,
+      "z": 0,
+      "label": "Hotel junction"
+    },
+    {
+      "id": "nw",
+      "x": -80,
+      "z": -80,
+      "label": "Water Tower bend"
+    },
+    {
+      "id": "n",
+      "x": 0,
+      "z": -80,
+      "label": "Tower junction"
+    },
+    {
+      "id": "ne",
+      "x": 80,
+      "z": -80,
+      "label": "Blue Hotel bend"
+    }
+  ],
+  "roads": [
+    {
+      "a": "sw",
+      "b": "s",
+      "name": "Harbor Road"
+    },
+    {
+      "a": "s",
+      "b": "se",
+      "name": "Harbor Road"
+    },
+    {
+      "a": "sw",
+      "b": "w",
+      "name": "Market Street"
+    },
+    {
+      "a": "w",
+      "b": "nw",
+      "name": "Market Street"
+    },
+    {
+      "a": "w",
+      "b": "c",
+      "name": "Market Street"
+    },
+    {
+      "a": "c",
+      "b": "e",
+      "name": "Market Street"
+    },
+    {
+      "a": "nw",
+      "b": "n",
+      "name": "Tower Lane"
+    },
+    {
+      "a": "n",
+      "b": "ne",
+      "name": "Tower Lane"
+    },
+    {
+      "a": "s",
+      "b": "c",
+      "name": "Central Avenue"
+    },
+    {
+      "a": "c",
+      "b": "n",
+      "name": "Central Avenue"
+    },
+    {
+      "a": "se",
+      "b": "e",
+      "name": "East Quay"
+    },
+    {
+      "a": "e",
+      "b": "ne",
+      "name": "East Quay"
+    }
+  ],
+  "parkingZones": [
+    {
+      "id": "harbor",
+      "name": "Harbor lay-by",
+      "x": -52,
+      "z": 90,
+      "width": 26,
+      "depth": 12
+    },
+    {
+      "id": "market",
+      "name": "Market stopping bay",
+      "x": -90,
+      "z": 32,
+      "width": 12,
+      "depth": 24
+    },
+    {
+      "id": "tower",
+      "name": "Water Tower lay-by",
+      "x": -35,
+      "z": -90,
+      "width": 24,
+      "depth": 12
+    },
+    {
+      "id": "hotel",
+      "name": "Blue Hotel forecourt",
+      "x": 93,
+      "z": -44,
+      "width": 18,
+      "depth": 28
+    }
+  ],
+  "landmarks": [
+    {
+      "id": "hotel",
+      "name": "Blue Hotel",
+      "road": "East Quay",
+      "x": 111,
+      "z": -44,
+      "width": 13,
+      "depth": 32
+    },
+    {
+      "id": "market",
+      "name": "Old Market",
+      "road": "Market Street",
+      "x": -42,
+      "z": -41,
+      "width": 38,
+      "depth": 37
+    },
+    {
+      "id": "tower",
+      "name": "Water Tower",
+      "road": "Tower Lane",
+      "x": -99,
+      "z": -93,
+      "width": 15,
+      "depth": 15
+    },
+    {
+      "id": "station",
+      "name": "Service Station",
+      "road": "Harbor Road",
+      "x": 24,
+      "z": 99,
+      "width": 28,
+      "depth": 12
+    }
+  ],
+  "buildings": [],
+  "features": [
+    {
+      "name": "Canal",
+      "kind": "water",
+      "width": 12,
+      "points": [
+        {
+          "x": 40,
+          "z": -112
+        },
+        {
+          "x": 40,
+          "z": -64
+        }
+      ]
+    },
+    {
+      "name": "Harbor",
+      "kind": "water",
+      "width": 8,
+      "points": [
+        {
+          "x": -120,
+          "z": 116
+        },
+        {
+          "x": 120,
+          "z": 116
+        }
+      ]
+    },
+    {
+      "name": "Rail spur",
+      "kind": "rail",
+      "width": 4,
+      "points": [
+        {
+          "x": -114,
+          "z": 60
+        },
+        {
+          "x": -68,
+          "z": 60
+        }
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "name": "Waterfront",
+      "x": 85,
+      "z": 0,
+      "width": 70,
+      "depth": 240
+    },
+    {
+      "name": "Harbor Ward",
+      "x": -35,
+      "z": 77.5,
+      "width": 170,
+      "depth": 85
+    },
+    {
+      "name": "Old Town",
+      "x": -35,
+      "z": -42.5,
+      "width": 170,
+      "depth": 155
+    }
+  ],
+  "spawn": {
+    "x": -52,
+    "z": 90,
+    "heading": 1.5707963267948966,
+    "name": "Harbor lay-by"
+  },
+  "mission": {
+    "name": "Blue Hotel",
+    "objective": "Reach the Blue Hotel in Waterfront and stop in its marked forecourt.",
+    "hint": "Blue Hotel is on East Quay, northeast of here. Follow the street signs. Stop anywhere to ask for more.",
+    "duration": 180,
+    "bayId": "hotel",
+    "nodeId": "hotel"
+  }
+}

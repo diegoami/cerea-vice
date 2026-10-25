@@ -2,7 +2,7 @@ import { PerspectiveCamera } from "three";
 import type { Car } from "./Car";
 
 export class CockpitCamera {
-  readonly camera = new PerspectiveCamera(70, 1, 0.1, 450);
+  readonly camera = new PerspectiveCamera(70, 1, 0.1, 1500);
   private glance = 0;
 
   update(dt: number, car: Car, glance: number) {

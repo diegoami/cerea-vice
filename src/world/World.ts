@@ -1,290 +1,154 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { district, nodes, roads, nodeById, parkingZones, landmarks, isPaved, projectToSegment, pointInPolygon, type Point, type Rect } from "./district";
+import { HarborWorld } from "./HarborWorld";
+import { box, sign, signpost, material } from "./builders";
 import { junctionDirections } from "./directions";
-import { box, building, material, sign, signpost } from "./builders";
-import {
-  nodes,
-  roads,
-  nodeById,
-  roadRect,
-  parkingZones,
-  landmarkById,
-  canal,
-  harbor,
-  type Rect,
-} from "./district";
+
+function strip(parent: THREE.Object3D, a: Point, b: Point, width: number, y: number, height: number, color: number) {
+  const mesh=box(parent,(a.x+b.x)/2,y,(a.z+b.z)/2,Math.hypot(b.x-a.x,b.z-a.z),height,width,color);
+  mesh.rotation.y=Math.atan2(-(b.z-a.z),b.x-a.x);return mesh;
+}
+function footprint(parent:THREE.Object3D, points:Point[], height:number,color:number) {
+  const shape=new THREE.Shape(points.map((p)=>new THREE.Vector2(p.x,-p.z)));
+  const geometry=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false,steps:1});
+  geometry.rotateX(-Math.PI/2);
+  const mesh=new THREE.Mesh(geometry,material(color));parent.add(mesh);
+}
 
 export class World {
-  readonly scene = new THREE.Scene();
-  readonly colliders: Rect[] = [];
-
+  readonly scene: THREE.Scene;
+  readonly colliders: Rect[];
   constructor() {
-    const scene = this.scene;
-    scene.background = new THREE.Color(0x879da7);
-    scene.fog = new THREE.Fog(0x879da7, 115, 340);
-    scene.add(new THREE.HemisphereLight(0xfce3bc, 0x526271, 2.4));
-    const sun = new THREE.DirectionalLight(0xffd39d, 2.1);
-    sun.position.set(-70, 100, 40);
-    scene.add(sun);
-    box(scene, 0, -0.4, 0, 280, 0.7, 260, 0x647c6b);
-    // Harbor water and a solid quay wall keep the compact play space legible.
-    box(scene, harbor.x, -0.3, harbor.z, harbor.width, 0.1, harbor.depth, 0x4f7d8b);
-    box(scene, 0, 0.35, 114, 246, 0.7, 3, 0xb8b39a);
-    for (let x = -110; x <= 110; x += 12)
-      box(scene, x, 1.3, 114, 0.3, 2, 0.3, 0x324854);
-    box(scene, 0, 2, 114, 236, 0.15, 0.15, 0x324854);
-    box(scene, -121, 0.8, 0, 2, 1.6, 228, 0x7a8880);
-    box(scene, 121, 0.8, 0, 2, 1.6, 228, 0x7a8880);
-    box(scene, 0, 0.8, -114, 244, 1.6, 2, 0x7a8880);
-
-    // Sidewalk layer, then roads. Lane paint stops short of every junction.
-    for (const road of roads) {
-      const r = roadRect(road);
-      box(scene, r.x, -0.015, r.z, r.width + 4, 0.08, r.depth + 4, 0xa0a28c);
-    }
-    for (const road of roads) {
-      const a = nodeById(road.a),
-        b = nodeById(road.b),
-        r = roadRect(road);
-      box(scene, r.x, 0.04, r.z, r.width, 0.06, r.depth, 0x424e53);
-      const horizontal = a.z === b.z;
-      for (let t = 14; t < 70; t += 10) {
-        const x = a.x + ((b.x - a.x) * t) / 80,
-          z = a.z + ((b.z - a.z) * t) / 80;
-        box(
-          scene,
-          x,
-          0.08,
-          z,
-          horizontal ? 4 : 0.2,
-          0.02,
-          horizontal ? 0.2 : 4,
-          0xcbbd85,
-        );
+    if(district.id==="harbor") { const legacy=new HarborWorld();this.scene=legacy.scene;this.colliders=legacy.colliders;return; }
+    this.scene=new THREE.Scene();this.colliders=[];
+    const scene=this.scene,bounds=district.bounds;
+    const width=bounds.maxX-bounds.minX,depth=bounds.maxZ-bounds.minZ;
+    scene.background=new THREE.Color(0xa3b6b4);scene.fog=new THREE.Fog(0xa3b6b4,160,1100);
+    scene.add(new THREE.HemisphereLight(0xffe3bf,0x62776d,2.3));
+    const sun=new THREE.DirectionalLight(0xffdfae,2);sun.position.set(-200,300,100);scene.add(sun);
+    box(scene,(bounds.minX+bounds.maxX)/2,-0.4,(bounds.minZ+bounds.maxZ)/2,width+100,0.7,depth+100,0x7d876b);
+    for(const feature of district.features) {
+      for(let i=0;i<feature.points.length-1;i++) {
+        const a=feature.points[i],b=feature.points[i+1];
+        if(feature.kind==="water") {
+          strip(scene,a,b,feature.width+2,-0.06,0.1,0xadb09a);
+          strip(scene,a,b,feature.width,0,0.05,0x668e94);
+          const length=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.ceil(length/6);
+          const nx=-(b.z-a.z)/(length||1)*feature.width/2,nz=(b.x-a.x)/(length||1)*feature.width/2;
+          for(let j=0;j<steps;j++) {
+            const p={x:a.x+(b.x-a.x)*j/steps,z:a.z+(b.z-a.z)*j/steps};
+            const q={x:a.x+(b.x-a.x)*(j+1)/steps,z:a.z+(b.z-a.z)*(j+1)/steps};
+            if(isPaved({x:(p.x+q.x)/2,z:(p.z+q.z)/2}))continue;
+            this.colliders.push({x:(p.x+q.x)/2,z:(p.z+q.z)/2,width:Math.abs(q.x-p.x)+feature.width,depth:Math.abs(q.z-p.z)+feature.width,points:[{x:p.x+nx,z:p.z+nz},{x:q.x+nx,z:q.z+nz},{x:q.x-nx,z:q.z-nz},{x:p.x-nx,z:p.z-nz}]});
+          }
+        } else {
+          strip(scene,a,b,4,0.01,0.05,0x8d8a77);
+          const length=Math.hypot(b.x-a.x,b.z-a.z),nx=-(b.z-a.z)/(length||1)*0.8,nz=(b.x-a.x)/(length||1)*0.8;
+          for(const side of [-1,1])strip(scene,{x:a.x+nx*side,z:a.z+nz*side},{x:b.x+nx*side,z:b.z+nz*side},0.12,0.09,0.1,0xaab4b1);
+        }
       }
     }
-    for (const zone of parkingZones) {
-      box(scene, zone.x, 0.06, zone.z, zone.width, 0.08, zone.depth, 0x546b68);
-      const stripe = 0xdccf9d;
-      box(
-        scene,
-        zone.x - zone.width / 2,
-        0.12,
-        zone.z,
-        0.2,
-        0.03,
-        zone.depth,
-        stripe,
-      );
-      box(
-        scene,
-        zone.x + zone.width / 2,
-        0.12,
-        zone.z,
-        0.2,
-        0.03,
-        zone.depth,
-        stripe,
-      );
-      for (const side of [-1, 1])
-        box(
-          scene,
-          zone.x,
-          0.12,
-          zone.z + (side * zone.depth) / 2,
-          zone.width,
-          0.03,
-          0.2,
-          stripe,
-        );
-      signpost(
-        scene,
-        zone.x,
-        zone.z + zone.depth / 2 + 1,
-        ["P  LEGAL STOP"],
-        0,
-        "#315b59",
-        5,
-      );
-      signpost(
-        scene,
-        zone.x + zone.width / 2 + 1,
-        zone.z,
-        ["P  LEGAL STOP"],
-        -Math.PI / 2,
-        "#315b59",
-        5,
-      );
+    for(const road of roads) {
+      const a=nodeById(road.a),b=nodeById(road.b),w=road.width??8;
+      strip(scene,a,b,w+2.5,0.01,0.08,0xb3ae98);
     }
-
-    // Four distinct blocks, with generous road margins for forgiving arcade turns.
-    building(
-      scene,
-      this.colliders,
-      { x: -46, z: 43, width: 40, depth: 36 },
-      11,
-      0x927e6e,
-    );
-    building(
-      scene,
-      this.colliders,
-      { x: 43, z: 40, width: 29, depth: 36 },
-      15,
-      0x76847e,
-    );
-    building(
-      scene,
-      this.colliders,
-      landmarkById("market"),
-      9,
-      0xaf6857,
-    );
-    building(
-      scene,
-      this.colliders,
-      { x: 40, z: -42, width: 34, depth: 38 },
-      18,
-      0x7a828b,
-    );
-    // The red market hall and striped awnings are a close-range cue.
-    sign(scene, -42, 6.5, -21.9, ["OLD MARKET"], 24, 0, "#713f3b");
-    sign(scene, -61.1, 6.5, -41, ["OLD MARKET"], 23, -Math.PI / 2, "#713f3b");
-    for (let x = -58; x < -25; x += 4)
-      box(scene, x, 3.6, -20, 3.8, 0.35, 4, x % 8 === -2 ? 0xf2dfb3 : 0xb6554b);
-
-    // Blue Hotel is outside the east loop, directly behind its signed arrival bay.
-    building(
-      scene,
-      this.colliders,
-      landmarkById("hotel"),
-      22,
-      0x427baf,
-    );
-    sign(scene, 104.4, 15, -44, ["BLUE", "HOTEL"], 13, -Math.PI / 2, "#234b72");
-    sign(scene, 111, 18, -27.9, ["BLUE HOTEL"], 12, 0, "#234b72");
-    sign(scene, 111, 18, -60.1, ["BLUE HOTEL"], 12, Math.PI, "#234b72");
-    box(scene, 101.8, 4, -44, 5, 0.5, 9, 0xe7d8ab);
-    signpost(
-      scene,
-      100,
-      -29,
-      ["BLUE HOTEL", "STOP IN FORECOURT"],
-      -Math.PI / 2,
-      "#234b72",
-    );
-
-    // Water tower: the skyline anchor, visible over surrounding low blocks.
-    const tower = landmarkById("tower");
-    for (const dx of [-5, 5])
-      for (const dz of [-5, 5]) {
-        box(scene, tower.x + dx, 13, tower.z + dz, 1.1, 26, 1.1, 0x536b70);
+    for(const road of roads) {
+      const a=nodeById(road.a),b=nodeById(road.b),w=road.width??8;
+      strip(scene,a,b,w,0.075,0.06,0x4d5655);
+      const cap=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,0.06,12),material(0x4d5655));cap.position.set(a.x,0.075,a.z);scene.add(cap);
+      const length=Math.hypot(b.x-a.x,b.z-a.z);
+      for(let t=10;t<length-8;t+=12) {
+        const p={x:a.x+(b.x-a.x)*t/length,z:a.z+(b.z-a.z)*t/length};
+        const q={x:a.x+(b.x-a.x)*(t+3)/length,z:a.z+(b.z-a.z)*(t+3)/length};
+        strip(scene,p,q,0.15,0.12,0.025,0xe3dbc1);
       }
-    const tank = new THREE.Mesh(
-      new THREE.CylinderGeometry(9, 9, 10, 10),
-      material(0xd3c3a0),
-    );
-    tank.position.set(tower.x, 29, tower.z);
-    scene.add(tank);
-    const roof = new THREE.Mesh(
-      new THREE.ConeGeometry(10, 5, 10),
-      material(0x9f614e),
-    );
-    roof.position.set(tower.x, 36.5, tower.z);
-    scene.add(roof);
-    this.colliders.push(tower);
-    sign(scene, -99, 29, -83.8, ["HARBOR", "WATER"], 15, 0, "#546963");
-
-    // Service station: a low yellow canopy, two pumps and a large roadside label.
-    const station = landmarkById("station");
-    box(scene, station.x, 5, station.z, station.width, 1, station.depth, 0xd8ad58);
-    for (const x of [13, 35]) box(scene, x, 2.5, 100, 0.7, 5, 0.7, 0xc7b890);
-    for (const x of [19, 29]) {
-      box(scene, x, 1.2, 99, 1.5, 2.4, 1.3, 0xd28460);
-      this.colliders.push({ x, z: 99, width: 2, depth: 2 });
-    }
-    sign(scene, 24, 5, 92.9, ["SERVICE STATION"], 25, Math.PI, "#6d5733");
-    sign(scene, 24, 5, 105.1, ["SERVICE STATION"], 25, 0, "#6d5733");
-    signpost(scene, 12, 91, ["SERVICE STATION"], Math.PI, "#6d5733");
-
-    // A level bridge keeps the arcade controller two-dimensional. Water is visible beside the deck.
-    box(scene, canal.x, 0, canal.z, canal.width, 0.04, canal.depth, 0x4f7d8b);
-    for (const z of [-90, -70]) {
-      box(scene, 40, 0.35, z, 28, 0.7, 0.8, 0xa7ab98);
-      box(scene, 40, 1.5, z, 28, 0.18, 0.25, 0x425c63);
-      for (let x = 28; x <= 52; x += 6)
-        box(scene, x, 1, z, 0.3, 1.6, 0.3, 0x425c63);
-      this.colliders.push({ x: 40, z, width: 28, depth: 0.8 });
-    }
-    signpost(scene, 23, -91, ["CANAL BRIDGE", "TOWER LANE"], Math.PI / 2);
-
-    // An unused harbor rail spur crosses Market Street: no trains or signal simulation.
-    for (let x = -113; x <= -69; x += 3)
-      box(scene, x, 0.09, 60, 0.6, 0.03, 5.5, 0x6b6356);
-    for (const z of [58.2, 61.8])
-      box(scene, -91, 0.12, z, 46, 0.06, 0.16, 0xb1b5ac);
-    signpost(scene, -91, 69, ["RAIL CROSSING"], 0, "#6d5733");
-    signpost(scene, -69, 51, ["RAIL CROSSING"], 0, "#6d5733");
-
-    // Named areas provide another verbal cue without adding a map.
-    signpost(scene, 60, 69, ["WATERFRONT"], Math.PI / 2);
-    signpost(scene, 60, -69, ["WATERFRONT"], Math.PI / 2);
-    signpost(scene, -12, 29, ["OLD TOWN"], 0);
-    signpost(scene, -12, 60, ["HARBOR WARD"], 0);
-
-    // Each approach has its own board, facing the incoming driver on the right verge.
-    for (const node of nodes) {
-      for (const road of roads.filter((r) => r.a === node.id || r.b === node.id)) {
-        const from = nodeById(road.a === node.id ? road.b : road.a);
-        const dx = Math.sign(node.x - from.x);
-        const dz = Math.sign(node.z - from.z);
-        signpost(
-          scene,
-          node.x - dx * 23 - dz * 10,
-          node.z - dz * 23 + dx * 10,
-          junctionDirections(node.id, from.id),
-          Math.atan2(-dx, -dz),
-          "#163b3d",
-          11,
-        );
+      if(road.bridge) {
+        const nx=-(b.z-a.z)/length*(w/2+0.5),nz=(b.x-a.x)/length*(w/2+0.5);
+        for(const side of [-1,1])strip(scene,{x:a.x+nx*side,z:a.z+nz*side},{x:b.x+nx*side,z:b.z+nz*side},0.2,1,0.2,0x696f65);
       }
     }
-
-    // Small deterministic scenery, outside the driving corridors.
-    for (const [x, z] of [
-      [-110, 65],
-      [-108, 0],
-      [-105, -42],
-      [18, -104],
-      [50, -104],
-      [110, 23],
-      [-25, 108],
-    ]) {
-      box(scene, x, 2.2, z, 0.7, 4.4, 0.7, 0x6d6253);
-      const crown = new THREE.Mesh(
-        new THREE.ConeGeometry(4, 10, 5),
-        material(0x41695c),
-      );
-      crown.position.set(x, 7, z);
-      scene.add(crown);
-      this.colliders.push({ x, z, width: 2, depth: 2 });
+    for(const building of district.buildings) {
+      if(building.points)footprint(scene,building.points,building.height,building.color);
+      else box(scene,building.x,building.height/2,building.z,building.width,building.height,building.depth,building.color);
+      this.colliders.push(building);
+      if(building.points) {
+        const walls=building.points.map((a,i)=>({a,b:building.points![(i+1)%building.points!.length]})).sort((a,b)=>Math.hypot(b.b.x-b.a.x,b.b.z-b.a.z)-Math.hypot(a.b.x-a.a.x,a.b.z-a.a.z)).slice(0,2);
+        for(const wall of walls) {
+          const length=Math.hypot(wall.b.x-wall.a.x,wall.b.z-wall.a.z);if(length<5)continue;
+          let nx=-(wall.b.z-wall.a.z)/length,nz=(wall.b.x-wall.a.x)/length;
+          const mid={x:(wall.a.x+wall.b.x)/2,z:(wall.a.z+wall.b.z)/2};
+          if(pointInPolygon({x:mid.x+nx*0.1,z:mid.z+nz*0.1},building.points)){nx=-nx;nz=-nz;}
+          for(const t of [0.25,0.5,0.75]) {
+            const window=box(scene,wall.a.x+(wall.b.x-wall.a.x)*t+nx*0.04,Math.min(3.5,building.height-1),wall.a.z+(wall.b.z-wall.a.z)*t+nz*0.04,1.4,1.5,0.06,0x586d68);
+            window.rotation.y=Math.atan2(-(wall.b.z-wall.a.z),wall.b.x-wall.a.x);
+          }
+        }
+      }
     }
-    // Backdrop warehouses and distant hills are decoration, beyond the bounded district.
-    for (let i = 0; i < 7; i++) {
-      box(
-        scene,
-        -150 + i * 50,
-        8 + (i % 3) * 3,
-        -142,
-        32,
-        16 + (i % 3) * 6,
-        22,
-        0x67787b,
-      );
+    for(const place of landmarks) {
+      if(place.kind==="church") {
+        // A brick campanile and tiled church roof distinguish San Zeno from civic buildings.
+        box(scene,place.x-place.width/2+3,15,place.z-place.depth/2+3,5,30,5,0xb58c6e);
+        const roof=new THREE.Mesh(new THREE.ConeGeometry(4,6,4),material(0x8f6351));roof.position.set(place.x-place.width/2+3,33,place.z-place.depth/2+3);scene.add(roof);
+      }
+      const h=Math.min((place.height??9)*0.55,7);
+      const facade=(place.points??[{x:place.x-place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z+place.depth/2},{x:place.x-place.width/2,z:place.z+place.depth/2}]);
+      const walls=facade.map((a,i)=>{
+        const b=facade[(i+1)%facade.length],mid={x:(a.x+b.x)/2,z:(a.z+b.z)/2};
+        const nearest=roads.filter((road)=>road.name===place.road).map((road)=>projectToSegment(mid,nodeById(road.a),nodeById(road.b))).sort((a,b)=>Math.hypot(a.x-mid.x,a.z-mid.z)-Math.hypot(b.x-mid.x,b.z-mid.z))[0];
+        return {a,b,mid,nearest,length:Math.hypot(b.x-a.x,b.z-a.z)};
+      }).filter((wall)=>wall.length>7&&wall.nearest).sort((a,b)=>Math.hypot(a.nearest.x-a.mid.x,a.nearest.z-a.mid.z)-Math.hypot(b.nearest.x-b.mid.x,b.nearest.z-b.mid.z));
+      const wall=walls[0];
+      if(wall) {
+        const dx=wall.nearest.x-wall.mid.x,dz=wall.nearest.z-wall.mid.z,length=Math.hypot(dx,dz)||1;
+        const text=place.kind==="church"?["SAN ZENO"]:place.kind==="civic"?["MUNICIPIO"]:place.kind==="library"?["BIBLIOTECA","DI CEREA"]:["SCUOLA","OLGA VISENTINI"];
+        sign(scene,wall.mid.x+dx/length*0.1,h,wall.mid.z+dz/length*0.1,text,Math.min(14,wall.length-1),Math.atan2(-(wall.b.z-wall.a.z),wall.b.x-wall.a.x),place.kind==="church"?"#774e3c":"#31594e");
+      }
     }
-    const sunDisc = new THREE.Mesh(
-      new THREE.CircleGeometry(15, 16),
-      new THREE.MeshBasicMaterial({ color: 0xe9c293, fog: false }),
-    );
-    sunDisc.position.set(160, 95, -240);
-    scene.add(sunDisc);
+    for(const zone of parkingZones) {
+      box(scene,zone.x,0.14,zone.z,zone.width,0.08,zone.depth,0x647d6f);
+      for(const side of [-1,1]) {
+        box(scene,zone.x+side*zone.width/2,0.2,zone.z,0.2,0.03,zone.depth,0xf0d7a0);
+        box(scene,zone.x,0.2,zone.z+side*zone.depth/2,zone.width,0.03,0.2,0xf0d7a0);
+      }
+      signpost(scene,zone.x,zone.z+zone.depth/2+1,["P",zone.name.toUpperCase()],0,"#31594e",5);
+      signpost(scene,zone.x+zone.width/2+1,zone.z,["P",zone.name.toUpperCase()],-Math.PI/2,"#31594e",5);
+    }
+    for(const node of nodes) {
+      const links=roads.filter((road)=>road.a===node.id||road.b===node.id);
+      if(links.length<3)continue;
+      for(const incoming of links) {
+        if(incoming.oneWay&&incoming.b!==node.id)continue;
+        const from=nodeById(incoming.a===node.id?incoming.b:incoming.a);
+        const length=Math.hypot(node.x-from.x,node.z-from.z);if(length<8)continue;
+        const dx=(node.x-from.x)/length,dz=(node.z-from.z)/length;
+        const rows=junctionDirections(node.id,from.id).slice(0,3);
+        if(!rows.length)continue;
+        const setback=Math.min(18,length*0.6),offset=(incoming.width??8)/2+2.5;
+        signpost(scene,node.x-dx*setback-dz*offset,node.z-dz*setback+dx*offset,rows,Math.atan2(-dx,-dz),"#31594e",7);
+      }
+    }
+    // Visible edge markers communicate the intentionally bounded neighbourhood.
+    for(const node of nodes.filter((node)=>roads.filter((r)=>r.a===node.id||r.b===node.id).length===1)) {
+      signpost(scene,node.x,node.z,["FINE ZONA", "TURN BACK"],0,"#755e46",6);
+    }
+    scene.updateMatrixWorld(true);
+    const batches=new Map<THREE.Material,THREE.BufferGeometry[]>();
+    const originals:THREE.Mesh[]=[];
+    scene.traverse((object)=>{
+      if(!(object instanceof THREE.Mesh)||!(object.material instanceof THREE.MeshLambertMaterial))return;
+      const geometry=object.geometry.clone().applyMatrix4(object.matrixWorld);
+      if(geometry.index) { const expanded=geometry.toNonIndexed();geometry.dispose();
+        const group=batches.get(object.material)??[];group.push(expanded);batches.set(object.material,group);
+      } else {const group=batches.get(object.material)??[];group.push(geometry);batches.set(object.material,group);}
+      originals.push(object);
+    });
+    for(const [mat,geometries] of batches) {
+      const merged=mergeGeometries(geometries,false);
+      if(merged)scene.add(new THREE.Mesh(merged,mat));
+      for(const geometry of geometries)geometry.dispose();
+    }
+    for(const mesh of originals){mesh.removeFromParent();mesh.geometry.dispose();}
   }
 }

@@ -1,10 +1,12 @@
-# Cerea Vice — Phase 1
+# Cerea Vice — driving and navigation prototype
 
-[Game vision](VISION.md) defines the long-term direction and scope. This README describes the current fictional-district prototype; it includes a stopped-only paper atlas, while real-world geography is planned.
+[Game vision](VISION.md) defines the direction and scope. [Loadable districts](MAPS.md) describes the map format, sources and the new real-place pilot.
 
-[Play the hosted prototype](https://cerea-vice-harbor-drive.brownclock131.chatgpt.site) (private; sign in with the owner's ChatGPT account).
+**Cerea Centro** is the default: a small modern neighbourhood in Cerea, Italy, with actual street connections and building footprints. Start beside the Municipio on Via Venticinque Aprile and find Biblioteca di Cerea on Viale della Vittoria within six minutes. The visual style remains retro; historical reconstruction is not required.
 
-A small first-person driving and navigation experiment in **Harbor District**. Find the Blue Hotel on East Quay and stop in its forecourt within three minutes. Navigate using street signs, a permanent compass, a water tower, the red Old Market, and a yellow service station. There is no minimap, route line, or destination arrow.
+**Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline.
+
+[Previously hosted Harbor prototype](https://cerea-vice-harbor-drive.brownclock131.chatgpt.site) (private; may lag the current desktop build).
 
 ## Run
 
@@ -27,7 +29,13 @@ The project uses a project-local npm cache because some cloud workspaces have an
 
 ## Windows desktop client (including builds made in WSL)
 
-Build the Windows x64 client from WSL:
+Build and launch the Windows x64 client from WSL:
+
+```sh
+npm run desktop:win
+```
+
+This rebuilds the Windows package, copies it to a fresh local Windows temporary folder and opens Cerea Centro. To package without launching:
 
 ```sh
 npm ci
@@ -78,7 +86,7 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 
 Connect a controller and press a button so the browser exposes it. The game selects the first connected controller with the browser's `standard` mapping; equivalent PlayStation face buttons work through that mapping. A 16% stick deadzone suppresses drift. Keyboard remains available while a controller is connected. Embedded previews may block the browser Gamepad API; the game falls back to keyboard controls instead of failing to render. Open the preview in a new browser tab to use a controller if the embedded view restricts it. There are no touch controls.
 
-## How to play
+## How to play Harbor District
 
 - Begin in the Harbor lay-by, facing east. Turn gently left to join Harbor Road. Slow down for junctions; holding the handbrake stops quickly. Holding the brake trigger/key after braking engages reverse.
 - Head toward East Quay in the northeast. The Blue Hotel is the tall blue building outside the eastern loop. Its marked forecourt is on the east side of the road.
@@ -100,7 +108,9 @@ The atlas marker changes only when you **successfully ask for information while 
 
 A successful A / F information request records that position as a snapshot, labelled **Last information received**. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete / Backspace erases it. The marker remains fixed until the next successful information request or manual change. A new drive starts with the given starting position at Harbor lay-by. It never follows the car or creates a route line.
 
-## District
+## Harbor District
+
+For the Cerea pilot and data sources, see [MAPS.md](MAPS.md).
 
 The handcrafted 160 × 160 metre road grid has a perimeter loop, four T-junctions, and a four-way Central Crossroads. Roads are Harbor Road (south), Tower Lane (north), Market Street (west and central east–west), Central Avenue (central north–south), and East Quay (east). North is world −Z, east is +X. The district is deterministic and uses no random generation.
 
@@ -125,7 +135,10 @@ src/
   world/
     district.ts               Shared road graph, bounds, parking, spawn
     builders.ts               Reusable primitive buildings and local text signs
-    World.ts                  Hand-placed geometry, landmarks, solid obstacles
+    World.ts                  Data-driven Cerea roads, footprints and landmarks
+    HarborWorld.ts            Original handcrafted Harbor scenery
+    schema.ts                 Loadable district format
+    load.ts                   Local JSON loading and district selection
   ui/
     Hud.ts                    Compass, mission, dashboard, briefing/pause/results
     Atlas.ts                  Printed map and place index, without live tracking
@@ -135,7 +148,7 @@ tests/
   systems.test.ts             Topology, hints, stops, deadlines, driving route
 ```
 
-`Game` coordinates the systems; the car consumes only `Actions`, with no keyboard or controller knowledge. Navigation and mission logic use plain positions, not Three.js objects. World data defines the roads used for both geometry and routing. Dijkstra search routes via the nearest road projection to a hotel node on East Quay, then describes the next junction and compass direction. Heading is included and a safe turnaround is suggested when facing away. No raw coordinates are displayed to the player.
+`Game` coordinates the systems; the car consumes only `Actions`, with no keyboard or controller knowledge. Navigation and mission logic use plain positions, not Three.js objects. World data defines the roads used for both geometry and routing. Dijkstra search routes via the nearest road projection to the selected destination, then describes the next junction and compass direction. Cerea routes honour imported one-way tags; the original Harbor wording is preserved for that district. Heading is included and a safe turnaround is suggested when facing away. No raw coordinates are displayed to the player.
 
 The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type declarations, and `tsx` (for tests) are development tools. Text signs are generated on local canvases; no network assets, external fonts, realistic textures, or asset pipeline are used. Rendering is capped at 960 internal horizontal pixels, with nearest-neighbour scaling, flat materials, simple lighting, and distance fog.
 
@@ -154,6 +167,6 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 
 See the [tentative development roadmap](ROADMAP.md) for milestones and playable checkpoints leading to the [game vision](VISION.md).
 
-1. Playtest the atlas in the Windows build; driving and sign validation is complete.
-2. Add a distinct stopped-only “Where am I?” request alongside destination directions.
-3. Support several destinations and journeys before building a small real-world district.
+1. Playtest Cerea Centro on Windows: navigation, narrow streets, signs, atlas and arrival.
+2. Tune the first real-place journey from that feedback.
+3. Add more destinations and a distinct “Where am I?” request.

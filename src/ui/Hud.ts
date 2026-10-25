@@ -3,7 +3,8 @@ import { atlasReference, atlasMarkup, type AtlasPage } from "./Atlas";
 import type { Car } from "../driving/Car";
 import type { Mission } from "../mission/Mission";
 import type { Parking } from "../navigation/Parking";
-import { areaAt, type Point } from "../world/district";
+import { selectDistrict, availableDistricts } from "../world/load";
+import { district, areaAt, type Point } from "../world/district";
 import { bearing, compass, nearestRoad } from "../navigation/Navigation";
 
 export type Screen = "briefing" | "running" | "paused" | "result" | "atlas";
@@ -37,22 +38,23 @@ export class Hud {
     ui.innerHTML = `
       <div class="vignette" aria-hidden="true"></div>
       <header class="topbar">
-        <div class="district-tag"><span class="live-dot"></span> HARBOR DISTRICT <small>PHASE 01 / PROTOTYPE</small></div>
+        <div class="district-tag"><span class="live-dot"></span> ${district.name.toUpperCase()} <small>${district.id === "cerea" ? "REAL STREETS / MODERN MAP" : "FICTIONAL PROTOTYPE"}</small></div>
         <div class="compass-panel" aria-label="Compass">
           <div class="compass-window"><div class="compass-track">${Array.from({ length: 3 }, () => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"].map((s) => `<span>${s}</span>`).join("")).join("")}</div></div>
           <div class="compass-notch"></div><strong id="heading">E · 090°</strong>
         </div>
         <div class="deadline"><span>TIME TO ARRIVE</span><strong id="timer">03:00</strong></div>
       </header>
-      <section class="objective"><span class="eyebrow">01 / THE DRIVE</span><h2>Reach the Blue Hotel</h2><p>East Quay, Waterfront. Stop in the forecourt.</p></section>
+      <section class="objective"><span class="eyebrow">01 / THE DRIVE</span><h2>Find ${district.mission.name}</h2><p>${district.mission.objective}</p></section>
       <div class="windshield-frame" aria-hidden="true"></div>
-      <div class="navigation-message"><div class="hint-header"><span class="live-dot"></span><span id="hint-label">LOCAL DIRECTIONS</span><span>NO SIGNAL REQUIRED</span></div><p id="hint" role="status">A blue facade on East Quay. Use the signs, or stop and ask for directions.</p></div>
+      <div class="navigation-message"><div class="hint-header"><span class="live-dot"></span><span id="hint-label">LOCAL DIRECTIONS</span><span>NO SIGNAL REQUIRED</span></div><p id="hint" role="status">${district.mission.hint}</p></div>
       <div class="interaction" id="prompt"></div>
       <footer class="dashboard">
         <div class="dashboard-left"><div class="speed-line"><strong id="speed">00</strong><span>KM/H<br><b id="gear">N</b></span></div><div class="stop-state" id="stop-state">SETTLING</div></div>
         <div class="dashboard-center"><div class="wheel" aria-hidden="true"><div class="wheel-spoke"></div><div class="wheel-hub">CV</div></div><span class="car-label">CEREA / 1986</span></div>
         <div class="dashboard-right"><span class="eyebrow">CURRENT ROAD</span><strong id="location">Harbor Road</strong><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div></div>
       </footer>
+      ${district.id === "cerea" ? `<div class="map-credit">${district.attribution} · openstreetmap.org/copyright</div>` : ""}
       <div id="overlay" class="overlay"></div>
     `;
     root.append(ui);
@@ -82,7 +84,9 @@ export class Hud {
         this.placeAtlasMarker();
         return;
       }
-      if (button.dataset.atlasPage) {
+      if (button.dataset.district) {
+        selectDistrict(button.dataset.district);
+      } else if (button.dataset.atlasPage) {
         this.setAtlasPage(button.dataset.atlasPage as AtlasPage);
       } else if (button.hasAttribute("data-atlas-place")) this.placeAtlasMarker();
       else if (button.hasAttribute("data-atlas-remove")) this.removeAtlasMarker();
@@ -189,9 +193,9 @@ export class Hud {
         <div class="briefing-main"><span class="eyebrow accent">CEREA VICE &nbsp; / &nbsp; A DRIVING EXPERIMENT</span>
           <h1 id="screen-title">A place.<br>A deadline.<br><em>Your own way.</em></h1>
           <p class="intro">No familiar streets. Just a compass, a few signs, and the road ahead.</p>
-          <button type="button">Start the engine <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER TO BEGIN · 3 MINUTE DRIVE</span>
+          <button type="button">Start the engine <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER TO BEGIN · ${Math.round(district.mission.duration/60)} MINUTE DRIVE</span>
         </div>
-        <div class="briefing-side"><span class="eyebrow">YOUR FIRST DRIVE</span><h2>Find the Blue Hotel.</h2><p>It’s on East Quay in Waterfront, in the northeast of the district. Look for the blue facade and stop in its marked forecourt.</p>
+        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><h2>Find ${district.mission.name}.</h2><p>${district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${availableDistricts.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${map.name}</button>`).join("")}</div><small class="controller-note">LB / RB or Q / E: change district before starting.</small><small class="controller-note">${district.attribution}</small>
           <div class="briefing-tip"><b>Lost? Pull over.</b><p>Come to a full stop anywhere. Press Y / T for the atlas, or A / F for a local direction hint. Marked P bays are legal stopping places.</p></div>
           ${controls}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
@@ -201,9 +205,9 @@ export class Hud {
     } else {
       const success = mission.state === "success";
       this.overlay.innerHTML = `<section class="result modal" aria-labelledby="screen-title">
-        <span class="eyebrow accent">DRIVE COMPLETE / BLUE HOTEL</span>
+        <span class="eyebrow accent">DRIVE COMPLETE / ${district.mission.name.toUpperCase()}</span>
         <h1 id="screen-title">${success ? "Found your way." : "A little behind."}</h1>
-        <p>${success ? "You reached the forecourt before the deadline." : "You arrived after the deadline. The way here is a little more familiar now."}</p>
+        <p>${success ? "You reached the destination before the deadline." : "You arrived after the deadline. The way here is a little more familiar now."}</p>
         <div class="result-stats">
           <div><strong>${formatTime(mission.elapsed)}</strong><span>DRIVING TIME</span></div>
           <div><strong>${parking.unsafeStops}</strong><span>UNSAFE STOPS</span></div>

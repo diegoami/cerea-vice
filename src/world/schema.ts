@@ -1,0 +1,27 @@
+export interface Point { x: number; z: number }
+export interface Rect extends Point { width: number; depth: number; points?: Point[] }
+export interface RoadNode extends Point { id: string; label: string }
+export interface Road { a: string; b: string; name: string; width?: number; oneWay?: boolean; bridge?: boolean; osmId?: number }
+export interface ParkingZone extends Rect { id: string; name: string }
+export interface Landmark extends Rect { id: string; name: string; road: string; kind?: string; height?: number }
+export interface Bounds { minX: number; maxX: number; minZ: number; maxZ: number }
+export interface MapBuilding extends Rect { height: number; color: number; osmId?: number }
+export interface MapLine { name: string; kind: "water" | "rail"; width: number; points: Point[] }
+export interface DistrictDefinition {
+  version: 1;
+  id: string;
+  name: string;
+  description: string;
+  attribution: string;
+  sourceUrl: string;
+  bounds: Bounds;
+  nodes: RoadNode[];
+  roads: Road[];
+  parkingZones: ParkingZone[];
+  landmarks: Landmark[];
+  buildings: MapBuilding[];
+  features: MapLine[];
+  areas: (Rect & { name: string })[];
+  spawn: Point & { heading: number; name: string };
+  mission: { name: string; objective: string; hint: string; duration: number; bayId: string; nodeId: string };
+}
