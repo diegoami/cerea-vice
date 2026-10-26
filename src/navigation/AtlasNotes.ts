@@ -1,14 +1,14 @@
-import { district, spawn, type Point } from "../world/district";
-
+import { type Point } from "../world/district";
+import { District } from "../world/district";
+export function createAtlasNotes(context:District){
+const {district,spawn}=context;
 const paperBounds = () => {
   const b=district.bounds,span=Math.max(b.maxX-b.minX,b.maxZ-b.minZ);
   return {minX:(b.minX+b.maxX-span)/2,maxX:(b.minX+b.maxX+span)/2,minZ:(b.minZ+b.maxZ-span)/2,maxZ:(b.minZ+b.maxZ+span)/2,span};
 };
 const boundedX = (value: number) => Math.max(paperBounds().minX,Math.min(paperBounds().maxX,value));
 const boundedZ = (value: number) => Math.max(paperBounds().minZ,Math.min(paperBounds().maxZ,value));
-
-/** Personal pencil marks, independent of the vehicle and mission. Kept for this session. */
-export class AtlasNotes {
+class AtlasNotes {
   cursor: Point = { x: spawn.x, z: spawn.z };
   marker: Point | undefined = { x: spawn.x, z: spawn.z };
   source: "start" | "confirmed" | "estimate" = "start";
@@ -52,3 +52,6 @@ export class AtlasNotes {
     this.marker = undefined;
   }
 }
+return {AtlasNotes};
+}
+export type AtlasNotes=InstanceType<ReturnType<typeof createAtlasNotes>["AtlasNotes"]>;

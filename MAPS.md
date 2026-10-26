@@ -27,7 +27,7 @@ Map controls: RT / LT or + / − zoom, right stick / I J K L / mouse drag pan, R
 - `public/maps/cerea.json`: generated Cerea district, bundled into the Windows build.
 - `public/maps/harbor.json`: original handcrafted district data.
 - `src/world/schema.ts`: the district data structure.
-- `src/world/district.ts`: validation, active district state and shared spatial helpers.
+- `src/world/district.ts`: validation, explicit District contexts and shared spatial helpers.
 - `src/world/load.ts`: local selection and JSON loading.
 - `tools/import-cerea.py`: deterministic offline conversion of the checked-in source extract.
 - `tools/prepare-cerea.mjs`: build-time polygon clipping for road, sidewalk, junction and bay clearance.
@@ -80,3 +80,24 @@ figure; serving a fare never changes these decorations. They add no collision
 or stopping rules. No JSON schema or importer changes are required for this
 presentation pass. Harbor retains its legacy scenery. See
 [presentation measurements and limits](docs/PRESENTATION.md).
+
+## Scalability foundations
+
+A loaded definition now becomes an explicit `District` context, owning node
+lookup, adjacency, spatial indexes and directed routing. The loader returns
+it; systems bind through `create…(context)` factories. No mutable active-map
+module state remains. More than one district's systems can coexist in memory;
+the selection UI still reloads one district at a time. Treat geometry as
+immutable after context creation; rebuild the context after editing geometry.
+
+Building/road grids conservatively choose candidates, retaining the original
+polygon/hole/margin and projected-distance predicates. Source-order ties and
+full taxi route paths are checked against exhaustive references. Render geometry
+is constructed in a local coordinate frame before Float32 conversion; physics,
+directions and atlas markers keep logical world coordinates. A translated Cerea
+fixture exercises the general renderer 25 km from the origin. The original
+Harbor scene remains handcrafted in its authored local coordinates; definitions
+requiring a nonzero Harbor render anchor are rejected explicitly.
+
+No map JSON/schema/importer or provenance changes are made by this work.
+There is no tile loading or second town yet. See [B architecture and measurements](docs/SCALABILITY.md).

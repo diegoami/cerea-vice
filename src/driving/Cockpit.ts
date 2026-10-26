@@ -91,7 +91,7 @@ export class Cockpit {
     }
   }
 
-  update(car:Car,roll=0,pitch=0,wobble=0) {
+  update(car:Pick<Car,"x"|"z"|"heading"|"steering"|"gear"|"speed">,roll=0,pitch=0,wobble=0) {
     this.interior.position.set(car.x,0,car.z);
     this.interior.rotation.set(pitch,-car.heading,roll,"YXZ");
     this.wheel.rotation.z=-car.steering*1.5+wobble;

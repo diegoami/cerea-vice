@@ -1,10 +1,13 @@
-import { district, hotelBay, parkingZones, inRect, type Point } from "../world/district";
+import { inRect, type Point } from "../world/district";
 import type {NavigationTarget,TaxiStop} from '../world/schema';
-import {shortestRoute} from '../navigation/Navigation';
-
+import { createNavigation } from "../navigation/Navigation";
+import { District } from "../world/district";
 export type MissionState = "active" | "overdue" | "success" | "late" | "shift-complete";
 export interface FareReceipt {passenger:string;pickup:string;destination:string;distanceMetres:number;seconds:number;baseCents:number;bonusCents:number;totalCents:number}
-export class Mission {
+export function createMission(context:District){
+const {district,hotelBay,parkingZones}=context;
+const {shortestRoute}=createNavigation(context);
+class Mission {
   private readonly taxi=district.taxi;
   directionRequests = { legal: 0, unsafe: 0 };
   elapsed=0;
@@ -93,3 +96,6 @@ export class Mission {
     if(stopped&&inRect(position,hotelBay,1.1))this.state=this.elapsed<=this.duration?'success':'late';
   }
 }
+return {Mission};
+}
+export type Mission=InstanceType<ReturnType<typeof createMission>["Mission"]>;

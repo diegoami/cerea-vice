@@ -1,4 +1,4 @@
-import { activateDistrict } from "./district";
+import { District } from "./district";
 
 export const availableDistricts = [
   {id:"cerea",name:"Cerea Centro"},
@@ -14,7 +14,7 @@ export async function loadSelectedDistrict() {
   const id=requestedDistrict();
   const response=await fetch(new URL(`./maps/${id}.json`,window.location.href));
   if(!response.ok)throw new Error(`Could not load district ${id}`);
-  activateDistrict(await response.json());
+  return new District(await response.json(),{profile:new URLSearchParams(window.location.search).has("profile")});
 }
 export function selectDistrict(id: string) {
   if(!availableDistricts.some((map)=>map.id===id))return;

@@ -1,12 +1,24 @@
+import { LocalFrame, translateDistrict } from "./LocalFrame";
+import { SpatialGrid, rectBounds } from "./SpatialGrid";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { roadWidth, district, roads, nodeById, parkingZones, landmarks, inRect, isPaved, projectToSegment, pointInPolygon, type Point, type Rect } from "./district";
-import { decorateBuildings, dressStreets, facadeColor } from "./Scenery";
-import { HarborWorld } from "./HarborWorld";
+import { roadWidth, inRect, projectToSegment, pointInPolygon, type Point, type Rect } from "./district";
+import { createScenery } from "./Scenery";
+import { createHarborWorld } from "./HarborWorld";
 import { box, sign, signpost, material, streetNamePlate } from "./builders";
-import { planStreetPlates } from "./streetPlates";
-import { planJunctionSigns, planParkingSigns, planVittoriaNoEntrySign, planEdgeSigns } from "./signs";
-
+import { createStreetPlates } from "./streetPlates";
+import { createSigns } from "./signs";
+import { District } from "./district";
+export function createWorld(logical:District){
+const frame=new LocalFrame(logical.spawn);
+// Legacy Harbor geometry/obstacles are authored around zero, not translated data.
+if(logical.district.id==='harbor'&&(frame.anchor.x!==0||frame.anchor.z!==0))throw new Error('Harbor requires its authored coordinates (zero render anchor)');
+const context=new District(translateDistrict(logical.district,-frame.anchor.x,-frame.anchor.z));
+const {district,roads,nodeById,parkingZones,landmarks,isPaved}=context;
+const {decorateBuildings,dressStreets,facadeColor}=createScenery(context);
+const {HarborWorld}=createHarborWorld(context);
+const {planStreetPlates}=createStreetPlates(context);
+const {planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns}=createSigns(context);
 function strip(parent: THREE.Object3D, a: Point, b: Point, width: number, y: number, height: number, color: number) {
   const mesh=box(parent,(a.x+b.x)/2,y,(a.z+b.z)/2,Math.hypot(b.x-a.x,b.z-a.z),height,width,color);
   mesh.rotation.y=Math.atan2(-(b.z-a.z),b.x-a.x);return mesh;
@@ -18,10 +30,12 @@ function footprint(parent:THREE.Object3D, points:Point[], height:number,color:nu
   geometry.rotateX(-Math.PI/2);
   const mesh=new THREE.Mesh(geometry,material(color));parent.add(mesh);
 }
-
-export class World {
+class World {
+  readonly frame=new LocalFrame(logical.spawn);
+  private readonly content=new THREE.Group();
   readonly scene: THREE.Scene;
   readonly colliders: Rect[];
+  readonly collisionIndex:SpatialGrid<Rect>;
   private readonly simpleBuildings=new THREE.Group();
   private readonly detail=new THREE.Group();
   private sky?:THREE.CanvasTexture;
@@ -29,7 +43,7 @@ export class World {
   private daylightSun?:THREE.DirectionalLight;
   private daylightAmbient?:THREE.HemisphereLight;
   constructor() {
-    if(district.id==="harbor") { const legacy=new HarborWorld();this.scene=legacy.scene;this.colliders=legacy.colliders;return; }
+    if(district.id==="harbor") { const legacy=new HarborWorld();this.scene=legacy.scene;this.colliders=legacy.colliders;this.collisionIndex=new SpatialGrid(this.colliders,rectBounds);this.installFrame();return; }
     this.scene=new THREE.Scene();this.colliders=[];
     const scene=this.scene,bounds=district.bounds;
     const width=bounds.maxX-bounds.minX,depth=bounds.maxZ-bounds.minZ;
@@ -170,11 +184,23 @@ export class World {
     for(const mesh of originals){mesh.removeFromParent();mesh.geometry.dispose();}
     };
     batch(scene);batch(this.simpleBuildings);batch(this.detail);scene.add(this.simpleBuildings,this.detail);
+    // Physics retains original world coordinates, independently of render rebases.
+    for(let i=0;i<this.colliders.length;i++){
+      const r=this.colliders[i],shift=(p:Point)=>({x:p.x+frame.anchor.x,z:p.z+frame.anchor.z});
+      this.colliders[i]={...r,...shift(r),points:r.points?.map(shift),holes:r.holes?.map(hole=>hole.map(shift))};
+    }
+    this.collisionIndex=new SpatialGrid(this.colliders,rectBounds);
     const canvas=document.createElement('canvas');canvas.width=16;canvas.height=128;
     this.sky=new THREE.CanvasTexture(canvas);this.sky.colorSpace=THREE.SRGBColorSpace;
     scene.background=this.sky;
+    this.installFrame();
 
   }
+  private installFrame(){
+    for(const child of [...this.scene.children])if(!(child instanceof THREE.Light))this.content.add(child);
+    this.scene.add(this.content);
+  }
+  updateFrame(position:Point){this.frame.rebase(position);const offset=this.frame.contentOffset;this.content.position.set(offset.x,0,offset.z);}
   setDetail(enabled:boolean){this.detail.visible=enabled;this.simpleBuildings.visible=!enabled;}
   updateDaylight(hour:number) {
     if(!this.daylightSun||!this.daylightAmbient)return;
@@ -193,3 +219,6 @@ export class World {
   }
 
 }
+return {World};
+}
+export type World=InstanceType<ReturnType<typeof createWorld>["World"]>;

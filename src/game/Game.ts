@@ -2,20 +2,29 @@ import { SettingsPanel, readSettings, renderSize } from "../presentation/Setting
 import { Sound } from "../presentation/Sound";
 import { BodyMotion } from "../presentation/Motion";
 import { Retro } from "../presentation/Retro";
-import { district } from "../world/district";
 import { availableDistricts, selectDistrict } from "../world/load";
 import { WebGLRenderer } from "three";
-import { Car } from "../driving/Car";
+import { createCar } from "../driving/Car";
 import { CockpitCamera } from "../driving/CockpitCamera";
 import { Cockpit } from "../driving/Cockpit";
 import { Input } from "../input/Input";
-import { directionHint } from "../navigation/Navigation";
-import { Parking } from "../navigation/Parking";
-import { Mission } from "../mission/Mission";
-import { World } from "../world/World";
-import { Hud, type Screen } from "../ui/Hud";
-
-export class Game {
+import { createNavigation } from "../navigation/Navigation";
+import { createParking } from "../navigation/Parking";
+import { createMission } from "../mission/Mission";
+import { createWorld } from "../world/World";
+import { createHud, type Screen } from "../ui/Hud";
+import { District } from "../world/district";
+export function createGame(context:District){
+const {district}=context;
+const {Car}=createCar(context);
+const {directionHint}=createNavigation(context);
+const {Parking}=createParking(context);
+const {Mission}=createMission(context);
+const {World}=createWorld(context);
+const {Hud}=createHud(context);
+class Game {
+  private readonly timingPanel=context.profile.enabled?document.createElement("pre"):undefined;
+  private timingRefresh=0;
   private readonly sound = new Sound();
   private readonly motion = new BodyMotion();
   private readonly settings = readSettings();
@@ -27,12 +36,12 @@ export class Game {
   });
   private readonly world = new World();
   private readonly car = new Car();
-  private readonly cockpit = new CockpitCamera();
+  private readonly cockpit = new CockpitCamera(this.world.frame);
   private readonly interior = new Cockpit(this.world.scene);
   private readonly input = new Input();
   private readonly parking = new Parking();
   private readonly mission = new Mission();
-  private readonly hud: Hud;
+  private readonly hud: InstanceType<typeof Hud>;
   private screen: Screen = "briefing";
   private previousTime = 0;
   private accumulator = 0;
@@ -50,6 +59,7 @@ export class Game {
       `First-person view of ${district.name}`,
     );
     root.append(this.renderer.domElement);
+    if(this.timingPanel){this.timingPanel.id="performance-stats";this.timingPanel.setAttribute("aria-label","CPU profiling timings");root.append(this.timingPanel);}
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation());
     this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);});
     this.world.setDetail(this.settings.detail);
@@ -203,9 +213,11 @@ export class Game {
       this.accumulator += dt;
       // Fixed 60 Hz simulation keeps handling consistent across render rates.
       while (this.accumulator >= 1 / 60) {
-        this.car.update(1 / 60, driving, this.world.colliders);
+        const physicsStart=context.profile.start();
+        this.car.update(1 / 60, driving, this.world.collisionIndex);
         this.parking.update(1 / 60, this.car, this.car.speed);
         this.mission.update(1 / 60, this.car, this.parking.stopped);
+        context.profile.end("physics-step",physicsStart);
         this.accumulator -= 1 / 60;
         if (this.mission.finished) {
           this.screen = "result";
@@ -214,6 +226,7 @@ export class Game {
           break;
         }
       }
+      this.world.updateFrame(this.car);
       this.cockpit.update(dt, this.car, actions.glance, actions);
     }
     if(this.mission.revision!==this.missionRevision) {
@@ -232,9 +245,15 @@ export class Game {
     );
     this.sound.update(dt,this.screen==='running',this.car.speed,this.car.gear,this.car.steering,this.settings);
     if(this.screen==='running')this.motion.update(dt,this.car.speed,this.car.steering,this.settings.motion);
-    this.interior.update(this.car,this.motion.roll,this.motion.pitch,this.motion.wobble);
+    this.interior.update({...this.car,...this.world.frame.toLocal(this.car)},this.motion.roll,this.motion.pitch,this.motion.wobble);
+    const renderStart=context.profile.start();
     this.interior.renderMirrors(this.renderer,this.world.scene,dt);
     if(this.settings.resolution==='sharp')this.renderer.render(this.world.scene, this.cockpit.camera);
     else this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
+    context.profile.end("render",renderStart);
+    if(this.timingPanel&&time>=this.timingRefresh){this.timingRefresh=time+500;this.timingPanel.textContent=context.profile.text();}
   }
 }
+return {Game};
+}
+export type Game=InstanceType<ReturnType<typeof createGame>["Game"]>;

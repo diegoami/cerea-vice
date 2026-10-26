@@ -1,0 +1,20 @@
+// Run with node --import tsx tools/profile-world.mjs <label>. Supports pre-B APIs for baseline archives.
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {performance} from 'node:perf_hooks';
+import * as districtModule from '../src/world/district.ts';
+import * as navigationModule from '../src/navigation/Navigation.ts';
+import * as carModule from '../src/driving/Car.ts';
+const data=JSON.parse(readFileSync('public/maps/cerea.json','utf8'));
+const context=districtModule.District?new districtModule.District(data):undefined;
+if(!context)districtModule.activateDistrict(data);
+const nav=context?navigationModule.createNavigation(context):navigationModule;
+const Car=context?carModule.createCar(context).Car:carModule.Car;
+const {inRect}=districtModule;
+const paved=context?context.isPaved:districtModule.isPaved;
+const grid=context?.buildings;
+const points=Array.from({length:400},(_,i)=>({x:data.bounds.minX+(i*37%1000),z:data.bounds.minZ+(i*71%1000)}));
+const bench=fn=>{fn();const values=[];for(let i=0;i<5;i++){const begin=performance.now();fn();values.push(performance.now()-begin);}values.sort((a,b)=>a-b);return values[2];};
+const idle={steer:0,throttle:0,brake:0,handbrake:false};
+const colliders=grid??data.buildings;
+const result={collision400ms:bench(()=>points.map(p=>(grid?grid.at(p,1.05):data.buildings).some(b=>inRect(p,b,-1.05)))),paved400ms:bench(()=>points.map(paved)),nearest400ms:bench(()=>points.map(nav.nearestRoad)),route81ms:bench(()=>data.taxi.stops.map(a=>data.taxi.stops.map(b=>nav.shortestRoute(a.nodeId,b.nodeId)))),physics1000ms:bench(()=>{const car=new Car();for(let i=0;i<1000;i++)car.update(1/60,idle,colliders);})};
+mkdirSync('test-results',{recursive:true});writeFileSync(`test-results/${process.argv[2]??'world-profile'}.json`,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));

@@ -1,16 +1,17 @@
-import {
-  areaAt,
-  nodeById,
-  nodes,
-  roads,
-  type Point,
-  type RoadNode,
-} from "../world/district";
-
-export const bearing = (heading: number): number =>
+import { SpatialGrid } from "../world/SpatialGrid";
+import { type Point, type RoadNode } from "../world/district";
+import { District } from "../world/district";
+interface Edge {
+  a: string;
+  b: string;
+  name: string;
+}
+export function createHarborNavigation(context:District){
+const {areaAt,nodeById,nodes,roads}=context;
+const bearing = (heading: number): number =>
   ((((heading * 180) / Math.PI) % 360) + 360) % 360;
 const compassNames = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-export const compass = (heading: number): string =>
+const compass = (heading: number): string =>
   compassNames[Math.round(bearing(heading) / 45) % 8];
 const cardinal = (a: Point, b: Point): string =>
   Math.abs(b.x - a.x) > Math.abs(b.z - a.z)
@@ -21,11 +22,6 @@ const cardinal = (a: Point, b: Point): string =>
       ? "south"
       : "north";
 const distance = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.z - a.z);
-interface Edge {
-  a: string;
-  b: string;
-  name: string;
-}
 const hotelNode: RoadNode = { id: "hotel", x: 80, z: -44, label: "Blue Hotel" };
 const graphNodes = [...nodes, hotelNode];
 const lookup = (id: string) => (id === "hotel" ? hotelNode : nodeById(id));
@@ -37,7 +33,6 @@ const edges: Edge[] = roads.flatMap((r) =>
       ]
     : [r],
 );
-
 function project(p: Point, a: Point, b: Point): Point {
   const dx = b.x - a.x,
     dz = b.z - a.z;
@@ -47,17 +42,9 @@ function project(p: Point, a: Point, b: Point): Point {
   );
   return { x: a.x + dx * t, z: a.z + dz * t };
 }
-
-export function nearestRoad(p: Point) {
-  return edges
-    .map((edge) => {
-      const point = project(p, lookup(edge.a), lookup(edge.b));
-      return { edge, point, distance: distance(p, point) };
-    })
-    .sort((a, b) => a.distance - b.distance)[0];
+const edgeGrid=new SpatialGrid(edges,edge=>{const a=lookup(edge.a),b=lookup(edge.b);return {minX:Math.min(a.x,b.x),maxX:Math.max(a.x,b.x),minZ:Math.min(a.z,b.z),maxZ:Math.max(a.z,b.z)};});
+function nearestRoad(p:Point){return edgeGrid.nearest(p,edge=>{const point=project(p,lookup(edge.a),lookup(edge.b));return {edge,point,distance:distance(p,point)};});
 }
-
-// Tiny deterministic Dijkstra search. Hints use the same streets that are rendered.
 function route(start: string): { cost: number; path: string[] } {
   const costs = new Map(graphNodes.map((n) => [n.id, Infinity]));
   const previous = new Map<string, string>();
@@ -85,7 +72,6 @@ function route(start: string): { cost: number; path: string[] } {
   while (path[0] !== start) path.unshift(previous.get(path[0])!);
   return { cost: costs.get("hotel")!, path };
 }
-
 function turn(from: Point, at: Point, to: Point): string {
   const first = Math.atan2(at.x - from.x, -(at.z - from.z));
   const second = Math.atan2(to.x - at.x, -(to.z - at.z));
@@ -96,8 +82,7 @@ function turn(from: Point, at: Point, to: Point): string {
       ? "turn right"
       : "turn left";
 }
-
-export function directionHint(p: Point, heading: number): string {
+function directionHint(p: Point, heading: number): string {
   const nearest = nearestRoad(p);
   const intro = `${nearest.distance > 13 ? "Near" : "On"} ${nearest.edge.name} in ${areaAt(p)}, facing ${compass(heading)}.`;
   const options = [nearest.edge.a, nearest.edge.b]
@@ -131,4 +116,6 @@ export function directionHint(p: Point, heading: number): string {
   );
   const facingAway = Math.cos(desiredHeading - heading) < -0.5;
   return `${intro} ${facingAway ? "Turn around safely, then head" : "Continue"} ${cardinal(nearest.point, target)} to ${target.label}; ${turn(nearest.point, target, next)} onto ${nextRoad.name} (${cardinal(target, next)}).`;
+}
+return {bearing,compass,nearestRoad,directionHint};
 }

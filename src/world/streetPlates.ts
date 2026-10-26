@@ -1,36 +1,40 @@
-import { roadWidth,district,nodes,roads,nodeById,inRect,pointInPolygon,projectToSegment,type Point,type Road} from './district';
-import {boardPoints} from './signs';
-
+import { roadWidth, inRect, pointInPolygon, projectToSegment, type Point, type Road } from "./district";
+import { createSigns } from "./signs";
+import { District } from "./district";
 export interface PlateCoverage {junctionId:string;armId:string;streetName:string}
 export interface StreetPlatePlan {
   name:string;position:Point;angle:number;width:number;height:number;
   mount:'wall'|'post';buildingIndex?:number;kind:'junction'|'repeater';
   roadA:string;roadB:string;coverage:PlateCoverage[];viewpoint:Point;
 }
+export function createStreetPlates(context:District){
+const {district,nodes,roads,nodeById}=context;
+const {boardPoints}=createSigns(context);
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
-const linksAt=(id:string)=>roads.filter(road=>road.a===id||road.b===id);
+const linksAt=(id:string)=>context.adjacency.get(id)??[];
 function alignment(angle:number,road:Road):number {
   const a=nodeById(road.a),b=nodeById(road.b),length=distance(a,b);
   return Math.abs((Math.cos(angle)*(b.x-a.x)-Math.sin(angle)*(b.z-a.z))/length);
 }
-/** A plaque runs along its own street, with its normal facing into that street. */
-export function plateStreetRoad(plan:Pick<StreetPlatePlan,'position'|'angle'>):Road|undefined {
-  return roads.filter(road=>alignment(plan.angle,road)>.94).map(road=>({road,distance:distance(plan.position,projectToSegment(plan.position,nodeById(road.a),nodeById(road.b)))})).sort((a,b)=>a.distance-b.distance)[0]?.road;
+function plateStreetRoad(plan:Pick<StreetPlatePlan,'position'|'angle'>):Road|undefined {
+  if(!roads.length)return;
+  const nearest=context.roadGrid.nearest(plan.position,road=>({road,distance:alignment(plan.angle,road)>.94?distance(plan.position,projectToSegment(plan.position,nodeById(road.a),nodeById(road.b))):Infinity}));
+  return Number.isFinite(nearest.distance)?nearest.road:undefined;
 }
-export function plateIsClear(plan:StreetPlatePlan):boolean {
+function plateIsClear(plan:StreetPlatePlan):boolean {
   return boardPoints(plan).every(point=>{
     if(point.x<district.bounds.minX+.1||point.x>district.bounds.maxX-.1||point.z<district.bounds.minZ+.1||point.z>district.bounds.maxZ-.1)return false;
-    if(district.buildings.some((building,index)=>inRect(point,building,index===plan.buildingIndex?-.04:-.2)))return false;
-    return roads.every(road=>distance(point,projectToSegment(point,nodeById(road.a),nodeById(road.b)))>roadWidth(road)/2+.1);
+    if(context.buildings.at(point,.2).some(building=>inRect(point,building,district.buildings.indexOf(building)===plan.buildingIndex?-.04:-.2)))return false;
+    return context.roadGrid.at(point,.1).every(road=>distance(point,projectToSegment(point,nodeById(road.a),nodeById(road.b)))>roadWidth(road)/2+.1);
   });
 }
 function clearRay(a:Point,b:Point):boolean {
-  const possible=district.buildings.filter(building=>building.x+building.width/2>=Math.min(a.x,b.x)-.1&&building.x-building.width/2<=Math.max(a.x,b.x)+.1&&building.z+building.depth/2>=Math.min(a.z,b.z)-.1&&building.z-building.depth/2<=Math.max(a.z,b.z)+.1);
+  const possible=context.buildings.query({minX:Math.min(a.x,b.x)-.1,maxX:Math.max(a.x,b.x)+.1,minZ:Math.min(a.z,b.z)-.1,maxZ:Math.max(a.z,b.z)+.1});
   const steps=Math.max(1,Math.ceil(distance(a,b)/.25));
   for(let i=1;i<steps;i++)if(possible.some(building=>inRect({x:a.x+(b.x-a.x)*i/steps,z:a.z+(b.z-a.z)*i/steps},building)))return false;
   return true;
 }
-export function plateIsVisible(plan:StreetPlatePlan,viewpoint=plan.viewpoint):boolean {
+function plateIsVisible(plan:StreetPlatePlan,viewpoint=plan.viewpoint):boolean {
   const dx=viewpoint.x-plan.position.x,dz=viewpoint.z-plan.position.z,length=Math.hypot(dx,dz)||1;
   if((Math.sin(plan.angle)*dx+Math.cos(plan.angle)*dz)/length<.65)return false;
   const ends=boardPoints(plan);
@@ -91,7 +95,7 @@ function armAnchor(junctionId:string,first:Road,setback:number):{point:Point;roa
   }
   const a=nodeById(first.a),b=nodeById(first.b),length=distance(a,b);return {point:a,road:first,dx:(b.x-a.x)/length,dz:(b.z-a.z)/length};
 }
-export function planStreetPlates():{plates:StreetPlatePlan[];missing:PlateCoverage[]} {
+function planStreetPlates():{plates:StreetPlatePlan[];missing:PlateCoverage[]} {
   const plates:StreetPlatePlan[]=[],missing:PlateCoverage[]=[];
   const junctions=nodes.filter(node=>new Set(linksAt(node.id).map(road=>road.name)).size>1);
   for(const node of junctions)for(const arm of linksAt(node.id)){
@@ -116,4 +120,6 @@ export function planStreetPlates():{plates:StreetPlatePlan[];missing:PlateCovera
     }
   }
   return {plates,missing};
+}
+return {plateStreetRoad,plateIsClear,plateIsVisible,planStreetPlates};
 }

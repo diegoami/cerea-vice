@@ -1,7 +1,10 @@
 import type { Actions } from "../input/Input";
-import { district, inRect, isPaved, spawn, type Rect } from "../world/district";
-
-export class Car {
+import { SpatialGrid } from "../world/SpatialGrid";
+import { inRect, type Rect } from "../world/district";
+import { District } from "../world/district";
+export function createCar(context:District){
+const {district,isPaved,spawn}=context;
+class Car {
   x = spawn.x;
   z = spawn.z;
   heading = spawn.heading;
@@ -28,7 +31,7 @@ export class Car {
     return true;
   }
 
-  update(dt: number, input: Actions, colliders: Rect[]) {
+  update(dt: number, input: Actions, colliders: Rect[] | SpatialGrid<Rect>) {
     this.impactCooldown = Math.max(0, this.impactCooldown - dt);
     this.steering += (input.steer - this.steering) * Math.min(1, dt * 7);
     const paved = isPaved(this);
@@ -55,7 +58,7 @@ export class Car {
     const hit =
       next.x < district.bounds.minX + 1 || next.x > district.bounds.maxX - 1 ||
       next.z < district.bounds.minZ + 1 || next.z > district.bounds.maxZ - 1 ||
-      colliders.some((r) => inRect(next, r, -1.05));
+      (colliders instanceof SpatialGrid?colliders.at(next,1.05):colliders).some((r) => inRect(next, r, -1.05));
     if (hit) {
       if (Math.abs(this.speed) > 1 && this.impactCooldown === 0) {
         this.collisions++;
@@ -68,3 +71,6 @@ export class Car {
     }
   }
 }
+return {Car};
+}
+export type Car=InstanceType<ReturnType<typeof createCar>["Car"]>;

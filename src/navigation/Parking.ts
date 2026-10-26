@@ -1,6 +1,8 @@
-import { district, inRect, parkingZones, type Point } from "../world/district";
-
-export class Parking {
+import { inRect, type Point } from "../world/district";
+import { District } from "../world/district";
+export function createParking(context:District){
+const {district,parkingZones}=context;
+class Parking {
   private stillTime = 0;
   private armed = false;
   unsafeStops = 0;
@@ -28,3 +30,6 @@ export class Parking {
     }
   }
 }
+return {Parking};
+}
+export type Parking=InstanceType<ReturnType<typeof createParking>["Parking"]>;

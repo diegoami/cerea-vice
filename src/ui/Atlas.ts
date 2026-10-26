@@ -1,21 +1,22 @@
-import { roadWidth, district, areaAt, landmarks, nodeById, parkingZones, roads, type Point } from "../world/district";
-
+import { roadWidth, type Point } from "../world/district";
+import { District } from "../world/district";
 export type AtlasPage = "map" | "index";
-
-export function atlasFrame() {
+export function createAtlas(context:District){
+const {district,areaAt,landmarks,nodeById,parkingZones,roads}=context;
+function atlasFrame() {
   const bounds=district.bounds;
   const span=Math.max(bounds.maxX-bounds.minX,bounds.maxZ-bounds.minZ);
   const cx=(bounds.minX+bounds.maxX)/2,cz=(bounds.minZ+bounds.maxZ)/2;
   return {minX:cx-span/2,minZ:cz-span/2,span,unit:span/240};
 }
-export function atlasReference(point: Point): string {
+function atlasReference(point: Point): string {
   const frame=atlasFrame();
   const column=Math.max(0,Math.min(3,Math.floor((point.x-frame.minX)/frame.span*4)));
   const row=Math.max(0,Math.min(3,Math.floor((point.z-frame.minZ)/frame.span*4)));
   return `${"ABCD"[column]}${row+1}`;
 }
 const xml=(value:string)=>value.replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]!));
-export function atlasStreetEntries() {
+function atlasStreetEntries() {
   return [...new Set(roads.map(road=>road.name))].sort((a,b)=>a.localeCompare(b)).map(name=>{
     const road=roads.filter(road=>road.name===name).sort((ra,rb)=>{const a=nodeById(ra.a),b=nodeById(ra.b),c=nodeById(rb.a),d=nodeById(rb.b);return Math.hypot(d.x-c.x,d.z-c.z)-Math.hypot(b.x-a.x,b.z-a.z);})[0];
     const a=nodeById(road.a),b=nodeById(road.b),x=(a.x+b.x)/2,z=(a.z+b.z)/2;
@@ -48,16 +49,13 @@ function mapSvg() {
     <g class="atlas-north" transform="translate(${maxX-9*u} ${minZ+8*u}) scale(${u})"><path d="M 0 1 V 16 M -4 6 L 0 0 L 4 6"/><text x="0" y="-5">N</text></g>
   </svg>`;
 }
-
 function indexMarkup() {
   const entries = [...landmarks.map((place) => ({ name: place.name, road: place.road, area: areaAt(place), ref: atlasReference(place) })),
     ...parkingZones.map((zone) => ({ name: zone.name, road: "Legal stopping bay", area: areaAt(zone), ref: atlasReference(zone) }))]
     .sort((a, b) => a.name.localeCompare(b.name));
   return `<div class="atlas-index"><h2>Places and parking</h2><table><thead><tr><th scope="col">Place</th><th scope="col">Street / area</th><th scope="col">Grid</th></tr></thead><tbody>${entries.map((entry) => `<tr><th scope="row">${xml(entry.name)}</th><td>${xml(entry.road)}<small>${xml(entry.area)}</small></td><td class="atlas-ref">${entry.ref}</td></tr>`).join("")}</tbody></table><p>Grid letters run west to east; numbers run north to south. Match a place’s reference to the squares on the district map.</p><h2>Street index</h2><p>Click a street name to open a detailed view. On controller use the right stick up/down to select a street, then A. Keyboard: I / K, then Enter.</p><table class="atlas-street-index"><thead><tr><th scope="col">Street</th><th scope="col">Grid</th></tr></thead><tbody>${atlasStreetEntries().map(street=>`<tr><th scope="row"><button type="button" class="atlas-street-link" data-atlas-street="${xml(street.name)}">${xml(street.name)}</button></th><td class="atlas-ref">${street.reference}</td></tr>`).join("")}</tbody></table></div>`;
 }
-
-/** Printed geography only: this view never receives the car, heading or mission position. */
-export function atlasMarkup(page: AtlasPage): string {
+function atlasMarkup(page: AtlasPage): string {
   return `<section class="atlas-book" role="dialog" aria-modal="true" aria-labelledby="atlas-title">
     <header class="atlas-header"><div><span class="atlas-edition">CEREA MOTORING ATLAS · ${district.id === "cerea" ? "MODERN STREETS / RETRO EDITION" : "1986 EDITION"}</span><h1 id="atlas-title">${xml(district.name)}</h1></div><span class="atlas-paused">PARKED READING · TIMER PAUSED</span></header>
     <nav class="atlas-tabs" aria-label="Atlas pages"><button type="button" data-atlas-page="map" aria-pressed="${page === "map"}">01 · District map</button><button type="button" data-atlas-page="index" aria-pressed="${page === "index"}">02 · Place index</button></nav>
@@ -67,4 +65,6 @@ export function atlasMarkup(page: AtlasPage): string {
     <div class="atlas-attribution">${xml(district.attribution)}${district.id === "cerea" ? " · Modern street subset; simplified scenery and game stopping bays." : ""}</div>
     <footer class="atlas-footer"><span>LB / RB · Q / E: pages · RT / LT · + / −: zoom<br>${page === "map" ? "Right stick / I J K L / drag: pan · Left stick: crosshair · R3 / Home: overview" : "Left stick: scroll · Right stick / I K: select street · A: locate"}</span><button type="button" data-atlas-close>Close atlas <small>B / Circle · Y / Triangle · T / Esc</small></button></footer>
   </section>`;
+}
+return {atlasFrame,atlasReference,atlasStreetEntries,atlasMarkup};
 }

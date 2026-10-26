@@ -1,19 +1,14 @@
 import * as THREE from "three";
-import { planJunctionSigns } from "./signs";
-import { planStreetPlates } from "./streetPlates";
+import { createSigns } from "./signs";
+import { createStreetPlates } from "./streetPlates";
 import { box, building, material, sign, signpost, streetNamePlate } from "./builders";
-import {
-  roads,
-  nodeById,
-  roadRect,
-  parkingZones,
-  landmarkById,
-  canal,
-  harbor,
-  type Rect,
-} from "./district";
-
-export class HarborWorld {
+import { canal, harbor, type Rect } from "./district";
+import { District } from "./district";
+export function createHarborWorld(context:District){
+const {roads,nodeById,roadRect,parkingZones,landmarkById}=context;
+const {planJunctionSigns}=createSigns(context);
+const {planStreetPlates}=createStreetPlates(context);
+class HarborWorld {
   readonly scene = new THREE.Scene();
   readonly colliders: Rect[] = [];
 
@@ -275,3 +270,6 @@ export class HarborWorld {
     scene.add(sunDisc);
   }
 }
+return {HarborWorld};
+}
+export type HarborWorld=InstanceType<ReturnType<typeof createHarborWorld>["HarborWorld"]>;

@@ -38,7 +38,7 @@ function createWindow() {
   });
   const requestedDistrict = app.commandLine.getSwitchValue('district');
   const selected = ['cerea','harbor'].includes(requestedDistrict) ? `#district=${requestedDistrict}` : '';
-  window.loadURL(`cerea://game/${selected}`);
+  window.loadURL(`cerea://game/${app.commandLine.hasSwitch('profile')?'?profile=1':''}${selected}`);
 }
 
 app.whenReady().then(() => {

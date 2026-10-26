@@ -452,3 +452,34 @@ test('restricted storage and keyboard settings preserve startup and resume contr
   assert.equal(await page.locator('.fatal').count(),0);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('Cerea remains playable 25 km from origin with optional timings and a stable atlas marker', {timeout:90000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-local-frame-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--profile',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/maps/cerea.json',async route=>{
+   const {readFile}=await import('node:fs/promises');const data=JSON.parse(await readFile('public/maps/cerea.json','utf8'));
+   function shift(value){if(!value||typeof value!=='object')return;if(typeof value.x==='number'&&typeof value.z==='number'){value.x+=25000;value.z+=25000;}
+    if(typeof value.minX==='number'){value.minX+=25000;value.maxX+=25000;value.minZ+=25000;value.maxZ+=25000;}
+    for(const child of Object.values(value))if(typeof child==='object')shift(child);
+   }
+   shift(data);await route.fulfill({json:data});
+  });
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
+  await page.keyboard.press('f');await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Via Venticinque Aprile'));
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  const pin=await page.locator('.atlas-pin').getAttribute('transform');assert.ok(Number(pin.match(/[\d.]+/)[0])>20000);
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.keyboard.down('w');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>10);await page.keyboard.up('w');
+  await page.keyboard.down('Space');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)===0);await page.keyboard.up('Space');
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent.includes('STOP'));
+  await page.screenshot({path:'test-results/cerea-25km.png'});
+  const timings=await page.locator('#performance-stats').innerText();assert.match(timings,/physics-step:/);assert.match(timings,/nearest-road:/);assert.match(timings,/route-search:/);assert.match(timings,/render:/);
+  assert.doesNotMatch(timings,/Via |Cordioli|25000/,'Timing diagnostics reveal no location or route');
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),pin,'Local rendering never moves atlas knowledge');
+  assert.deepEqual(errors,[]);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});

@@ -88,3 +88,53 @@ attribution separation at all four sizes. Screenshots were refreshed, including
 The initial sandboxed npm ci failed with esbuild EPERM, and a test attempt
 before successful installation could not load tsx. Retrying installation with
 subprocess permissions succeeded; no final checks failed or were skipped.
+
+## A accepted; B is separate
+
+The clean re-review of A covered `7aa24a10c15f7102cab74539a1b8e68f32b59bf6`
+and reported no findings. The owner subsequently authorized merging PR #3 and
+continuing to B. Main's merge is `c3ffdeeee0cdedc0b68be00a3890499fa1199cc7`.
+B starts there on its own task branch and requires its own independent review.
+The whole-project review branches are untouched, and C has not started.
+
+B keeps the protected transition/input tests and adds indexed-versus-exhaustive
+spatial/sign/path checks, concurrently live district systems, and local-frame
+precision and desktop checks at 25 km. The normal diagnostics overlay remains
+off; its opt-in output contains timings/counts only. See
+[the B architecture and measurements](SCALABILITY.md). Physical controller,
+actual Windows launch/gameplay, audio listening and Windows GPU profiling remain
+outstanding/manual for B as well.
+
+## PR #4 independent review follow-up
+
+The Claude Code / Sonnet 5.5 review covered exact B head
+`f44e71f83c5b77c0e17f9490e78397f5a9860b32` against main
+`c3ffdeeee0cdedc0b68be00a3890499fa1199cc7`. It found no MUST-FIX or SHOULD
+items, one MINOR issue and three notes. Independent comparisons against the
+exact base found matching routes, hints, nearest roads, paving, collisions,
+boards, plates and props; its CPU benchmarks reproduced the measured speedups.
+
+| Item | Disposition |
+| --- | --- |
+| M1 — spreading large bounds arrays exceeds argument limits | Confirmed in both grid construction and rectBounds with 150,000 entries: both threw RangeError. Bounds now accumulate in loops without spreading vertices/items into function arguments. Regression checks build/query a 150,000-item grid and bound 150,000-vertex outer polygons and holes; empty-grid behaviour remains unchanged. |
+| N1 — module-level material/street-texture caches | Retained: keys are pure colour/text values, not active-district state, and no current disposal/mutation can invalidate another context. Future streaming still needs resource-lifetime/memory measurement; no claim is made for that here. |
+| N2 — translated Harbor can mix collider frames | Added an explicit early guard when the legacy Harbor renderer would require a nonzero anchor. The supported authored Harbor data stays unchanged. A regression checks that normal Harbor binds and a 25 km translated Harbor is rejected clearly. Generic Cerea translation support is unchanged. |
+| N3 — factory startup overhead | No change: the reviewer measured it as negligible and did not identify a defect. No unrelated factory rewrite is included. |
+
+Historical CPU/frame samples remain historical; this follow-up removes a
+constructor argument limit and guards an unsupported legacy input, rather than
+changing the measured scene or query algorithms. No new performance or
+multi-town memory/load-time claim is made. A fresh exact-head review handoff
+will accompany the pushed fix; no reviewer is selected/started and B remains
+unmerged. Package C has not started.
+
+Follow-up validation: clean install (0 vulnerabilities), all 65 unit tests,
+source/test type-check and production build pass, with the existing bundle-size
+advisory. All six required Xvfb/xfwm4 Electron scenarios pass together (~113 s),
+including original Harbor and the translated Cerea fixture. Initial sandboxed
+npm ci hit esbuild EPERM, and a premature reproduction attempt lacked tsx;
+installation with subprocess permissions succeeded before both failures were
+reproduced on the reviewed code and then covered by passing regressions. No
+final automated checks failed or were skipped. Physical controller, real
+Windows gameplay, audio listening and Windows GPU measurements remain manual
+and outstanding; generated screenshots/artifacts remain ignored.

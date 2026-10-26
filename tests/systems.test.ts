@@ -1,12 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Car } from "../src/driving/Car";
+import { createCar } from "../src/driving/Car";
 import type { Actions } from "../src/input/Input";
-import { Mission } from "../src/mission/Mission";
-import { Parking } from "../src/navigation/Parking";
-import { compass, directionHint } from "../src/navigation/Navigation";
-import { hotelBay, nodes, roads, spawn } from "../src/world/district";
-
+import { createMission } from "../src/mission/Mission";
+import { createParking } from "../src/navigation/Parking";
+import { createNavigation } from "../src/navigation/Navigation";
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {hotelBay,nodes,roads,spawn}=context;
+let {Car}=createCar(context);
+let {Mission}=createMission(context);
+let {Parking}=createParking(context);
+let {compass,directionHint}=createNavigation(context);
 const idle: Actions = {
   steer: 0,
   throttle: 0,
@@ -27,7 +33,6 @@ const idle: Actions = {
   atlasZoom: 0, atlasZoomStep: 0, atlasPanX: 0, atlasPanY: 0,
   lookX: 0, lookY: 0, mouseX: 0, mouseY: 0, resetLook: false,
 };
-
 test("district contains a connected loop, T-junctions and crossroads", () => {
   const degrees = nodes.map(
     (n) => roads.filter((r) => r.a === n.id || r.b === n.id).length,
@@ -43,7 +48,6 @@ test("district contains a connected loop, T-junctions and crossroads", () => {
   assert.equal(reached.size, nodes.length);
   assert.ok(roads.length >= nodes.length); // Connected graph has at least one cycle.
 });
-
 test("direction hints work on every road, reflect heading and handle off-road requests", () => {
   for (const road of roads) {
     const a = nodes.find((n) => n.id === road.a)!,
@@ -61,7 +65,6 @@ test("direction hints work on every road, reflect heading and handle off-road re
   assert.match(directionHint({ x: 80, z: -42 }, 0), /forecourt/);
   assert.match(directionHint(spawn, Math.PI * 1.5), /Turn around safely/);
 });
-
 test("directions require a settled full stop; unsafe stops count once per stop episode", () => {
   const parking = new Parking();
   parking.update(1, { x: 0, z: 20 }, 5);
@@ -79,7 +82,6 @@ test("directions require a settled full stop; unsafe stops count once per stop e
   assert.equal(parking.zone, "Harbor lay-by");
   assert.equal(parking.unsafeStops, 1);
 });
-
 test("mission requires stopping inside the hotel bay and distinguishes late arrival", () => {
   const mission = new Mission();
   mission.update(30, hotelBay, false);
@@ -100,7 +102,6 @@ test("mission requires stopping inside the hotel bay and distinguishes late arri
   mission.update(180, hotelBay, true);
   assert.equal(mission.state, "success");
 });
-
 test("direction requests require a full stop and retain legal versus unsafe counts", () => {
   const mission = new Mission();
   assert.equal(mission.recordDirectionRequest(false, true), false);
@@ -119,7 +120,6 @@ test("direction requests require a full stop and retain legal versus unsafe coun
   assert.equal(mission.directionRequestCount, 0);
   assert.deepEqual(mission.directionRequests, { legal: 0, unsafe: 0 });
 });
-
 test("car brakes, reverses, handbrakes to exact zero and collides with solid geometry", () => {
   const car = new Car();
   for (let i = 0; i < 60; i++) car.update(1 / 60, { ...idle, throttle: 1 }, []);
@@ -149,7 +149,6 @@ test("car brakes, reverses, handbrakes to exact zero and collides with solid geo
   assert.ok(car.z >= 6);
   assert.ok(car.collisions > 0);
 });
-
 test("arcade car can drive a complete route and stop at the destination before deadline", () => {
   const car = new Car(),
     parking = new Parking(),
