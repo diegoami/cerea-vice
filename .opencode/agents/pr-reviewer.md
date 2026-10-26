@@ -122,6 +122,30 @@ permissions:
   - action: shell
     resource: "gh issue create*"
     effect: deny
+  - action: shell
+    resource: "git worktree remove *--force*"
+    effect: deny
+  - action: shell
+    resource: "git worktree remove -f*"
+    effect: deny
+  - action: shell
+    resource: "git worktree remove * -f*"
+    effect: deny
+  - action: shell
+    resource: "gh pr review -a*"
+    effect: deny
+  - action: shell
+    resource: "gh pr review * -a*"
+    effect: deny
+  - action: shell
+    resource: "gh pr review -r*"
+    effect: deny
+  - action: shell
+    resource: "gh pr review * -r*"
+    effect: deny
+  - action: shell
+    resource: "rg *--pre*"
+    effect: deny
 ---
 
 You are an independent reviewer of one Cerea Vice PR. You did not implement

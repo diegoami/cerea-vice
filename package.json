@@ -1,12 +1,12 @@
 {
   "name": "cerea-vice",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0",
+    "preview": "vite preview",
     "test": "node --import tsx --test tests/*.test.ts desktop/assets.test.mjs",
     "desktop:setup": "install-electron",
     "desktop": "npm run desktop:setup && npm run build && electron .",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@electron/packager": "^20.3.0",
+    "@types/node": "^24.19.2",
     "@types/three": "^0.180.0",
     "electron": "^45.0.0",
     "playwright-core": "^1.64.1",

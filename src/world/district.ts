@@ -9,7 +9,8 @@ export let parkingZones = district.parkingZones;
 export let landmarks = district.landmarks;
 export let spawn = district.spawn;
 export let hotelBay = parkingZones.find((zone) => zone.id === district.mission.bayId)!;
-export const ROAD_WIDTH = 16;
+export const ROAD_WIDTH = 8;
+export const roadWidth = (road: Road): number => road.width ?? ROAD_WIDTH;
 export const canal = { x: 40, z: -88, width: 12, depth: 48 };
 export const harbor = { x: 0, z: 152, width: 600, depth: 80 };
 
@@ -18,7 +19,7 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   const data = value as DistrictDefinition;
   if (data.version !== 1 || !data.id || !data.name || !Array.isArray(data.nodes) || !Array.isArray(data.roads) || !Array.isArray(data.parkingZones) || !Array.isArray(data.landmarks) || !Array.isArray(data.buildings) || !Array.isArray(data.features) || !Array.isArray(data.areas)) throw new Error("Incomplete district file");
   const plainText = (value: unknown) => typeof value === "string" && value.length > 0 && value.length < 500 && !/[<>]/.test(value);
-  if (!plainText(data.name) || !plainText(data.description) || !plainText(data.attribution) || data.nodes.some((node) => !plainText(node.label)) || data.roads.some((road) => !plainText(road.name))) throw new Error("District names must be plain text");
+  if (!plainText(data.name) || !plainText(data.description) || !plainText(data.attribution) || data.nodes.some((node) => !plainText(node.label)) || data.roads.some((road) => (!plainText(road.name)||(road.roadClass!==undefined&&!plainText(road.roadClass))))) throw new Error("District names must be plain text");
   if (data.stoppingPolicy !== undefined && !["marked-bays","anywhere"].includes(data.stoppingPolicy)) throw new Error("Invalid stopping policy");
   const validPoint = (point: Point) => point && Number.isFinite(point.x) && Number.isFinite(point.z);
   const ids = new Set(data.nodes.map((node) => node.id));
@@ -34,6 +35,7 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   if (data.id !== "harbor" && !ids.has(data.mission.nodeId)) throw new Error("Missing destination road node");
   if (!plainText(data.mission.name)||!plainText(data.mission.objective)||!plainText(data.mission.hint)||!plainText(data.spawn.name)) throw new Error("Invalid journey text");
   if ([...data.landmarks,...data.parkingZones,...data.areas].some((place)=>!plainText(place.name))) throw new Error("Invalid place name");
+  if (data.landmarks.some(place=>!plainText(place.road)||(place.kind!==undefined&&!plainText(place.kind))) || data.features.some(feature=>!plainText(feature.name))) throw new Error("Invalid map text");
   if(data.taxi) {
     const taxi=data.taxi;
     if(!Number.isFinite(taxi.startHour)||!Number.isFinite(taxi.endHour)||taxi.startHour<0||taxi.endHour>24||taxi.startHour>=taxi.endHour||!Number.isFinite(taxi.clockRate)||taxi.clockRate<=0||taxi.clockRate>120)throw new Error("Invalid taxi shift clock");
@@ -85,12 +87,12 @@ export function inRect(point: Point, rect: Rect, margin = 0): boolean {
   return Math.abs(point.x-rect.x) <= rect.width/2-margin && Math.abs(point.z-rect.z) <= rect.depth/2-margin;
 }
 export function roadRect(road: Road): Rect {
-  const a=nodeById(road.a), b=nodeById(road.b), width=road.width??ROAD_WIDTH;
+  const a=nodeById(road.a), b=nodeById(road.b), width=roadWidth(road);
   return { x:(a.x+b.x)/2,z:(a.z+b.z)/2,width:Math.abs(a.x-b.x)+width,depth:Math.abs(a.z-b.z)+width };
 }
 export function isPaved(point: Point): boolean {
   return roads.some((road) => {
     const projected=projectToSegment(point,nodeById(road.a),nodeById(road.b));
-    return Math.hypot(point.x-projected.x,point.z-projected.z) <= (road.width??ROAD_WIDTH)/2;
+    return Math.hypot(point.x-projected.x,point.z-projected.z) <= roadWidth(road)/2;
   }) || parkingZones.some((zone)=>inRect(point,zone));
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import cerea from '../public/maps/cerea.json';
 import harbor from '../public/maps/harbor.json';
 import {activateDistrict,district,nodes,roads,nodeById,projectToSegment} from '../src/world/district';
-import {planStreetPlates,plateIsClear,plateIsVisible,plateStreetRoad} from '../src/world/streetPlates';
+import {planStreetPlates,plateIsClear,plateIsVisible,plateStreetRoad,type StreetPlatePlan} from '../src/world/streetPlates';
 afterEach(()=>activateDistrict(harbor));
 
 test('crossing plates name and face their own street frontage, not an approaching side street',()=>{
@@ -35,7 +35,7 @@ test('crossing plates name and face their own street frontage, not an approachin
     return names.includes('Via Dante')&&names.includes('Via Venticinque Aprile');
   });assert.ok(firstJunction);
   for(const name of ['Via Dante','Via Venticinque Aprile']){
-    const local=plates.filter(plate=>plate.name===name&&plate.coverage.some(c=>c.junctionId===firstJunction.id));
+    const local:StreetPlatePlan[]=plates.filter(plate=>plate.name===name&&plate.coverage.some(c=>c.junctionId===firstJunction.id));
     assert.ok(local.length>0);for(const plate of local)assert.equal(plateStreetRoad(plate)?.name,name);
   }
 });

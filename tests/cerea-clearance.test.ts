@@ -1,6 +1,6 @@
 import {test,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
-import clipping from 'polygon-clipping';
+import clipping, {type Polygon} from 'polygon-clipping';
 import cerea from '../public/maps/cerea.json';
 import harbor from '../public/maps/harbor.json';
 import {activateDistrict,district,roads,nodeById,inRect,spawn} from '../src/world/district';
@@ -12,17 +12,17 @@ afterEach(()=>activateDistrict(harbor));
 const ringArea=(ring:number[][])=>Math.abs(ring.reduce((sum,a,i)=>{const b=ring[(i+1)%ring.length];return sum+a[0]*b[1]-b[0]*a[1];},0)/2);
 test('Cerea building polygons clear the full rendered road width and junction caps',()=>{
   activateDistrict(cerea);
-  const corridors:number[][][][]=[];
+  const corridors:Polygon[]=[];
   for(const road of roads){
     const a=nodeById(road.a),b=nodeById(road.b),length=Math.hypot(b.x-a.x,b.z-a.z),r=(road.width??8)/2;
     const nx=-(b.z-a.z)/length*r,nz=(b.x-a.x)/length*r;
     corridors.push([[[a.x+nx,a.z+nz],[b.x+nx,b.z+nz],[b.x-nx,b.z-nz],[a.x-nx,a.z-nz]]]);
     for(const p of[a,b])corridors.push([Array.from({length:12},(_,i)=>[p.x+Math.cos(i*Math.PI/6)*r,p.z+Math.sin(i*Math.PI/6)*r])]);
   }
-  const snapped=corridors.map(polygon=>polygon.map(ring=>ring.map(point=>point.map(value=>Math.round(value*1e6)/1e6))));
+  const snapped=corridors.map(polygon=>polygon.map(ring=>ring.map(point=>point.map(value=>Math.round(value*1e6)/1e6) as [number,number])));
   const envelopes=snapped.map(polygon=>({polygon,minX:Math.min(...polygon[0].map(p=>p[0])),maxX:Math.max(...polygon[0].map(p=>p[0])),minZ:Math.min(...polygon[0].map(p=>p[1])),maxZ:Math.max(...polygon[0].map(p=>p[1]))}));
   for(const building of district.buildings){
-    const geometry=[building.points!,...(building.holes??[])].map(ring=>ring.map(p=>[p.x,p.z]));
+    const geometry:Polygon=[building.points!,...(building.holes??[])].map(ring=>ring.map(p=>[p.x,p.z] as [number,number]));
     for(const envelope of envelopes) {
       if(building.x+building.width/2<envelope.minX||building.x-building.width/2>envelope.maxX||building.z+building.depth/2<envelope.minZ||building.z-building.depth/2>envelope.maxZ)continue;
       const overlap=clipping.intersection(geometry,envelope.polygon);
