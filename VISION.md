@@ -75,7 +75,8 @@ The aim is accessible, credible driving rather than hardcore automotive simulati
 - Controller support from the beginning, with keyboard fallback.
 - Analog steering, acceleration and braking.
 - Simple reversing and parking. LT is brake only; B / Circle (R on keyboard) selects forward or reverse while fully stopped, and RT accelerates in the selected direction.
-- Free looking with the right stick and mouse, including full 360-degree horizontal rotation, plus left/right glances for junctions and signs.
+- Free looking with the right stick and mouse, including full 360-degree horizontal rotation and a smooth return to the forward view when input is released, plus left/right glances for junctions and signs.
+- A recognizable, economical cockpit with a steering wheel, speedometer, forward/reverse selector and working side mirrors.
 - Basic collisions and readable vehicle behaviour.
 
 The challenge should come primarily from finding your way, not from mastering complicated controls.

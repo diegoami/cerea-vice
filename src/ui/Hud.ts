@@ -37,7 +37,6 @@ export class Hud {
   private stopState: HTMLElement;
   private location: HTMLElement;
   private prompt: HTMLElement;
-  private wheel: HTMLElement;
   private device: HTMLElement;
   private hint: HTMLElement;
   private hintLabel: HTMLElement;
@@ -56,12 +55,10 @@ export class Hud {
         <div class="deadline"><span>TIME TO ARRIVE</span><strong id="timer">03:00</strong></div>
       </header>
       <section class="objective"><span class="eyebrow" id="objective-stage">01 / THE DRIVE</span><h2 id="objective-title">Find ${district.mission.name}</h2><p id="objective-description">${district.mission.objective}</p><div id="taxi-status" hidden></div></section>
-      <div class="windshield-frame" aria-hidden="true"></div>
       <div class="navigation-message"><div class="hint-header"><span class="live-dot"></span><span id="hint-label">LOCAL DIRECTIONS</span><span>NO SIGNAL REQUIRED</span></div><p id="hint" role="status">${district.mission.hint}</p></div>
       <div class="interaction" id="prompt"></div>
       <footer class="dashboard">
         <div class="dashboard-left"><div class="speed-line"><strong id="speed">00</strong><span>KM/H<br><b id="gear">D</b></span></div><div class="stop-state" id="stop-state">SETTLING</div></div>
-        <div class="dashboard-center"><div class="wheel" aria-hidden="true"><div class="wheel-spoke"></div><div class="wheel-hub">CV</div></div><span class="car-label">CEREA / 1986</span></div>
         <div class="dashboard-right"><span class="eyebrow">CURRENT ROAD</span><strong id="location">Harbor Road</strong><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div></div>
       </footer>
       ${district.id === "cerea" ? `<div class="map-credit">${district.attribution} · openstreetmap.org/copyright</div>` : ""}
@@ -77,7 +74,6 @@ export class Hud {
     this.stopState = find("#stop-state");
     this.location = find("#location");
     this.prompt = find("#prompt");
-    this.wheel = find(".wheel");
     this.device = find("#device");
     this.hint = find("#hint");
     this.hintLabel = find("#hint-label");
@@ -432,7 +428,6 @@ export class Hud {
     this.device.title = gamepadBlocked
       ? "Open the preview in a new browser tab to use a controller."
       : "";
-    this.wheel.style.transform = `rotate(${car.steering * 65}deg)`;
     const serve=mission.canServe(car,parking.stopped)?`<kbd>${device === "Controller" ? "A" : "Enter"}</kbd> ${mission.taxiStage==='pickup'?`Collect ${mission.passenger}`:'Complete fare'} &nbsp; `:'';
     this.prompt.innerHTML = parking.stopped
       ? `${serve}<kbd>${device === "Controller" ? "View" : "F"}</kbd> Ask for information &nbsp; <kbd>${device === "Controller" ? "Y" : "T"}</kbd> Atlas &nbsp; <kbd>${device === "Controller" ? "B" : "R"}</kbd> ${car.gear === "D" ? "Select reverse" : "Select forward"} <span>· ${parking.zone ?? (parking.legal ? "stopping allowed" : "unsafe stopping place")}</span>`

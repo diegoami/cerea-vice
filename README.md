@@ -95,7 +95,7 @@ Connect a controller and press a button so the browser exposes it. The game sele
 
 ## Looking around
 
-Move the **right stick** to look around independently of steering, including a full 360-degree turn. Press **R3** or **C** to look forward again. Keyboard and mouse players click the windshield to capture the mouse, then move it freely; the pointer is not limited by screen edges. **Escape** releases the mouse and pauses. Opening the atlas also releases the mouse, so its map and buttons remain usable. Mouse capture is never required for controller looking.
+Move the **right stick** to look around independently of steering, including a full 360-degree turn. Release the stick to smoothly return to the forward view. Mouse look returns after 0.4 seconds without movement. Press **R3** or **C** to recenter immediately. Keyboard and mouse players click the windshield to capture the mouse, then move it freely; the pointer is not limited by screen edges. **Escape** releases the mouse and pauses. Opening the atlas also releases the mouse, so its map and buttons remain usable. Mouse capture is never required for controller looking.
 
 The compass continues to show the car’s heading while you look around. LB / RB or Q / E still provide quick held glances. Information uses **View / Select (PS Share)** or **F** both on the road and in the atlas; R3 is reserved for recentering the view.
 
@@ -180,7 +180,7 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 - A vehicle's centre must be at least 1.1 metres inside a marked bay to count as legally parked or arrived. Direction requests need exact zero speed, followed by the brief settling interval. Coasting eventually settles; the handbrake is faster.
 - Unsafe stops count once per stopped episode after the car has moved above 1 m/s. Impact counting has a cooldown so one contact does not inflate the count every frame. These are feedback metrics, with no extra penalties.
 - The deadline measures active simulation time. Hidden windows pause, and a frame delay contributes at most 0.1 seconds to avoid unstable catch-up after a stalled browser.
-- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The steering wheel is HUD-based. Taxi mode adds a simple waiting passenger and short text requests.
+- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The car has a 3D interior with a rotating three-spoke steering wheel, analog and digital speed indicators, D/R selector, dashboard, seats and working side mirrors. Mirror views update at 10 Hz. Taxi mode adds a simple waiting passenger and short text requests.
 - Drive and taxi-shift progress, markers and earnings live in memory; reloading starts a fresh drive or shift. District selection is stored locally within the current profile. There is no backend or save-game system.
 - Automated controller checks use simulated standard gamepad input. Browser and operating-system mappings still warrant testing on a physical controller before a public playtest.
 

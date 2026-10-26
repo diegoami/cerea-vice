@@ -3,6 +3,7 @@ import { availableDistricts, selectDistrict } from "../world/load";
 import { WebGLRenderer } from "three";
 import { Car } from "../driving/Car";
 import { CockpitCamera } from "../driving/CockpitCamera";
+import { Cockpit } from "../driving/Cockpit";
 import { Input } from "../input/Input";
 import { directionHint } from "../navigation/Navigation";
 import { Parking } from "../navigation/Parking";
@@ -18,6 +19,7 @@ export class Game {
   private readonly world = new World();
   private readonly car = new Car();
   private readonly cockpit = new CockpitCamera();
+  private readonly interior = new Cockpit(this.world.scene);
   private readonly input = new Input();
   private readonly parking = new Parking();
   private readonly mission = new Mission();
@@ -214,6 +216,8 @@ export class Game {
       this.input.gamepadBlocked,
       this.input.controllerStatus,
     );
+    this.interior.update(this.car);
+    this.interior.renderMirrors(this.renderer,this.world.scene,dt);
     this.renderer.render(this.world.scene, this.cockpit.camera);
   }
 }
