@@ -30,3 +30,23 @@ owner accepts the review, create an ordinary task branch from main and
 cherry-pick the separate workflow-adoption commit `b0e5fbd` plus the review-fix
 commit, then open a PR against main. Do not integrate the artificial empty
 baseline/merge commits or merge PR #1 as a substitute for that integration.
+
+## Work package A follow-up
+
+The ordinary integration PR #2 already brought the reviewed v0.6.1 tree onto
+main. This task starts from that main and uses a new task branch; it neither
+updates nor uses the whole-project review branches.
+
+A adds unit-level tests that call the real `Game` transition methods with
+browser/render/UI boundaries stubbed: atlas and pause freeze mission time,
+only successful stopped requests or deliberate atlas placement write markers,
+and held atlas triggers/gear actions cannot leak into driving. Existing
+Electron scenarios continue to cover actual DOM/input integration. A separate
+presentation scenario covers picture settings, controller selection without
+resuming, both mirrors and the separated OSM/controller text.
+
+The bottom-right credit now sits above the dashboard rather than sharing the
+controller/ESC line. Physical controller and actual Windows launch/gameplay
+checks remain outstanding for this task. See [A presentation notes](PRESENTATION.md)
+for measurements, generated asset provenance and current limits. None of this
+is an independent review or acceptance of work packages B/C.

@@ -180,7 +180,7 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 - A vehicle's centre must be at least 1.1 metres inside a marked bay to count as legally parked or arrived. Direction requests need exact zero speed, followed by the brief settling interval. Coasting eventually settles; the handbrake is faster.
 - Unsafe stops count once per stopped episode after the car has moved above 1 m/s. Impact counting has a cooldown so one contact does not inflate the count every frame. These are feedback metrics, with no extra penalties.
 - The deadline measures active simulation time. Hidden windows pause, and a frame delay contributes at most 0.1 seconds to avoid unstable catch-up after a stalled browser.
-- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The car has a 3D interior with a rotating three-spoke steering wheel, analog and digital speed indicators, D/R selector, dashboard, seats and working side mirrors. Mirror views update at 10 Hz. Taxi mode adds a simple waiting passenger and short text requests.
+- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The car has a 3D interior with a rotating three-spoke steering wheel, analog and digital speed indicators, D/R selector, dashboard, seats and working side mirrors. Mirror views update at 10 Hz. Cerea shows static waiting figures at all stops; taxi mode supplies short passenger requests.
 - Drive and taxi-shift progress, markers and earnings live in memory; reloading starts a fresh drive or shift. District selection is stored locally within the current profile. There is no backend or save-game system.
 - Automated controller checks use simulated standard gamepad input. Browser and operating-system mappings still warrant testing on a physical controller before a public playtest.
 
@@ -198,3 +198,35 @@ The project uses an exact-head PR review handoff adapted from Geoclick2027.
 See [the review workflow](docs/EXTERNAL_REVIEW.md) and
 [the whole-project review brief](docs/whole-project-review.md). A fresh session
 of another model family runs `/review-pr`; setup alone does not start a review.
+
+## Picture, sound and comfort
+
+The briefing and pause screens have **Picture & Sound** controls. The default
+is **Detailed scenery / Retro 540p**, chosen for the richer appearance and lower
+measured software-rendering cost. **Sharp (read signs)** restores display
+resolution for small street plates; **Retro 270p** gives a coarser picture.
+Both retro modes use nearest-neighbour scaling and a light ordered dither.
+HUD text and the atlas stay at display resolution in every mode. Side mirrors
+retain their 320×192 views at 10 Hz before the selected picture treatment.
+
+Use native keyboard/mouse form controls, or **D-pad up/down** to select a setting
+and **A / Cross** to cycle it. **Start / Options** drives/resumes regardless of
+the selected setting. **Enter / A** still starts normally before selecting a
+setting. Options are saved locally; the WSL Windows launcher starts a fresh
+profile, so its next launch uses defaults.
+
+**Simple scenery** hides the extra façades, tiled roof facets and decorative
+props. Detailed scenery uses locally painted shutters, windows, ground-floor
+shop doors, warm neighbourhood colours, trees, lamps and parked cars. These
+are visual scenery, without new collisions or traffic. Waiting figures appear
+at every Cerea stop and do not identify the current fare. Harbor keeps its
+handcrafted scenery; picture, sound and motion options work there too.
+
+The engine hum follows speed and selected gear. A quiet steering-linked tick
+suggests an indicator; it supplies no navigation advice and does not introduce
+a new turn-signal control. The optional radio is a quiet synthesized musical
+loop. **Volume → Mute** silences everything; sound fades out in the atlas,
+pause and other inactive screens. Browsers may require a click or key press to
+unlock audio. **Cockpit motion → Off** disables the subtle interior roll/pitch
+and wheel vibration; physics, camera heading and compass are unaffected.
+All textures and sound are generated locally; see [presentation notes](docs/PRESENTATION.md).

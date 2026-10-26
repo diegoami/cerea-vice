@@ -47,7 +47,7 @@ The running game loads only the local JSON files; it does not contact OpenStreet
 6. Put the file in `public/maps/` and register its ID and name in `availableDistricts` in `src/world/load.ts`.
 7. Check validation, connectivity, road/footprint clearance, legal stopping and arrival. Run unit and desktop tests, inspect both the atlas and driving view, then playtest the journey.
 
-Generic map rendering supports angled segments, shared junction caps, polygon building collisions, local landmark signs and source attribution. Signage now has two levels. Larger arrow boards are limited to junctions connecting major roads (mapped primary, secondary and tertiary roads). Small, arrow-free street-name plates identify each physical street arm at a crossing, including one-way streets. A plate runs along and faces into the street it names; corner façades therefore carry the name of their own frontage. Nearby façades are preferred, otherwise small posts are used, with repeat plates along longer stretches. Checks cover ownership, orientation, street-facing visibility and clearance, including the first Via Dante / Via Venticinque Aprile junction. Its west end has an explicit one-way/no-entry warning. Parking and boundary signs use the same clearance checks. Static untextured meshes are batched to keep the denser district economical. The original Harbor scenery and its familiar navigation wording are retained in dedicated legacy builders, rather than requiring the new renderer to reproduce its handcrafted decorations.
+Generic map rendering supports angled segments, shared junction caps, polygon building collisions, local landmark signs and source attribution. Signage now has two levels. Larger arrow boards are limited to junctions connecting major roads (mapped primary, secondary and tertiary roads). Small, arrow-free street-name plates identify each physical street arm at a crossing, including one-way streets. A plate runs along and faces into the street it names; corner façades therefore carry the name of their own frontage. Nearby façades are preferred, otherwise small posts are used, with repeat plates along longer stretches. Checks cover ownership, orientation, street-facing visibility and clearance, including the first Via Dante / Via Venticinque Aprile junction. Its west end has an explicit one-way/no-entry warning. Parking and boundary signs use the same clearance checks. Static geometry, including shared canvas-textured façades and roofs, is batched by material to keep the denser district economical. The original Harbor scenery and its familiar navigation wording are retained in dedicated legacy builders, rather than requiring the new renderer to reproduce its handcrafted decorations.
 
 ## Rebuild
 
@@ -63,3 +63,20 @@ From WSL, `npm run desktop:win` rebuilds and launches Cerea Centro in Windows. T
 The importer works offline from `data/sources/cerea-osm.json`. Review provenance and source permissions when introducing a new extract. Attribution for the current OpenStreetMap data appears in the driving view, briefing and atlas; see `data/README.md`.
 
 Roads without an explicit `width` use the same 8 m carriageway width for rendering, atlas strokes, paving and sign/plate clearance. Bundled roads currently all specify their widths.
+
+## Presentation details
+
+Neighbourhood façade colours derive deterministically from local 65 m areas,
+not the mission. Detailed scenery paints repeating shutters/windows and
+street-level shop doors locally. Roof facets use each clipped footprint's
+triangulation, including courtyards; no overhang changes road clearance.
+These are economical interpretations rather than surveyed architectural details.
+Simple and Detailed building meshes share the original collision polygons.
+
+Decorative trees, lamps, parked cars and people are placed deterministically
+beside selected roads, outside carriageways/buildings/bays, with space reserved
+for signs and street-plate sightlines. All stopping areas get the same waiting
+figure; serving a fare never changes these decorations. They add no collision
+or stopping rules. No JSON schema or importer changes are required for this
+presentation pass. Harbor retains its legacy scenery. See
+[presentation measurements and limits](docs/PRESENTATION.md).
