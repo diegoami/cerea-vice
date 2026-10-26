@@ -88,3 +88,19 @@ attribution separation at all four sizes. Screenshots were refreshed, including
 The initial sandboxed npm ci failed with esbuild EPERM, and a test attempt
 before successful installation could not load tsx. Retrying installation with
 subprocess permissions succeeded; no final checks failed or were skipped.
+
+## A accepted; B is separate
+
+The clean re-review of A covered `7aa24a10c15f7102cab74539a1b8e68f32b59bf6`
+and reported no findings. The owner subsequently authorized merging PR #3 and
+continuing to B. Main's merge is `c3ffdeeee0cdedc0b68be00a3890499fa1199cc7`.
+B starts there on its own task branch and requires its own independent review.
+The whole-project review branches are untouched, and C has not started.
+
+B keeps the protected transition/input tests and adds indexed-versus-exhaustive
+spatial/sign/path checks, concurrently live district systems, and local-frame
+precision and desktop checks at 25 km. The normal diagnostics overlay remains
+off; its opt-in output contains timings/counts only. See
+[the B architecture and measurements](SCALABILITY.md). Physical controller,
+actual Windows launch/gameplay, audio listening and Windows GPU profiling remain
+outstanding/manual for B as well.

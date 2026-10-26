@@ -154,7 +154,7 @@ src/
     Parking.ts                Settled stop detection, legal zones, unsafe count
   mission/Mission.ts          Deadline, active/overdue/success/late states
   world/
-    district.ts               Shared road graph, bounds, parking, spawn
+    district.ts               Explicit district context, validation and indexes
     builders.ts               Reusable primitive buildings and local text signs
     World.ts                  Data-driven Cerea roads, footprints and landmarks
     HarborWorld.ts            Original handcrafted Harbor scenery
@@ -169,9 +169,9 @@ tests/
   systems.test.ts             Topology, hints, stops, deadlines, driving route
 ```
 
-`Game` coordinates the systems; the car consumes only `Actions`, with no keyboard or controller knowledge. Navigation and mission logic use plain positions, not Three.js objects. World data defines the roads used for both geometry and routing. Dijkstra search routes via the nearest road projection to the selected destination, then describes the next junction and compass direction. Cerea routes honour imported one-way tags; the original Harbor wording is preserved for that district. Heading is included and a safe turnaround is suggested when facing away. No raw coordinates are displayed to the player.
+`createGame(context)` binds the systems to an explicit District instance; the car consumes only `Actions`, with no keyboard or controller knowledge. Navigation and mission logic use plain positions, not Three.js objects. World data defines the roads used for both geometry and routing. Indexed nearest-road queries and directed heap Dijkstra route via the nearest road projection to the selected destination, then describes the next junction and compass direction. Cerea routes honour imported one-way tags; the original Harbor wording is preserved for that district. Heading is included and a safe turnaround is suggested when facing away. No raw coordinates are displayed to the player.
 
-The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type declarations, and `tsx` (for tests) are development tools. Text signs are generated on local canvases; no network assets, external fonts, realistic textures, or asset pipeline are used. Rendering uses native/HiDPI resolution capped at 1920 internal horizontal pixels, antialiasing and filtered sign textures so small street-name plates remain readable. Flat materials, simple lighting and distance fog retain the economical retro presentation.
+The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type declarations, and `tsx` (for tests) are development tools. Text signs are generated on local canvases; no network assets, external fonts, realistic textures, or asset pipeline are used. Default rendering uses 540p with nearest-neighbour upscale and light dithering. Sharp uses native/HiDPI resolution capped at 1920 internal horizontal pixels, antialiasing and filtered sign textures for small street-name plates. Flat materials, simple lighting and distance fog retain the economical retro presentation.
 
 ## Phase 1 assumptions and limits
 
@@ -233,3 +233,21 @@ pause and other inactive screens. Browsers may require a click or key press to
 unlock audio. **Cockpit motion → Off** disables the subtle interior roll/pitch
 and wheel vibration; physics, camera heading and compass are unaffected.
 All textures and sound are generated locally; see [presentation notes](docs/PRESENTATION.md).
+
+## Scalability diagnostics
+
+District systems now bind to an explicit world context instead of mutable
+active-map imports. Conservative spatial indexes speed up paving, collision,
+nearest-road and sign-clearance queries; directed route paths and fares retain
+their original results. A local rendering frame keeps GPU coordinates small,
+without changing atlas or simulation coordinates. See [architecture, measured
+CPU speedups and limits](docs/SCALABILITY.md).
+
+Profiling is off by default. In a browser, add `?profile=1` before the district
+hash; for native Electron use `electron . --profile` after building, or
+`npm run desktop -- --profile`. The overlay reports only mean/max CPU timings
+and counts for physics, nearest-road, route search and render submission.
+It supplies no location, destination or navigation information. Run
+`node --import tsx tools/profile-world.mjs B-cpu` for reproducible CPU workloads,
+or the documented Electron profiler for delivered frame intervals. Real Windows
+GPU/controller gameplay checks remain separate manual checks.
