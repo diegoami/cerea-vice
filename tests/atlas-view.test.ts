@@ -2,9 +2,9 @@ import {test,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import cerea from '../public/maps/cerea.json';
 import harbor from '../public/maps/harbor.json';
-import {activateDistrict} from '../src/world/district';
+import {activateDistrict,district} from '../src/world/district';
 import {AtlasView} from '../src/navigation/AtlasView';
-import {atlasStreetEntries} from '../src/ui/Atlas';
+import {atlasStreetEntries,atlasMarkup} from '../src/ui/Atlas';
 afterEach(()=>activateDistrict(harbor));
 
 test('atlas zoom preserves the pointer anchor and clamps panning to the printed sheet',()=>{
@@ -26,4 +26,17 @@ test('Via Cordioli is indexed and can be focused in a detailed atlas view',()=>{
   assert.ok(box.width<300);
   view.ensureVisible({x:box.x+box.width+50,z:box.z+box.height/2});
   assert.equal(view.zoom,5);
+});
+
+
+test('place-index values are escaped even if a later data consumer bypasses validation',()=>{
+  activateDistrict(structuredClone(cerea));
+  district.landmarks[0].name='A & B "place"';
+  district.landmarks[0].road='<img src=x onerror=alert(1)>';
+  district.areas.forEach(area=>area.name='Centre & district');
+  const markup=atlasMarkup('index');
+  assert.ok(markup.includes('A &amp; B &quot;place&quot;'));
+  assert.ok(markup.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(markup.includes('Centre &amp; district'));
+  assert.ok(!markup.includes('<img'));
 });

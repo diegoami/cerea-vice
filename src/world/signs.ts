@@ -1,4 +1,4 @@
-import { district, nodes, roads, nodeById, projectToSegment, inRect, type Point, type Road } from "./district";
+import { roadWidth, district, nodes, roads, nodeById, projectToSegment, inRect, type Point, type Road } from "./district";
 import { junctionDirections, type DirectionRow } from "./directions";
 
 export interface RoadSignPlan {
@@ -50,7 +50,7 @@ export function boardIsClear(plan: Pick<RoadSignPlan,"position"|"width"|"angle">
   return boardPoints(plan).every(point=>{
     if(point.x<district.bounds.minX+.2||point.x>district.bounds.maxX-.2||point.z<district.bounds.minZ+.2||point.z>district.bounds.maxZ-.2)return false;
     if(district.buildings.some(building=>inRect(point,building,-.3)))return false;
-    return roads.every(road=>{const nearest=projectToSegment(point,nodeById(road.a),nodeById(road.b));return distance(point,nearest)>(road.width??8)/2+.2;});
+    return roads.every(road=>{const nearest=projectToSegment(point,nodeById(road.a),nodeById(road.b));return distance(point,nearest)>roadWidth(road)/2+.2;});
   });
 }
 export function planJunctionSigns():{signs:RoadSignPlan[];missing:string[]} {
@@ -76,7 +76,7 @@ export function planJunctionSigns():{signs:RoadSignPlan[];missing:string[]} {
             if(setback>available-1)continue;
             const {point,dx,dz}=pointBack(path,setback);
             for(const extra of [.5,1.5,3,5,8]) {
-              const offset=(incoming.width??8)/2+width/2+extra;
+              const offset=roadWidth(incoming)/2+width/2+extra;
               const plan={junctionId:node.id,approachId,position:{x:point.x-dz*offset*side,z:point.z+dx*offset*side},angle:Math.atan2(-dx,-dz),width,height:3.2,rows};
               if(boardIsClear(plan)){selected=plan;break;}
             }
@@ -111,7 +111,7 @@ export function planVittoriaNoEntrySign():{position:Point;angle:number;width:num
   const path=approachPoints(road.b,road);
   for(const setback of [5,8,12,16])for(const side of [1,-1])for(const extra of [.5,2,4]) {
     const {point,dx,dz}=pointBack(path,setback);
-    const offset=(road.width??8)/2+.9+extra;
+    const offset=roadWidth(road)/2+.9+extra;
     const plan={position:{x:point.x-dz*offset*side,z:point.z+dx*offset*side},angle:Math.atan2(dx,dz),width:1.8,height:2.8};
     if(boardIsClear(plan))return plan;
   }
@@ -127,7 +127,7 @@ export function planEdgeSigns():{position:Point;angle:number;width:number;height
     const boundary=Math.min(node.x-district.bounds.minX,district.bounds.maxX-node.x,node.z-district.bounds.minZ,district.bounds.maxZ-node.z)<40;
     let selected:typeof result[number]|undefined;
     for(const setback of [8,12,16,4])for(const side of [1,-1]) {
-      const {point,dx,dz}=pointBack(path,setback),offset=(road.width??8)/2+1.8;
+      const {point,dx,dz}=pointBack(path,setback),offset=roadWidth(road)/2+1.8;
       const plan={position:{x:point.x-dz*offset*side,z:point.z+dx*offset*side},angle:Math.atan2(-dx,-dz),width:2.4,height:2.8,boundary};
       if(!selected&&boardIsClear(plan))selected=plan;
     }

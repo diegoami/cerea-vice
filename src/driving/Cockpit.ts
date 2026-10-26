@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { Car } from './Car';
 
+export const MIRROR_MOUNTS = [[-1.13,-1.30,.50,-.35,.24],[1.45,-1.85,-.85,.35,.34]] as const;
+
 // An economical 1980s interior, fixed to the car rather than the player's gaze.
 export class Cockpit {
   readonly interior = new THREE.Group();
@@ -76,16 +78,16 @@ export class Cockpit {
     box(this.lever,0,.21,0,.065,.055,.065,rubber);
     // Mirrors render actual rearward scenery; the interior is hidden in those
     // passes to avoid recursion. Modest resolution and 10 Hz keep the cost low.
-    for(const [x,angle,outward] of [[-1.10,.50,-.35],[1.54,-.85,.35]]) {
-      box(cabin,x,1.78,-1.28,.17,.045,.10,vinyl);
-      const housing=new THREE.Group();housing.position.set(x,1.88,-1.30);housing.rotation.y=angle;cabin.add(housing);
-      box(housing,0,0,0,.34,.21,.07,rubber);
+    for(const [x,z,angle,outward,width] of MIRROR_MOUNTS) {
+      box(cabin,x,1.78,z+.02,.17,.045,.10,vinyl);
+      const housing=new THREE.Group();housing.position.set(x,1.88,z);housing.rotation.y=angle;cabin.add(housing);
+      box(housing,0,0,0,width,.21,.07,rubber);
       const target=new THREE.WebGLRenderTarget(320,192);
       target.texture.colorSpace=THREE.SRGBColorSpace;
-      const geometry=new THREE.PlaneGeometry(.30,.17);
+      const geometry=new THREE.PlaneGeometry(width-.04,.17);
       const uv=geometry.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setX(i,1-uv.getX(i));
       const glass=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({map:target.texture}));glass.position.z=.038;housing.add(glass);
-      this.mirrors.push({camera:new THREE.PerspectiveCamera(65,320/192,.15,1000),target,position:new THREE.Vector3(x,1.88,-1.30),direction:new THREE.Vector3(outward,-.08,1).normalize()});
+      this.mirrors.push({camera:new THREE.PerspectiveCamera(65,320/192,.15,1000),target,position:new THREE.Vector3(x,1.88,z),direction:new THREE.Vector3(outward,-.08,1).normalize()});
     }
   }
 

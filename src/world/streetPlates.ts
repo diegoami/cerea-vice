@@ -1,4 +1,4 @@
-import {district,nodes,roads,nodeById,inRect,pointInPolygon,projectToSegment,type Point,type Road} from './district';
+import { roadWidth,district,nodes,roads,nodeById,inRect,pointInPolygon,projectToSegment,type Point,type Road} from './district';
 import {boardPoints} from './signs';
 
 export interface PlateCoverage {junctionId:string;armId:string;streetName:string}
@@ -21,7 +21,7 @@ export function plateIsClear(plan:StreetPlatePlan):boolean {
   return boardPoints(plan).every(point=>{
     if(point.x<district.bounds.minX+.1||point.x>district.bounds.maxX-.1||point.z<district.bounds.minZ+.1||point.z>district.bounds.maxZ-.1)return false;
     if(district.buildings.some((building,index)=>inRect(point,building,index===plan.buildingIndex?-.04:-.2)))return false;
-    return roads.every(road=>distance(point,projectToSegment(point,nodeById(road.a),nodeById(road.b)))>(road.width??8)/2+.1);
+    return roads.every(road=>distance(point,projectToSegment(point,nodeById(road.a),nodeById(road.b)))>roadWidth(road)/2+.1);
   });
 }
 function clearRay(a:Point,b:Point):boolean {
@@ -43,7 +43,7 @@ function attachStreet(plan:StreetPlatePlan):boolean {
   const road=plateStreetRoad(plan);
   if(!road||road.name!==plan.name)return false;
   const point=projectToSegment(plan.position,nodeById(road.a),nodeById(road.b));
-  if(distance(point,plan.position)>(road.width??8)/2+9)return false;
+  if(distance(point,plan.position)>roadWidth(road)/2+9)return false;
   plan.roadA=road.a;plan.roadB=road.b;plan.viewpoint=point;
   return plateIsVisible(plan);
 }
@@ -71,7 +71,7 @@ function findPlate(name:string,anchor:Point,road:Road,kind:StreetPlatePlan['kind
   for(const candidate of candidates)if(atMouth(candidate.position)&&attachStreet(candidate)&&plateIsClear(candidate)&&!collidesPlate(candidate,existing))return candidate;
   const a=nodeById(road.a),b=nodeById(road.b),length=distance(a,b),dx=(b.x-a.x)/length,dz=(b.z-a.z)/length;
   for(const shift of [0,2,-2,4,-4,7,-7])for(const side of [1,-1])for(const extra of [.3,1,2.5,5])for(const height of [2.6,3.2]){
-    const offset=(road.width??8)/2+width/2+extra;
+    const offset=roadWidth(road)/2+width/2+extra;
     const position={x:anchor.x+dx*shift-dz*offset*side,z:anchor.z+dz*shift+dx*offset*side};
     const centre=projectToSegment(position,a,b);
     const candidate:StreetPlatePlan={name,position,angle:Math.atan2(centre.x-position.x,centre.z-position.z),width,height,mount:'post',kind,roadA:road.a,roadB:road.b,coverage:[],viewpoint:centre};

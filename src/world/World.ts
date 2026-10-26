@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { district, roads, nodeById, parkingZones, landmarks, inRect, isPaved, projectToSegment, pointInPolygon, type Point, type Rect, type ParkingZone } from "./district";
+import { roadWidth, district, roads, nodeById, parkingZones, landmarks, inRect, isPaved, projectToSegment, pointInPolygon, type Point, type Rect, type ParkingZone } from "./district";
 import { HarborWorld } from "./HarborWorld";
 import { box, sign, signpost, material, streetNamePlate } from "./builders";
 import { planStreetPlates } from "./streetPlates";
@@ -55,11 +55,11 @@ export class World {
       }
     }
     for(const road of roads) {
-      const a=nodeById(road.a),b=nodeById(road.b),w=road.width??8;
+      const a=nodeById(road.a),b=nodeById(road.b),w=roadWidth(road);
       strip(scene,a,b,w+2.5,0.01,0.08,0xb3ae98);
     }
     for(const road of roads) {
-      const a=nodeById(road.a),b=nodeById(road.b),w=road.width??8;
+      const a=nodeById(road.a),b=nodeById(road.b),w=roadWidth(road);
       strip(scene,a,b,w,0.075,0.06,0x4d5655);
       const cap=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,0.06,12),material(0x4d5655));cap.position.set(a.x,0.075,a.z);scene.add(cap);
       const length=Math.hypot(b.x-a.x,b.z-a.z);

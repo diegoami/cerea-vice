@@ -224,7 +224,8 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await page.screenshot({path:'test-results/cerea-briefing.png'});
     await page.getByRole('button',{name:'Start the engine'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
-    assert.match(await page.locator('#location').innerText(),/Via Venticinque Aprile/);
+    assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
+    assert.equal(await page.locator('.car-badge').innerText(),'CEREA / 1986');
     assert.match(await page.locator('#objective-title').innerText(),/Collect Elena/);
     assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
     assert.match(await page.locator('#timer').innerText(),/^07:/);
