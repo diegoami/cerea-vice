@@ -138,3 +138,29 @@ reproduced on the reviewed code and then covered by passing regressions. No
 final automated checks failed or were skipped. Physical controller, real
 Windows gameplay, audio listening and Windows GPU measurements remain manual
 and outstanding; generated screenshots/artifacts remain ignored.
+
+## B accepted; C is separate
+
+The clean B follow-up review covered `dc64ce2a04729da62d891d259354ad6a9728213e`.
+It found no blockers, verified the large-grid fix and repeated identical old/new
+outputs. Small translations of the authored Harbor fixture remain unsupported,
+as documented. The owner then authorized merging PR #4 and continuing; main's
+merge is `ebd93fc93217f0f40654a0e1acc259a65d4819b8`.
+
+C starts from that merge on a new task branch. It adds an opt-in tiled renderer,
+explicitly fictional countryside/hamlet fixture, layered next-region directions
+and reproducible sizing/rendering diagnostics. The original maps and prior
+navigation/input/taxi constraints remain protected. C's loading gate freezes
+simulation time and never moves atlas knowledge. It requires its own exact-head
+independent review; no reviewer is started/chosen and C is not merged.
+See [the C report](TILED_PROTOTYPE.md) for the measured feasibility and limits.
+
+C validation: 74 unit tests, source/test build and all seven required Electron
+scenarios pass. Repeated offline exports are byte-identical (56 JSON files).
+The new Game unit test covers a scenery-load simulation gate without marker
+writes; the prototype desktop scenario covers controller View/Y/A, free atlas
+reading, deliberate estimates corrected by information, and unchanged knowledge
+after driving. A zero-length portal-leg comparison bug found in a hamlet
+screenshot was fixed with unit and actual return-hint regressions. Final serial
+profiles and ten-copy logical sizing are in the C report; real Windows/GPU,
+physical controller and audio checks remain outstanding. C is not merged.

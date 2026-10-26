@@ -19,3 +19,26 @@ Building outlines come from the source data; heights, materials and landmark sil
 The nine designated stopping bays are gameplay placements. They are not claims about real parking permissions. At this pilot stage, stopping and asking for information are allowed anywhere without unsafe-stop counts. Waterways marked as underground/culverted in the source are not rendered as open water. Railways are static scenery. Modern one-way tags inform directions, but traffic, enforcement and detailed turn restrictions are not simulated. The visual style remains retro without claiming historical precision.
 
 The cinema POIs are associated with a containing or nearby building. Additional pickup frontages use the nearest mapped street where an address is not supplied. Passenger names, taxi requests, fares and clock acceleration are game content authored for this prototype.
+
+## C: tiled outskirts feasibility fixture
+
+`public/maps/cerea-outskirts/` is derived offline from the prepared Cerea map by
+`tools/export-tiles.mjs` (`python3 tools/import-cerea.py --tiles-only`). It emits
+a manifest and 55 local 250×250 m render payloads. The base real-city JSON and
+raw OSM extract are not changed. Nodes, roads, one-way tags, source IDs and
+prepared building footprints from Cerea are preserved. Source feature lines
+are split into collinear pieces for owner-tile assignment.
+
+The added **Test Link**, **Test Lane**, **Orchard Row**, 16 houses and **Test
+Hamlet** are explicitly fictional prototype content, not sourced roads or a
+reconstruction of countryside around Cerea. The original source bounding box
+still describes only the real subset. Manifest notes, each tile's provenance,
+briefing/atlas labels and permanent street/town signs state the distinction.
+The synthetic connection begins at the cropped Via Oberdan endpoint only to
+exercise portals and rendering; it makes no claim that such a real road exists.
+
+OSM-derived database content retains the ODbL-1.0 attribution and source links
+above. No separate licence is assigned here to original authored game content.
+All rendering/audio assets are local code-generated assets as described in
+`docs/PRESENTATION.md`; no new external textures, audio or live services are used.
+The game shows OSM credit in the prototype's driving view, briefing and atlas.

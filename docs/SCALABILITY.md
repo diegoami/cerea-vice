@@ -2,8 +2,9 @@
 
 A was merged through PR #3 at `c3ffdeeee0cdedc0b68be00a3890499fa1199cc7`.
 B changes architecture and diagnostics, without adding maps, roads, towns,
-streaming, missions or a new engine. C remains gated on owner acceptance and
-merge of B.
+streaming, missions or a new engine. B was subsequently accepted and merged through PR #4 at
+`ebd93fc93217f0f40654a0e1acc259a65d4819b8`. C is now a separate
+[opt-in feasibility prototype](TILED_PROTOTYPE.md).
 
 ## Explicit district ownership
 
@@ -197,7 +198,8 @@ scenarios pass together (~111 seconds), including the translated-25-km fixture.
 `git diff --check` passes and generated artifacts remain ignored. Earlier
 mechanical-migration type errors were fixed before these final passes; no final
 automated checks failed or were skipped. Manual checks listed above remain
-outstanding. No reviewer has been started or chosen, and B is not merged.
+outstanding. This paragraph records the initial implementing-side validation. The later
+independent review and accepted follow-up are recorded in `review-follow-up.md`.
 
 Each World instance owns its mutable render origin, even when multiple instances
 are created from the same bound factory. A constructor-level regression builds

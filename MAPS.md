@@ -101,3 +101,24 @@ requiring a nonzero Harbor render anchor are rejected explicitly.
 
 No map JSON/schema/importer or provenance changes are made by this work.
 There is no tile loading or second town yet. See [B architecture and measurements](docs/SCALABILITY.md).
+
+## Tiled outskirts experiment (C)
+
+`public/maps/cerea-outskirts/manifest.json` and its 250 m `tiles/` payloads form
+an additional opt-in district. `python3 tools/import-cerea.py --tiles-only`
+regenerates it from prepared Cerea; `--tiles` also rebuilds the base extract.
+Original Cerea/Harbor JSON files remain unchanged. Real Cerea nodes, street
+connections, one-way tags and clipped building footprints are retained; the
+northbound Test Link, Test Lane/Orchard Row and test hamlet are explicitly
+fictional, not a claim about surrounding roads.
+
+The manifest retains logical geometry for collision and the paper atlas, with
+local render payloads loaded/evicted around the car. Whole objects have single
+owner tiles; fog and a conservative halo hide the outer edge. Three routing
+regions and two portals give coarse inter-town planning and local detailed
+queries, with exact detailed path costs for taxi fares. The coarse prototype
+must be a tree; arbitrary connected town networks are future work.
+
+Attribution is shown in the prototype's driving view, briefing and atlas, and
+source/synthetic provenance travels in every tile. See [the C feasibility
+report](docs/TILED_PROTOTYPE.md) and [source/licence details](data/README.md).
