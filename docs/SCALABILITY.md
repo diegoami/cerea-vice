@@ -164,29 +164,42 @@ Electron 45 / Chromium 156, Xvfb/xfwm4, ANGLE Vulkan SwiftShader, Detailed/540p,
 | Delivered frames | Median ms | p95 ms |
 | --- | ---: | ---: |
 | A main, same stopped-information/pickup workload | 83.3 | 100.1 |
-| B, profiling enabled | 83.3 | 100.1 |
+| B, profiling enabled (earlier sample) | 83.3 | 100.1 |
+| B, final ownership fix / profiling enabled, run 1 | 100.0 | 133.3 |
+| B, final ownership fix / profiling enabled, run 2 | 83.2 | 100.0 |
 
-B's aggregate browser CPU readings at the end of that run were physics-step
-0.018 ms mean (818 samples), nearest-road 0.100 ms (1 stopped request), route
-search 0.067 ms (3 calls), and render submission 3.745 ms (173 frames, including
-cold startup; max 253.8 ms). Browser timer precision and the tiny query sample
+B's aggregate browser CPU readings at the end of final run 1 were physics-step
+0.015 ms mean (882 samples), nearest-road 0.100 ms (1 stopped request), route
+search 0.133 ms (3 calls), and render submission 4.054 ms (170 frames, including
+cold startup; max 279.3 ms). Browser timer precision and the tiny query sample
 counts limit their usefulness; the Node workloads supply the repeated-query
 measurements. Main has no per-stage overlay, so no prior browser per-stage
 numbers are claimed. Render submission timing is not GPU frame time. The
 software-rendered delivered frame rate stays bounded by rendering even after
-substantial CPU query improvements. Windows GPU performance remains unmeasured.
+substantial CPU query improvements. Final run 1
+was 20% above the main median; run 2 returned to 83.2 ms. Its CPU means were
+physics 0.016 ms, nearest-road 0.100 ms, route search 0.133 ms, and render
+submission 3.879 ms. Both runs are retained (`B-desktop.json` and
+`B-desktop-repeat.json`); no rendering speedup or equal-cost guarantee is claimed. Windows GPU performance remains unmeasured.
 
 Evidence is ignored in `test-results/B-{main-cpu,cpu,main-desktop,desktop}.json`
-and desktop screenshots, including `cerea-25km.png`. Regenerate in a fresh
+and desktop screenshots, including `cerea-25km.png`. The final single-world
+profile was refreshed after the ownership fix; earlier sample values above
+are retained explicitly alongside both final samples. Regenerate in a fresh
 checkout for independent evidence.
 
 ## Validation
 
 Node >=22.12 is required; validated on 24.21.0. `npm ci` passes (0 vulnerabilities),
-all 62 unit tests pass, and `npm run build` checks src/tests and builds successfully
+all 63 unit tests pass, and `npm run build` checks src/tests and builds successfully
 (existing >500 kB JS bundle advisory). All six required Xvfb/xfwm4 Electron
 scenarios pass together (~111 seconds), including the translated-25-km fixture.
 `git diff --check` passes and generated artifacts remain ignored. Earlier
 mechanical-migration type errors were fixed before these final passes; no final
 automated checks failed or were skipped. Manual checks listed above remain
 outstanding. No reviewer has been started or chosen, and B is not merged.
+
+Each World instance owns its mutable render origin, even when multiple instances
+are created from the same bound factory. A constructor-level regression builds
+two worlds with stubbed canvas painting and verifies that rebasing one leaves
+the other unchanged. The full Electron suite was repeated after that correction.

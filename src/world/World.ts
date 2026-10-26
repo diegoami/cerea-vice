@@ -29,7 +29,7 @@ function footprint(parent:THREE.Object3D, points:Point[], height:number,color:nu
   const mesh=new THREE.Mesh(geometry,material(color));parent.add(mesh);
 }
 class World {
-  readonly frame=frame;
+  readonly frame=new LocalFrame(logical.spawn);
   private readonly content=new THREE.Group();
   readonly scene: THREE.Scene;
   readonly colliders: Rect[];
@@ -198,7 +198,7 @@ class World {
     for(const child of [...this.scene.children])if(!(child instanceof THREE.Light))this.content.add(child);
     this.scene.add(this.content);
   }
-  updateFrame(position:Point){frame.rebase(position);const offset=frame.contentOffset;this.content.position.set(offset.x,0,offset.z);}
+  updateFrame(position:Point){this.frame.rebase(position);const offset=this.frame.contentOffset;this.content.position.set(offset.x,0,offset.z);}
   setDetail(enabled:boolean){this.detail.visible=enabled;this.simpleBuildings.visible=!enabled;}
   updateDaylight(hour:number) {
     if(!this.daylightSun||!this.daylightAmbient)return;

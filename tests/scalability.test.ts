@@ -68,3 +68,15 @@ test('local-frame Float32 projections preserve millimetre motion beyond 20 km an
  assert.deepEqual(frame.toWorld(frame.toLocal(car)),{x:car.x,z:car.z});
  const localData=translateDistrict(shifted,-frame.anchor.x,-frame.anchor.z);assert.ok(Math.max(...localData.nodes.map(n=>Math.abs(n.x)))<4096);
 });
+
+test('two World instances from one bound factory own independent render origins',async()=>{
+ // World construction needs painted canvases but no WebGL renderer. Stub painting only.
+ const previous=Object.getOwnPropertyDescriptor(globalThis,'document');
+ Object.defineProperty(globalThis,'document',{configurable:true,value:{createElement:()=>({width:0,height:0,getContext:()=>new Proxy({}, {get(target,key){if(key==='measureText')return (text:string)=>({width:text.length*12});if(key==='createLinearGradient')return ()=>({addColorStop(){}});return Reflect.get(target,key)??(()=>{});}})})}});
+ try{
+  const {createWorld}=await import('../src/world/World');const {World}=createWorld(new District(harbor));
+  const first=new World(),second=new World(),origin={...second.frame.origin};
+  assert.notEqual(first.frame,second.frame);first.updateFrame({x:1000,z:1000});
+  assert.deepEqual(second.frame.origin,origin);assert.notDeepEqual(first.frame.origin,origin);
+ }finally{if(previous)Object.defineProperty(globalThis,'document',previous);else Reflect.deleteProperty(globalThis,'document');}
+});
