@@ -191,3 +191,10 @@ See the [tentative development roadmap](ROADMAP.md) for milestones and playable 
 1. Playtest the taxi shift: pickup/dropoff clarity, route variety, shift pace and bonuses.
 2. Tune the expanded district from driving and sign feedback.
 3. Add a distinct “Where am I?” request if it improves navigation help.
+
+## Independent review
+
+The project uses an exact-head PR review handoff adapted from Geoclick2027.
+See [the review workflow](docs/EXTERNAL_REVIEW.md) and
+[the whole-project review brief](docs/whole-project-review.md). A fresh session
+of another model family runs `/review-pr`; setup alone does not start a review.
