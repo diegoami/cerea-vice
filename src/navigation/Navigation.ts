@@ -24,7 +24,7 @@ function directionHint(point: Point, heading: number, target: NavigationTarget =
   const road=nearest.edge as Road;
   const starts=road.oneWay?[road.b]:[road.a,road.b];
   const best=starts.map((id)=>{const route=context.graph instanceof LayeredRouteGraph?context.profile.measure("route-search",()=>context.graph instanceof LayeredRouteGraph?context.graph.nextLeg(id,target.nodeId,road.region):shortestRoute(id,target.nodeId)):shortestRoute(id,target.nodeId);return {...route,cost:route.cost+distance(nearest.point,nodeById(id))};}).sort((a,b)=>a.cost-b.cost)[0];
-  if (!best.path.length) return `${intro} This road leaves the playable district. Return to the signed junction and ask again.`;
+  if (!best.path.length) return `${intro} This road leaves the ${district.streaming?"mapped road network":"playable district"}. Return to the signed junction and ask again.`;
   let index=0;
   while(index<best.path.length-1) {
     const id=best.path[index];

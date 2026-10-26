@@ -36,11 +36,12 @@ export class LayeredRouteGraph {
  nextLeg(start:string,target:string,preferred?:string){
   let best={cost:Infinity,path:[] as string[],onward:''};
   for(const plan of this.plans(start,target,preferred)){
-   let at=start;
+   let at=start,localCost=Infinity;
    for(let i=0;i<plan.regions.length;i++){
     const end=plan.portals[i]??target,leg=this.graph(plan.regions[i]).search(at,end);at=end;
+    if(i===0)localCost=leg.cost;
     if(!Number.isFinite(leg.cost))break;
-    if(leg.path.length>1||i===plan.regions.length-1){if(leg.cost<best.cost)best={...leg,onward:plan.regions.length>1?this.byRegion.get(plan.regions.at(-1)!)!.name:''};break;}
+    if(leg.path.length>1||i===plan.regions.length-1){if(localCost<best.cost)best={...leg,cost:localCost,onward:plan.regions.length>1?this.byRegion.get(plan.regions.at(-1)!)!.name:''};break;}
    }
   }
   return best;

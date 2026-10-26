@@ -17,26 +17,27 @@ for(let i=0;i<10;i++){
  data.nodes.push(p);linkIds.push(p.id);data.roads.push({a:previous.id,b:p.id,name:'Test Link (fictional)',width:7,roadClass:'tertiary',region:'countryside'});previous=p;
 }
 const hamletIds=[previous.id];
-for(const [id,x,z,label] of [['test-square',180,-1800,'Test Hamlet square'],['test-east',280,-1800,'Test Lane east'],['test-west',80,-1800,'Test Lane west']]){
+for(const [id,x,z,label] of [['test-square',180,-1800,'Test Hamlet square'],['test-east',280,-1800,'Orchard Row east'],['test-west',80,-1800,'Orchard Row west']]){
  data.nodes.push({id,x,z,label});hamletIds.push(id);
 }
-for(const [a,b] of [[previous.id,'test-square'],['test-square','test-east'],['test-square','test-west']])data.roads.push({a,b,name:'Test Lane (fictional)',width:7,roadClass:'residential',region:'test-hamlet'});
+for(const [a,b] of [[previous.id,'test-square'],['test-square','test-east'],['test-square','test-west']])data.roads.push({a,b,name:a==='test-square'?'Orchard Row (fictional)':'Test Lane (fictional)',width:7,roadClass:'residential',region:'test-hamlet'});
 for(let i=0;i<16;i++){
  const x=100+(i%4)*50,z=-1850-Math.floor(i/4)*25;
  data.buildings.push({x,z,width:14,depth:12,height:5+(i%3),color:0xc8b08a,points:[{x:x-7,z:z-6},{x:x+7,z:z-6},{x:x+7,z:z+6},{x:x-7,z:z+6}]});
 }
 const bay={id:'test-hamlet',name:'Test Hamlet stop',x:198,z:-1775,width:12,depth:12};data.parkingZones.push(bay);
-data.landmarks.push({id:'test-hamlet',name:'Test Hamlet (fictional)',road:'Test Lane (fictional)',kind:'civic',...data.buildings.find(b=>b.x===200&&b.z===-1850)});
+data.landmarks.push({id:'test-hamlet',name:'Test Hamlet (fictional)',road:'Test Lane (fictional)',kind:'prototype',...data.buildings.find(b=>b.x===200&&b.z===-1850)});
 data.taxi.stops.push({id:bay.id,name:'Test Hamlet (fictional)',road:'Test Lane (fictional)',bayId:bay.id,nodeId:'test-square',description:'Stop at the fictional test terminus.'});
 data.taxi.fares=[{passenger:'Test traveller',pickupId:'municipio',destinationId:bay.id},{passenger:'Return traveller',pickupId:bay.id,destinationId:'municipio'},...data.taxi.fares];
 data.mission.hint='Prototype journey: collect the test traveller at Sosta Municipio, then follow signs north via Via Oberdan and the fictional Test Link to Test Hamlet. Added countryside is fictional.';
 data.bounds.minZ=-1980;
 data.areas.push({name:'Fictional test countryside',x:0,z:-1100,width:1000,depth:1100},{name:'Test Hamlet (fictional)',x:180,z:-1820,width:400,depth:340});
+data.provenance.notes.push('The C prototype adds an explicitly fictional Test Link and Test Hamlet outside the real Cerea subset; this extension is not sourced from OSM.');
 const provenance={source:'OpenStreetMap Cerea subset plus original fictional prototype extension',licence:'OSM-derived database content: ODbL-1.0; no separate licence assigned to original game content',osmTimestamp:data.provenance.osmTimestamp,synthetic:'All Test Link/Test Hamlet geometry, buildings and stops north of the source subset are fictional. No claim about real countryside roads.'};
-const context=new District(data),plates=createStreetPlates(context).planStreetPlates();
+const context=new District(structuredClone(data)),plates=createStreetPlates(context).planStreetPlates();
 if(plates.missing.length)throw new Error(`Missing prototype street plates: ${JSON.stringify(plates.missing)}`);
 const signs=createSigns(context);
-const boards=[...signs.planJunctionSigns().signs.map(p=>({...p,color:'#31594e'})),...signs.planParkingSigns().map(p=>({...p,rows:['P',p.label],color:'#31594e'})),...signs.planEdgeSigns().map(p=>({...p,rows:[p.boundary?'END OF AREA':'DEAD END','TURN BACK'],color:'#755e46'}))];
+const boards=[...signs.planJunctionSigns().signs.map(p=>({...p,color:'#31594e'})),...signs.planParkingSigns().map(p=>({...p,rows:['P',p.label],color:'#31594e'})),...signs.planEdgeSigns().map(p=>({...p,rows:[context.nearestRoad(p.position).edge.region==='cerea'?'END OF MAPPED ROAD':'DEAD END','TURN BACK'],color:'#755e46'}))];
 const noEntry=signs.planVittoriaNoEntrySign();if(noEntry)boards.push({...noEntry,rows:['SENSO VIETATO','V.LE VITTORIA'],color:'#943f37'});
 boards.push({position:{x:entry.x+10,z:entry.z-25},angle:0,rows:['TEST HAMLET','FICTIONAL LINK · NORTH'],width:4,height:3,color:'#755e46'}, {position:{x:previous.x+12,z:previous.z+12},angle:0,rows:['TEST HAMLET','FICTIONAL PROTOTYPE'],width:4,height:3,color:'#755e46'}, {position:{x:entry.x-10,z:entry.z-25},angle:Math.PI,rows:['CEREA CENTRO','REAL MAP SUBSET'],width:4,height:3,color:'#31594e'});
 // Facade plaques retain the same frontage selection as the unstreamed renderer.

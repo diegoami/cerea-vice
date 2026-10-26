@@ -68,3 +68,26 @@ test('prototype rejects remote/path traversal tile references and invalid coarse
  }
  const bad=structuredClone(data);bad.streaming!.portals.pop();assert.throws(()=>new District(bad),/tree/);
 });
+
+test('radial tile fog clones shared materials per world and never disposes shared textures',async()=>{
+ const {MeshBasicMaterial,Texture}=await import('three');const {TileMaterials}=await import('../src/world/streaming/TileMaterials');
+ const map=new Texture(),source=new MeshBasicMaterial({map});source.userData.shared=true;
+ const original=source.onBeforeCompile;let disposed=0;map.addEventListener('dispose',()=>disposed++);
+ const first=new TileMaterials(),second=new TileMaterials(),a=first.use(source),b=second.use(source);
+ assert.notEqual(a,source);assert.notEqual(a,b);assert.equal(first.use(source),a);assert.equal(source.onBeforeCompile,original);
+ const shader={vertexShader:'#include <fog_vertex>',fragmentShader:'#include <fog_fragment>'};
+ a.onBeforeCompile(shader as Parameters<typeof a.onBeforeCompile>[0],{} as Parameters<typeof a.onBeforeCompile>[1]);
+ assert.match(shader.vertexShader,/vTileFogPosition=mvPosition.xyz/);assert.match(shader.fragmentShader,/length\(vTileFogPosition\)/);
+ first.dispose();second.dispose();assert.equal(disposed,0);source.dispose();map.dispose();
+});
+
+test('directions compare local endpoint costs even when one endpoint is already a coarse portal',()=>{
+ const graph=context.graph;assert.ok(graph instanceof LayeredRouteGraph);
+ const target=data.taxi!.stops.find(s=>s.id==='municipio')!,portal='test-link-9';
+ const fromPortal=graph.nextLeg(portal,target.nodeId,'test-hamlet'),fromSquare=graph.nextLeg('test-square',target.nodeId,'test-hamlet');
+ assert.equal(fromPortal.cost,0,'Skipping a zero-length first leg must not replace its comparison cost with the long country leg');
+ assert.ok(fromSquare.cost>0);assert.equal(fromPortal.path[0],portal);
+ const {Mission}=createMission(context),mission=new Mission();mission.fareIndex=1;
+ const bay=data.parkingZones.find(b=>b.id==='test-hamlet')!;assert.ok(mission.serveAtStop(bay,true));
+ assert.match(createNavigation(context).directionHint(bay,0,mission.target),/Turn around safely.*south.*Cerea Centro/);
+});

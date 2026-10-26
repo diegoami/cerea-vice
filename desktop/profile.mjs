@@ -5,12 +5,13 @@ import path from 'node:path';
 const profile=await mkdtemp(path.join(tmpdir(),'cerea-profile-'));
 let app;
 try {
- app=await _electron.launch({args:[path.resolve('.'),'--profile',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ app=await _electron.launch({args:[path.resolve('.'),'--profile',...(process.env.CEREA_DISTRICT?['--district='+process.env.CEREA_DISTRICT]:[]),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  const page=await app.firstWindow();
  await page.getByRole('button',{name:'Start the engine'}).waitFor();
  if(process.env.CEREA_PICTURE)await page.locator('[data-key=resolution]').selectOption(process.env.CEREA_PICTURE);
  if(process.env.CEREA_DETAIL)await page.locator('[data-key=detail]').selectOption(process.env.CEREA_DETAIL);
  await page.getByRole('button',{name:'Start the engine'}).click();
+ await page.waitForFunction(()=>document.querySelector('#stop-state')?.textContent==='P · LEGAL STOP');
  await page.waitForTimeout(2000);
  await page.keyboard.press('f'); // Stopped request exercises nearest-road/route profiling without exposing a live location.
  await page.keyboard.press('Enter'); // Start the first fare, exercising route accounting.

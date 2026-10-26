@@ -488,7 +488,7 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-outskirts-test-'));
  const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
-  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/THREE|shader/i.test(m.text()))errors.push(m.text());});
   let release;const gate=new Promise(resolve=>release=resolve);let blocked=true;
   await page.route('**/tiles/*.json',async route=>{if(blocked)await gate;await route.continue();});
   await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
@@ -497,7 +497,14 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
   assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
   blocked=false;release();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Test Hamlet'));
-  await page.keyboard.press('f');await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  await page.evaluate(()=>{window.prototypePad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.prototypePad],configurable:true});window.prototypePad.buttons[8].value=1;});
+  await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Via Venticinque Aprile'));
+  await page.evaluate(()=>{window.prototypePad.buttons[8].value=0;window.prototypePad.buttons[3].value=1;});await page.locator('.atlas-map').waitFor();
+  await page.evaluate(()=>{window.prototypePad.buttons[3].value=0;window.prototypePad.axes[0]=1;});await page.waitForTimeout(250);
+  const readingClock=await page.locator('#timer').innerText();
+  await page.evaluate(()=>{window.prototypePad.axes[0]=0;window.prototypePad.buttons[0].value=1;});await page.waitForFunction(()=>document.querySelector('#atlas-marker-status').textContent.includes('Your estimated position'));
+  await page.evaluate(()=>{window.prototypePad.buttons[0].value=0;window.prototypePad.buttons[8].value=1;});await page.waitForFunction(()=>document.querySelector('#atlas-marker-status').textContent.includes('Last information received'));
+  await page.evaluate(()=>{window.prototypePad.buttons[8].value=0;});assert.equal(await page.locator('#timer').innerText(),readingClock);
   assert.match(await page.locator('.atlas-map').innerHTML(),/TEST LINK/);assert.match(await page.locator('.atlas-attribution').innerText(),/OpenStreetMap/);
   const pin=await page.locator('.atlas-pin').getAttribute('transform');await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
   await page.screenshot({path:'test-results/C-prototype-city.png'});assert.equal(await page.evaluate(()=>window.tileLabResult===undefined),true,'Normal gameplay has no lab globals');
@@ -508,7 +515,7 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
   });
   await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Municipio'));
-  await page.keyboard.press('f');await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();const terminalPin=await page.locator('.atlas-pin').getAttribute('transform');assert.notEqual(terminalPin,pin);
+  await page.keyboard.press('f');await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Turn around safely'));await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();const terminalPin=await page.locator('.atlas-pin').getAttribute('transform');assert.notEqual(terminalPin,pin);
   await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.down('w');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>3);await page.keyboard.up('w');
   await page.keyboard.down('Space');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)===0);await page.keyboard.up('Space');await page.waitForFunction(()=>document.querySelector('#stop-state').textContent.includes('STOP'));
   await page.screenshot({path:'test-results/C-prototype-hamlet.png'});
