@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { roadWidth, district, roads, nodeById, parkingZones, landmarks, inRect, isPaved, projectToSegment, pointInPolygon, type Point, type Rect, type ParkingZone } from "./district";
+import { roadWidth, district, roads, nodeById, parkingZones, landmarks, inRect, isPaved, projectToSegment, pointInPolygon, type Point, type Rect } from "./district";
+import { decorateBuildings, dressStreets, facadeColor } from "./Scenery";
 import { HarborWorld } from "./HarborWorld";
 import { box, sign, signpost, material, streetNamePlate } from "./builders";
 import { planStreetPlates } from "./streetPlates";
@@ -21,7 +22,10 @@ function footprint(parent:THREE.Object3D, points:Point[], height:number,color:nu
 export class World {
   readonly scene: THREE.Scene;
   readonly colliders: Rect[];
-  private passenger=new THREE.Group();
+  private readonly simpleBuildings=new THREE.Group();
+  private readonly detail=new THREE.Group();
+  private sky?:THREE.CanvasTexture;
+  private skyHour=-1;
   private daylightSun?:THREE.DirectionalLight;
   private daylightAmbient?:THREE.HemisphereLight;
   constructor() {
@@ -74,8 +78,8 @@ export class World {
       }
     }
     for(const building of district.buildings) {
-      if(building.points)footprint(scene,building.points,building.height,building.color,building.holes);
-      else box(scene,building.x,building.height/2,building.z,building.width,building.height,building.depth,building.color);
+      if(building.points)footprint(this.simpleBuildings,building.points,building.height,facadeColor(building.x,building.z),building.holes);
+      else box(this.simpleBuildings,building.x,building.height/2,building.z,building.width,building.height,building.depth,facadeColor(building.x,building.z));
       this.colliders.push(building);
       if(building.points) {
         const walls=building.points.map((a,i)=>({a,b:building.points![(i+1)%building.points!.length]})).sort((a,b)=>Math.hypot(b.b.x-b.a.x,b.b.z-b.a.z)-Math.hypot(a.b.x-a.a.x,a.b.z-a.a.z)).slice(0,2);
@@ -85,7 +89,7 @@ export class World {
           const mid={x:(wall.a.x+wall.b.x)/2,z:(wall.a.z+wall.b.z)/2};
           if(pointInPolygon({x:mid.x+nx*0.1,z:mid.z+nz*0.1},building.points)){nx=-nx;nz=-nz;}
           for(const t of [0.25,0.5,0.75]) {
-            const window=box(scene,wall.a.x+(wall.b.x-wall.a.x)*t+nx*0.04,Math.min(3.5,building.height-1),wall.a.z+(wall.b.z-wall.a.z)*t+nz*0.04,1.4,1.5,0.06,0x586d68);
+            const window=box(this.simpleBuildings,wall.a.x+(wall.b.x-wall.a.x)*t+nx*0.04,Math.min(3.5,building.height-1),wall.a.z+(wall.b.z-wall.a.z)*t+nz*0.04,1.4,1.5,0.06,0x586d68);
             window.rotation.y=Math.atan2(-(wall.b.z-wall.a.z),wall.b.x-wall.a.x);
           }
         }
@@ -138,10 +142,19 @@ export class World {
     const noEntry=planVittoriaNoEntrySign();
     if(noEntry)signpost(scene,noEntry.position.x,noEntry.position.z,["SENSO VIETATO","V.LE VITTORIA"],noEntry.angle,"#943f37",noEntry.width,noEntry.height);
     for(const plan of planEdgeSigns())signpost(scene,plan.position.x,plan.position.z,[plan.boundary?"FINE ZONA":"STRADA CHIUSA","TORNA INDIETRO"],plan.angle,"#755e46",plan.width,plan.height);
-    scene.updateMatrixWorld(true);
+    // All stops have the same waiting figure, independent of the active fare.
+    for(const bay of parkingZones){
+      const figure=new THREE.Group();figure.position.set(bay.x+bay.width/2-1,0,bay.z+bay.depth/2-1);
+      box(figure,0,1.05,0,.5,.9,.3,0x3b5772);
+      for(const side of [-1,1])box(figure,side*.14,.35,0,.18,.7,.22,0x33464a);
+      const head=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),material(0xd1ab88));head.position.y=1.7;figure.add(head);this.detail.add(figure);
+    }
+    decorateBuildings(this.detail);dressStreets(this.detail,[...streetPlates.plates,...plannedSigns.signs,...planParkingSigns(),...planEdgeSigns(),...(noEntry?[noEntry]:[])]);
+    const batch=(parent:THREE.Object3D)=>{
+    parent.updateMatrixWorld(true);
     const batches=new Map<THREE.Material,THREE.BufferGeometry[]>();
     const originals:THREE.Mesh[]=[];
-    scene.traverse((object)=>{
+    parent.traverse((object)=>{
       if(!(object instanceof THREE.Mesh)||!(object.material instanceof THREE.MeshLambertMaterial||object.material instanceof THREE.MeshBasicMaterial))return;
       const geometry=object.geometry.clone().applyMatrix4(object.matrixWorld);
       if(geometry.index) { const expanded=geometry.toNonIndexed();geometry.dispose();
@@ -151,26 +164,31 @@ export class World {
     });
     for(const [mat,geometries] of batches) {
       const merged=mergeGeometries(geometries,false);
-      if(merged)scene.add(new THREE.Mesh(merged,mat));
+      if(merged)parent.add(new THREE.Mesh(merged,mat));
       for(const geometry of geometries)geometry.dispose();
     }
     for(const mesh of originals){mesh.removeFromParent();mesh.geometry.dispose();}
-    // This passenger stays dynamic; the static scenery has already been batched.
-    box(this.passenger,0,1.05,0,.5,.9,.3,0x3b5772);
-    for(const side of [-1,1])box(this.passenger,side*.14,.35,0,.18,.7,.22,0x33464a);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),material(0xd1ab88));head.position.y=1.7;this.passenger.add(head);
-    this.passenger.visible=false;scene.add(this.passenger);
+    };
+    batch(scene);batch(this.simpleBuildings);batch(this.detail);scene.add(this.simpleBuildings,this.detail);
+    const canvas=document.createElement('canvas');canvas.width=16;canvas.height=128;
+    this.sky=new THREE.CanvasTexture(canvas);this.sky.colorSpace=THREE.SRGBColorSpace;
+    scene.background=this.sky;
+
   }
-  setTaxiPassenger(bay?:ParkingZone) {
-    this.passenger.visible=Boolean(bay);
-    if(bay)this.passenger.position.set(bay.x+bay.width/2-1,0,bay.z+bay.depth/2-1);
-  }
+  setDetail(enabled:boolean){this.detail.visible=enabled;this.simpleBuildings.visible=!enabled;}
   updateDaylight(hour:number) {
     if(!this.daylightSun||!this.daylightAmbient)return;
     const daylight=Math.max(0,Math.sin((hour-6)/12*Math.PI));
     const sky=new THREE.Color(0xc6ad94).lerp(new THREE.Color(0x9fb6bf),daylight);
-    (this.scene.background as THREE.Color).copy(sky);this.scene.fog?.color.copy(sky);
-    this.daylightSun.intensity=1.2+daylight;this.daylightAmbient.intensity=1.6+daylight*.7;
+    this.scene.fog?.color.copy(sky);
+    if(this.sky&&this.skyHour!==Math.floor(hour*60)){
+      this.skyHour=Math.floor(hour*60);
+      const canvas=this.sky.image as HTMLCanvasElement,c=canvas.getContext('2d')!;
+      const gradient=c.createLinearGradient(0,0,0,128);
+      gradient.addColorStop(0,'#557e9b');gradient.addColorStop(.48,'#'+sky.getHexString());gradient.addColorStop(.58,'#e5c69d');gradient.addColorStop(1,'#8d8b70');
+      c.fillStyle=gradient;c.fillRect(0,0,16,128);this.sky.needsUpdate=true;
+    }
+    this.daylightSun.intensity=1.8+daylight*1.4;this.daylightAmbient.intensity=1.05+daylight*.45;
     const angle=(hour-6)/12*Math.PI;this.daylightSun.position.set(Math.cos(angle)*350,Math.max(70,Math.sin(angle)*350),100);
   }
 

@@ -898,3 +898,13 @@ h1 em {
   .navigation-message p { font-size: 10px; }
   .interaction { bottom: 75px; font-size: 9px; }
 }
+
+/* Keep attribution clear of controller/pause text. */
+.map-credit { bottom: 65px; right: 16px; }
+#viewport.pixel-picture { image-rendering: pixelated; }
+.presentation-settings { pointer-events:auto;position:absolute;z-index:12;left:18px;bottom:80px;background:#192c2fee;border:1px solid #87957b;padding:12px;width:240px;font:11px/1.5 monospace;color:#eee1c3; }
+.presentation-settings[hidden] { display:none; }
+.presentation-settings strong,.presentation-settings small { display:block;margin-bottom:5px; }
+.presentation-settings label { display:flex;justify-content:space-between;align-items:center;gap:6px;margin:4px 0; }
+.presentation-settings select { background:#253e3c;color:#fff0ce;border:1px solid #81907a;padding:4px;max-width:145px;font:11px monospace; }
+.presentation-settings .controller-selected { outline:2px solid #e7bf74; }
