@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AtlasNotes } from "../src/navigation/AtlasNotes";
-
+import { createAtlasNotes } from "../src/navigation/AtlasNotes";
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {AtlasNotes}=createAtlasNotes(context);
 test("a manual atlas pin stays at its placed location while the crosshair moves", () => {
   const notes = new AtlasNotes();
   assert.deepEqual(notes.marker, {x:-52,z:90});
@@ -16,7 +19,6 @@ test("a manual atlas pin stays at its placed location while the crosshair moves"
   notes.remove();
   assert.equal(notes.marker, undefined);
 });
-
 test("atlas cursor stays inside the paper map and has consistent diagonal speed", () => {
   const notes = new AtlasNotes();
   notes.pointAt({x:0,z:0});
@@ -27,8 +29,6 @@ test("atlas cursor stays inside the paper map and has consistent diagonal speed"
   notes.pointAt({x:-500,z:500});
   assert.deepEqual(notes.cursor, {x:-120,z:120});
 });
-
-
 test("information replaces an estimate with a snapshot, and retry resets to the known start", () => {
   const notes = new AtlasNotes();
   notes.pointAt({x:93,z:-44});

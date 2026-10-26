@@ -2,12 +2,17 @@ import {test,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import cerea from '../public/maps/cerea.json';
 import harbor from '../public/maps/harbor.json';
-import {activateDistrict,district,nodes,roads,nodeById,projectToSegment} from '../src/world/district';
-import {planStreetPlates,plateIsClear,plateIsVisible,plateStreetRoad,type StreetPlatePlan} from '../src/world/streetPlates';
-afterEach(()=>activateDistrict(harbor));
-
+import { projectToSegment } from "../src/world/district";
+import { createStreetPlates, type StreetPlatePlan } from "../src/world/streetPlates";
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {district,nodes,roads,nodeById}=context;
+let {planStreetPlates,plateIsClear,plateIsVisible,plateStreetRoad}=createStreetPlates(context);
+function useDistrict(data:unknown){context=new District(data);({district,nodes,roads,nodeById}=context);({planStreetPlates,plateIsClear,plateIsVisible,plateStreetRoad}=createStreetPlates(context));}
+afterEach(()=>useDistrict(harbor));
 test('crossing plates name and face their own street frontage, not an approaching side street',()=>{
-  activateDistrict(cerea);
+  useDistrict(cerea);
   const {plates,missing}=planStreetPlates();assert.deepEqual(missing,[]);
   for(const node of nodes){
     const links=roads.filter(road=>road.a===node.id||road.b===node.id);

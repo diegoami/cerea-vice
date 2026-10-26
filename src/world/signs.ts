@@ -1,6 +1,6 @@
-import { roadWidth, district, nodes, roads, nodeById, projectToSegment, inRect, type Point, type Road } from "./district";
-import { junctionDirections, type DirectionRow } from "./directions";
-
+import { roadWidth, projectToSegment, inRect, type Point, type Road } from "./district";
+import { createDirections, type DirectionRow } from "./directions";
+import { District } from "./district";
 export interface RoadSignPlan {
   junctionId: string;
   approachId: string;
@@ -10,10 +10,11 @@ export interface RoadSignPlan {
   height: number;
   rows: DirectionRow[];
 }
-export const isMajorRoad=(road:Road)=>["primary","secondary","tertiary"].includes(road.roadClass??"");
+export function createSigns(context:District){
+const {district,nodes,roads,nodeById}=context;
+const {junctionDirections}=createDirections(context);
+const isMajorRoad=(road:Road)=>["primary","secondary","tertiary"].includes(road.roadClass??"");
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
-
-/** Trace back along the real approach, including short OSM shape segments. */
 function approachPoints(junctionId:string,incoming:Road):Point[] {
   const result:Point[]=[nodeById(junctionId)];
   let previous=junctionId,current=incoming.a===junctionId?incoming.b:incoming.a;
@@ -22,7 +23,7 @@ function approachPoints(junctionId:string,incoming:Road):Point[] {
   while(!seen.has(current)) {
     seen.add(current);const point=nodeById(current);length+=distance(result[result.length-1],point);result.push(point);
     if(length>=45)break;
-    const links=roads.filter(road=>road.a===current||road.b===current);
+    const links=(context.adjacency.get(current)??[]);
     if(links.length!==2)break;
     const next=links.find(road=>road.a!==previous&&road.b!==previous);
     if(!next)break;
@@ -42,21 +43,21 @@ function pointBack(path:Point[],setback:number):{point:Point;dx:number;dz:number
   }
   throw new Error('Empty junction approach');
 }
-export function boardPoints(plan: Pick<RoadSignPlan,"position"|"width"|"angle">): Point[] {
+function boardPoints(plan: Pick<RoadSignPlan,"position"|"width"|"angle">): Point[] {
   const steps=Math.ceil(plan.width/.2);
   return Array.from({length:steps+1},(_,i)=>{const t=-plan.width/2+plan.width*i/steps;return {x:plan.position.x+Math.cos(plan.angle)*t,z:plan.position.z-Math.sin(plan.angle)*t};});
 }
-export function boardIsClear(plan: Pick<RoadSignPlan,"position"|"width"|"angle">):boolean {
+function boardIsClear(plan: Pick<RoadSignPlan,"position"|"width"|"angle">):boolean {
   return boardPoints(plan).every(point=>{
     if(point.x<district.bounds.minX+.2||point.x>district.bounds.maxX-.2||point.z<district.bounds.minZ+.2||point.z>district.bounds.maxZ-.2)return false;
-    if(district.buildings.some(building=>inRect(point,building,-.3)))return false;
-    return roads.every(road=>{const nearest=projectToSegment(point,nodeById(road.a),nodeById(road.b));return distance(point,nearest)>roadWidth(road)/2+.2;});
+    if(context.buildings.at(point,.3).some(building=>inRect(point,building,-.3)))return false;
+    return context.roadGrid.at(point,.2).every(road=>{const nearest=projectToSegment(point,nodeById(road.a),nodeById(road.b));return distance(point,nearest)>roadWidth(road)/2+.2;});
   });
 }
-export function planJunctionSigns():{signs:RoadSignPlan[];missing:string[]} {
+function planJunctionSigns():{signs:RoadSignPlan[];missing:string[]} {
   const signs:RoadSignPlan[]=[],missing:string[]=[];
   for(const node of nodes) {
-    const links=roads.filter(road=>road.a===node.id||road.b===node.id);
+    const links=(context.adjacency.get(node.id)??[]);
     const majorNames=new Set(links.filter(isMajorRoad).map(road=>road.name));
     if(majorNames.size<2)continue;
     for(const incoming of links) {
@@ -91,8 +92,7 @@ export function planJunctionSigns():{signs:RoadSignPlan[];missing:string[]} {
   }
   return {signs,missing};
 }
-
-export function planParkingSigns():{zoneId:string;position:Point;angle:number;width:number;height:number;label:string}[] {
+function planParkingSigns():{zoneId:string;position:Point;angle:number;width:number;height:number;label:string}[] {
   return district.parkingZones.map(zone=>{
     for(const extra of [1,2,4,6])for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2,Math.PI/4,-Math.PI/4,Math.PI*3/4,-Math.PI*3/4]) {
       const radius=Math.max(zone.width,zone.depth)/2+extra;
@@ -103,10 +103,8 @@ export function planParkingSigns():{zoneId:string;position:Point;angle:number;wi
     throw new Error(`No clear parking sign position: ${zone.name}`);
   });
 }
-
-/** Explain the mapped one-way restriction at the western end of Viale della Vittoria. */
-export function planVittoriaNoEntrySign():{position:Point;angle:number;width:number;height:number}|undefined {
-  const road=roads.find(road=>road.name==="Viale della Vittoria"&&road.oneWay&&roads.filter(other=>other.a===road.b||other.b===road.b).some(other=>other.name!==road.name));
+function planVittoriaNoEntrySign():{position:Point;angle:number;width:number;height:number}|undefined {
+  const road=roads.find(road=>road.name==="Viale della Vittoria"&&road.oneWay&&(context.adjacency.get(road.b)??[]).some(other=>other.name!==road.name));
   if(!road)return;
   const path=approachPoints(road.b,road);
   for(const setback of [5,8,12,16])for(const side of [1,-1])for(const extra of [.5,2,4]) {
@@ -116,11 +114,10 @@ export function planVittoriaNoEntrySign():{position:Point;angle:number;width:num
     if(boardIsClear(plan))return plan;
   }
 }
-
-export function planEdgeSigns():{position:Point;angle:number;width:number;height:number;boundary:boolean}[] {
+function planEdgeSigns():{position:Point;angle:number;width:number;height:number;boundary:boolean}[] {
   const result:{position:Point;angle:number;width:number;height:number;boundary:boolean}[]=[];
   for(const node of nodes) {
-    const links=roads.filter(road=>road.a===node.id||road.b===node.id);
+    const links=(context.adjacency.get(node.id)??[]);
     if(links.length!==1)continue;
     const road=links[0];if(road.oneWay&&road.a===node.id)continue;
     const path=approachPoints(node.id,road);
@@ -134,4 +131,6 @@ export function planEdgeSigns():{position:Point;angle:number;width:number;height
     if(selected)result.push(selected);
   }
   return result;
+}
+return {isMajorRoad,boardPoints,boardIsClear,planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns};
 }

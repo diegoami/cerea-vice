@@ -2,11 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readSettings, defaults } from '../src/presentation/Settings';
 import { BodyMotion } from '../src/presentation/Motion';
-import { facadeVariant, planProps, roofGeometry } from '../src/world/Scenery';
-import { activateDistrict, inRect, isPaved, pointInPolygon, district } from '../src/world/district';
+import { createScenery } from "../src/world/Scenery";
+import { inRect, pointInPolygon } from "../src/world/district";
 import { readFileSync } from 'node:fs';
 import type { DistrictDefinition } from '../src/world/schema';
-
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {isPaved,district}=context;
+let {facadeVariant,planProps,roofGeometry}=createScenery(context);
+function useDistrict(data:unknown){context=new District(data);({isPaved,district}=context);({facadeVariant,planProps,roofGeometry}=createScenery(context));}
 test('presentation settings reject malformed storage and bound volume',()=>{
  assert.deepEqual(readSettings({getItem:()=>'{'}),defaults);
  assert.deepEqual(readSettings({getItem:()=> 'null'}),defaults);
@@ -35,20 +40,18 @@ test('roof facets preserve concave outlines and courtyard holes',()=>{
  geometry.dispose();
 });
 test('Cerea dressing is deterministic, distributed and clear of carriageways, buildings and bays',()=>{
- const map=JSON.parse(readFileSync('public/maps/cerea.json','utf8')) as DistrictDefinition;activateDistrict(map);
+ const map=JSON.parse(readFileSync('public/maps/cerea.json','utf8')) as DistrictDefinition;useDistrict(map);
  const props=planProps();assert.deepEqual(props,planProps());assert.ok(props.length>=8,`${props.length} props`);
  for(const kind of ['tree','lamp','car','person'])assert.ok(props.some(p=>p.kind===kind));
  for(const p of props){assert.ok(!isPaved(p));assert.ok(!district.buildings.some(b=>inRect(p,b,-.5)));assert.ok(!district.parkingZones.some(b=>inRect(p,b,-2)));}
  assert.equal(facadeVariant(20,20),facadeVariant(20,20));
 });
-
 test('scenery reserves sign positions and street-plate sightlines',()=>{
  const candidates=planProps();const candidate=candidates[0];assert.ok(candidate);
  assert.ok(!planProps([{position:candidate}]).some(p=>p.x===candidate.x&&p.z===candidate.z));
  const position={x:candidate.x-8,z:candidate.z},viewpoint={x:candidate.x+8,z:candidate.z};
  assert.ok(!planProps([{position,viewpoint}]).some(p=>p.x===candidate.x&&p.z===candidate.z));
 });
-
 test('internal resolution respects aspect ratio and Sharp retains display legibility',async()=>{
  const {renderSize}=await import('../src/presentation/Settings');
  assert.deepEqual(renderSize(1920,1080,'retro'),{width:480,height:270});
@@ -56,7 +59,6 @@ test('internal resolution respects aspect ratio and Sharp retains display legibi
  assert.deepEqual(renderSize(1280,900,'sharp'),{width:1280,height:900});
  assert.deepEqual(renderSize(3840,2160,'sharp',2),{width:1920,height:1080});
 });
-
 test('settings tolerate a throwing storage getter as well as blocked reads',()=>{
  assert.deepEqual(readSettings(()=>{throw new DOMException('Storage disabled','SecurityError');}),defaults);
  assert.deepEqual(readSettings({getItem:()=>{throw new DOMException('Storage disabled','SecurityError');}}),defaults);

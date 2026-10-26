@@ -1,10 +1,14 @@
 import * as THREE from 'three';
-import { district, roads, nodeById, roadWidth, inRect, isPaved, pointInPolygon, projectToSegment, type Point } from './district';
+import { roadWidth, inRect, pointInPolygon, projectToSegment, type Point } from "./district";
 import { box, material } from './builders';
-
-export function facadeVariant(x:number,z:number){return Math.abs(Math.floor(x/65)*13+Math.floor(z/65)*7)%4;}
+import { District } from "./district";
+export interface PropPlan extends Point {kind:'tree'|'lamp'|'car'|'person';angle:number;}
+export interface Sightline {position:Point;viewpoint?:Point}
+export function createScenery(context:District){
+const {district,roads,nodeById,isPaved}=context;
+function facadeVariant(x:number,z:number){return Math.abs(Math.floor(x/65)*13+Math.floor(z/65)*7)%4;}
 const palette=[0xcdb08c,0xd4bf9b,0xb99988,0xbcc0a0];
-export function facadeColor(x:number,z:number){return palette[facadeVariant(x,z)];}
+function facadeColor(x:number,z:number){return palette[facadeVariant(x,z)];}
 function paintedFacade(variant:number,ground=false){
   const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
   const c=canvas.getContext('2d')!;
@@ -23,8 +27,7 @@ function paintedFacade(variant:number,ground=false){
   texture.magFilter=THREE.NearestFilter;
   return new THREE.MeshLambertMaterial({map:texture});
 }
-/** Roof faces remain strictly inside the existing triangulated clipped footprint. */
-export function roofGeometry(points:Point[],holes:Point[][],height:number){
+function roofGeometry(points:Point[],holes:Point[][],height:number){
   const shape=new THREE.Shape(points.map(p=>new THREE.Vector2(p.x,-p.z)));
   shape.holes=holes.map(r=>new THREE.Path(r.map(p=>new THREE.Vector2(p.x,-p.z))));
   const flat=new THREE.ShapeGeometry(shape).toNonIndexed();
@@ -40,7 +43,7 @@ export function roofGeometry(points:Point[],holes:Point[][],height:number){
   }
   flat.dispose();const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geometry.computeVertexNormals();return geometry;
 }
-export function decorateBuildings(parent:THREE.Group){
+function decorateBuildings(parent:THREE.Group){
   const mats=[0,1,2,3].map(v=>paintedFacade(v));
   const groundMats=[0,1,2,3].map(v=>paintedFacade(v,true));
   const tile=document.createElement('canvas');tile.width=32;tile.height=32;const c=tile.getContext('2d')!;
@@ -67,10 +70,7 @@ export function decorateBuildings(parent:THREE.Group){
     }
   }
 }
-export interface PropPlan extends Point {kind:'tree'|'lamp'|'car'|'person';angle:number;}
-/** Deterministic roadside dressing, independent of missions and never in bays/paving. */
-export interface Sightline {position:Point;viewpoint?:Point}
-export function planProps(signs:Sightline[]=[]):PropPlan[]{
+function planProps(signs:Sightline[]=[]):PropPlan[]{
  const result:PropPlan[]=[];
  for(let i=0;i<roads.length;i+=3){const road=roads[i],a=nodeById(road.a),b=nodeById(road.b),length=Math.hypot(b.x-a.x,b.z-a.z);if(length<14)continue;
   const kind=(['tree','lamp','car','person'] as const)[i%4];
@@ -78,14 +78,14 @@ export function planProps(signs:Sightline[]=[]):PropPlan[]{
   const offset=roadWidth(road)/2+radius+1.8;
   const p={x:(a.x+b.x)/2-(b.z-a.z)/length*offset,z:(a.z+b.z)/2+(b.x-a.x)/length*offset};
   const bounds=district.bounds;if(p.x<bounds.minX+4||p.x>bounds.maxX-4||p.z<bounds.minZ+4||p.z>bounds.maxZ-4)continue;
-  if([-radius,0,radius].some(dx=>[-radius,0,radius].some(dz=>isPaved({x:p.x+dx,z:p.z+dz})||district.buildings.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-.5))||district.parkingZones.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-2)))))continue;
+  if([-radius,0,radius].some(dx=>[-radius,0,radius].some(dz=>isPaved({x:p.x+dx,z:p.z+dz})||context.buildings.at({x:p.x+dx,z:p.z+dz},.5).some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-.5))||district.parkingZones.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-2)))))continue;
   if(signs.some(sign=>Math.hypot(sign.position.x-p.x,sign.position.z-p.z)<5||(sign.viewpoint&&Math.hypot(projectToSegment(p,sign.position,sign.viewpoint).x-p.x,projectToSegment(p,sign.position,sign.viewpoint).z-p.z)<3)))continue;
   if(result.some(q=>Math.hypot(q.x-p.x,q.z-p.z)<15))continue;
   result.push({...p,kind,angle:Math.atan2(-(b.z-a.z),b.x-a.x)});
  }
  return result;
 }
-export function dressStreets(parent:THREE.Group,signs:Sightline[]=[]){
+function dressStreets(parent:THREE.Group,signs:Sightline[]=[]){
  for(const p of planProps(signs)){
   const group=new THREE.Group();group.position.set(p.x,0,p.z);group.rotation.y=p.angle;parent.add(group);
   if(p.kind==='tree'){box(group,0,1.5,0,.35,3,.35,0x685744);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(2,0),material(0x687b48));crown.position.y=3.4;group.add(crown);}
@@ -93,4 +93,6 @@ export function dressStreets(parent:THREE.Group,signs:Sightline[]=[]){
   if(p.kind==='car'){box(group,0,.65,0,3.8,.8,1.65,0x8d6953);box(group,0,1.25,0,2,.6,1.5,0x698785);for(const x of [-1.2,1.2])for(const z of [-.8,.8])box(group,x,.35,z,.6,.6,.2,0x293537);}
   if(p.kind==='person'){box(group,0,1.05,0,.45,.8,.3,0x9b7959);for(const x of [-.12,.12])box(group,x,.35,0,.16,.7,.2,0x435252);const head=new THREE.Mesh(new THREE.IcosahedronGeometry(.21,0),material(0xc8a47d));head.position.y=1.65;group.add(head);}
  }
+}
+return {facadeVariant,facadeColor,roofGeometry,decorateBuildings,planProps,dressStreets};
 }

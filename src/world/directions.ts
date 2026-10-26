@@ -1,7 +1,14 @@
-import { district, landmarks, nodes, nodeById, roads } from "./district";
-
-import { shortestRoute } from "../navigation/Navigation";
-
+import { createNavigation } from "../navigation/Navigation";
+import { District } from "./district";
+export type SignDirection = "left" | "straight" | "right";
+export interface DirectionRow {
+  text: string;
+  detail: string;
+  direction: SignDirection;
+}
+export function createDirections(context:District){
+const {district,landmarks,nodes,nodeById}=context;
+const {shortestRoute}=createNavigation(context);
 let cacheDistrict: object | undefined;
 const localDestinations = new Map<string, {exit:string;name:string;cost:number}[]>();
 function nearbyDestinations(nodeId:string) {
@@ -16,21 +23,11 @@ function nearbyDestinations(nodeId:string) {
   }
   return localDestinations.get(nodeId)!;
 }
-
-export type SignDirection = "left" | "straight" | "right";
-export interface DirectionRow {
-  text: string;
-  detail: string;
-  direction: SignDirection;
-}
-
-/** A board belongs to one approach: arrows are relative to its approaching driver. */
-export function junctionDirections(nodeId: string, approachId: string): DirectionRow[] {
+function junctionDirections(nodeId: string, approachId: string): DirectionRow[] {
   const node = nodeById(nodeId);
   const approach = nodeById(approachId);
   const heading = Math.atan2(node.x - approach.x, -(node.z - approach.z));
-  return roads
-    .filter((road) => road.a === nodeId || road.b === nodeId)
+  return (context.adjacency.get(nodeId)??[])
     .map((road) => ({ road, exit: nodeById(road.a === nodeId ? road.b : road.a) }))
     .filter(({ road, exit }) => exit.id !== approachId && (!road.oneWay || road.a === nodeId))
     .map(({ road, exit }): DirectionRow => {
@@ -48,4 +45,6 @@ export function junctionDirections(nodeId: string, approachId: string): Directio
       };
     })
     .sort((a, b) => ["left", "straight", "right"].indexOf(a.direction) - ["left", "straight", "right"].indexOf(b.direction));
+}
+return {junctionDirections};
 }

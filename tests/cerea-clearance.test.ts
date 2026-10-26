@@ -3,15 +3,22 @@ import assert from 'node:assert/strict';
 import clipping, {type Polygon} from 'polygon-clipping';
 import cerea from '../public/maps/cerea.json';
 import harbor from '../public/maps/harbor.json';
-import {activateDistrict,district,roads,nodeById,inRect,spawn} from '../src/world/district';
-import {planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,boardIsClear,isMajorRoad} from '../src/world/signs';
-import {Parking} from '../src/navigation/Parking';
-import {Mission} from '../src/mission/Mission';
-
-afterEach(()=>activateDistrict(harbor));
+import { inRect } from "../src/world/district";
+import { createSigns } from "../src/world/signs";
+import { createParking } from "../src/navigation/Parking";
+import { createMission } from "../src/mission/Mission";
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {district,roads,nodeById,spawn}=context;
+let {planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,boardIsClear,isMajorRoad}=createSigns(context);
+let {Parking}=createParking(context);
+let {Mission}=createMission(context);
+function useDistrict(data:unknown){context=new District(data);({district,roads,nodeById,spawn}=context);({planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,boardIsClear,isMajorRoad}=createSigns(context));({Parking}=createParking(context));({Mission}=createMission(context));}
+afterEach(()=>useDistrict(harbor));
 const ringArea=(ring:number[][])=>Math.abs(ring.reduce((sum,a,i)=>{const b=ring[(i+1)%ring.length];return sum+a[0]*b[1]-b[0]*a[1];},0)/2);
 test('Cerea building polygons clear the full rendered road width and junction caps',()=>{
-  activateDistrict(cerea);
+  useDistrict(cerea);
   const corridors:Polygon[]=[];
   for(const road of roads){
     const a=nodeById(road.a),b=nodeById(road.b),length=Math.hypot(b.x-a.x,b.z-a.z),r=(road.width??8)/2;
@@ -30,9 +37,8 @@ test('Cerea building polygons clear the full rendered road width and junction ca
     }
   }
 });
-
 test('large arrow boards are reserved for junctions between major thoroughfares',()=>{
-  activateDistrict(cerea);
+  useDistrict(cerea);
   const {signs,missing}=planJunctionSigns();
   assert.deepEqual(missing,[]);
   assert.ok(signs.length>0&&signs.length<30);
@@ -48,9 +54,8 @@ test('large arrow boards are reserved for junctions between major thoroughfares'
   for(const sign of planParkingSigns())assert.ok(boardIsClear(sign));
   const noEntry=planVittoriaNoEntrySign();assert.ok(noEntry&&boardIsClear(noEntry));
 });
-
 test('Cerea allows stopped information requests anywhere without unsafe-stop counts',()=>{
-  activateDistrict(cerea);
+  useDistrict(cerea);
   const parking=new Parking(),mission=new Mission();
   parking.update(1,spawn,5);parking.update(1,{x:0,z:0},0);
   assert.equal(parking.zone,undefined);assert.equal(parking.stopped,true);
@@ -58,7 +63,6 @@ test('Cerea allows stopped information requests anywhere without unsafe-stop cou
   assert.equal(mission.recordDirectionRequest(parking.stopped,parking.legal),true);
   assert.deepEqual(mission.directionRequests,{legal:1,unsafe:0});
 });
-
 test('building courtyards remain empty while their walls retain collision clearance',()=>{
   const shape={x:0,z:0,width:20,depth:20,points:[{x:-10,z:-10},{x:10,z:-10},{x:10,z:10},{x:-10,z:10}],holes:[[{x:-4,z:-4},{x:4,z:-4},{x:4,z:4},{x:-4,z:4}]]};
   assert.equal(inRect({x:0,z:0},shape),false);

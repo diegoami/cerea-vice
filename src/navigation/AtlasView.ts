@@ -1,7 +1,8 @@
-import {district,type Point} from '../world/district';
-
-/** A paper-map viewport. It has no knowledge of the vehicle or its destination. */
-export class AtlasView {
+import { type Point } from "../world/district";
+import { District } from "../world/district";
+export function createAtlasView(context:District){
+const {district}=context;
+class AtlasView {
   readonly base:{x:number;z:number;width:number;height:number};
   centre:Point;
   zoom=1;
@@ -26,3 +27,6 @@ export class AtlasView {
     this.pan(dx,dz);
   }
 }
+return {AtlasView};
+}
+export type AtlasView=InstanceType<ReturnType<typeof createAtlasView>["AtlasView"]>;

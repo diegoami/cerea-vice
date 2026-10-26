@@ -1,23 +1,28 @@
-import { AtlasView } from "../navigation/AtlasView";
-import { AtlasNotes } from "../navigation/AtlasNotes";
-import { atlasFrame, atlasStreetEntries, atlasReference, atlasMarkup, type AtlasPage } from "./Atlas";
-import type { Car } from "../driving/Car";
-import type { Mission } from "../mission/Mission";
-import type { Parking } from "../navigation/Parking";
+import { createAtlasView } from "../navigation/AtlasView";
+import { createAtlasNotes } from "../navigation/AtlasNotes";
+import { createAtlas, type AtlasPage } from "./Atlas";
+import { type Car } from "../driving/Car";
+import { type Mission } from "../mission/Mission";
+import { type Parking } from "../navigation/Parking";
 import { selectDistrict, availableDistricts } from "../world/load";
-import { district, areaAt, type Point } from "../world/district";
-import { bearing, compass, nearestRoad } from "../navigation/Navigation";
-
+import { type Point } from "../world/district";
+import { createNavigation } from "../navigation/Navigation";
+import { District } from "../world/district";
 export type Screen = "briefing" | "running" | "paused" | "result" | "atlas";
-export const formatMoney=(cents:number)=>`€${(cents/100).toFixed(2)}`;
-export const formatTime = (seconds: number) =>
+export function createHud(context:District){
+const {district,areaAt}=context;
+const {AtlasView}=createAtlasView(context);
+const {AtlasNotes}=createAtlasNotes(context);
+const {atlasFrame,atlasStreetEntries,atlasReference,atlasMarkup}=createAtlas(context);
+const {bearing,compass,nearestRoad}=createNavigation(context);
+const formatMoney=(cents:number)=>`€${(cents/100).toFixed(2)}`;
+const formatTime = (seconds: number) =>
   `${Math.floor(seconds / 60)
     .toString()
     .padStart(2, "0")}:${Math.floor(seconds % 60)
     .toString()
     .padStart(2, "0")}`;
-
-export class Hud {
+class Hud {
   private overlay: HTMLElement;
   private atlasInformation = "";
   private readonly atlasView = new AtlasView();
@@ -431,3 +436,6 @@ export class Hud {
       : "Stop fully for the atlas or directions";
   }
 }
+return {formatMoney,formatTime,Hud};
+}
+export type Hud=InstanceType<ReturnType<typeof createHud>["Hud"]>;

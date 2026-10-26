@@ -2,18 +2,27 @@ import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import cerea from "../public/maps/cerea.json";
 import harbor from "../public/maps/harbor.json";
-import {activateDistrict,validateDistrict,district,nodes,roads,spawn,isPaved,inRect,nodeById,projectToSegment} from "../src/world/district";
-import {shortestRoute,nearestRoad,directionHint} from "../src/navigation/Navigation";
-import {atlasMarkup} from "../src/ui/Atlas";
+import { validateDistrict, inRect, projectToSegment } from "../src/world/district";
+import { createNavigation } from "../src/navigation/Navigation";
+import { createAtlas } from "../src/ui/Atlas";
 import type {DistrictDefinition} from "../src/world/schema";
-import {roadWidth,roadRect} from "../src/world/district";
-import {Parking} from "../src/navigation/Parking";
-import {Mission} from "../src/mission/Mission";
-import {AtlasNotes} from "../src/navigation/AtlasNotes";
-
-afterEach(()=>activateDistrict(harbor));
+import { roadWidth } from "../src/world/district";
+import { createParking } from "../src/navigation/Parking";
+import { createMission } from "../src/mission/Mission";
+import { createAtlasNotes } from "../src/navigation/AtlasNotes";
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {district,nodes,roads,spawn,isPaved,nodeById,roadRect}=context;
+let {shortestRoute,nearestRoad,directionHint}=createNavigation(context);
+let {atlasMarkup}=createAtlas(context);
+let {Parking}=createParking(context);
+let {Mission}=createMission(context);
+let {AtlasNotes}=createAtlasNotes(context);
+function useDistrict(data:unknown){context=new District(data);({district,nodes,roads,spawn,isPaved,nodeById,roadRect}=context);({shortestRoute,nearestRoad,directionHint}=createNavigation(context));({atlasMarkup}=createAtlas(context));({Parking}=createParking(context));({Mission}=createMission(context));({AtlasNotes}=createAtlasNotes(context));}
+afterEach(()=>useDistrict(harbor));
 test("Cerea loads real street geometry, connected routes, named landmarks and accessible stopping bays",()=>{
-  activateDistrict(cerea);
+  useDistrict(cerea);
   assert.equal(district.name,"Cerea Centro");
   assert.ok(new Set(roads.map((road)=>road.name)).size>=20);
   assert.ok(roads.some((road)=>road.name==="Via Paride"&&road.oneWay));
@@ -41,19 +50,17 @@ test("Cerea loads real street geometry, connected routes, named landmarks and ac
   const notes=new AtlasNotes();assert.equal(notes.label,"Sosta Municipio");
   assert.equal(nodes.length,new Set(nodes.map((node)=>node.id)).size);
 });
-
 test("angled road paving uses distance to the road rather than filling its bounding rectangle",()=>{
   const data=structuredClone(cerea);
   data.nodes=[{id:"a",x:0,z:0,label:"A"},{id:"b",x:100,z:100,label:"B"}];
   delete (data as {taxi?:unknown}).taxi;
   data.mission.nodeId="b";
   data.roads=[{a:"a",b:"b",name:"Diagonal",width:8,roadClass:"residential",oneWay:false,bridge:false,osmId:1}];
-  activateDistrict(data);
+  useDistrict(data);
   assert.equal(isPaved({x:50,z:50}),true);
   assert.equal(isPaved({x:10,z:90}),false);
   assert.deepEqual(projectToSegment({x:10,z:90},data.nodes[0],data.nodes[1]),{x:50,z:50});
 });
-
 test("district validation rejects broken connections and degenerate bounds",()=>{
   const data=structuredClone(cerea);
   data.roads[0].a="missing";
@@ -61,19 +68,16 @@ test("district validation rejects broken connections and degenerate bounds",()=>
   data.roads=structuredClone(cerea.roads);data.bounds.maxX=data.bounds.minX;
   assert.throws(()=>validateDistrict(data),/bounds/);
 });
-
-
 test('widthless roads use the same 8 m surface for paving, bounds and the atlas',()=>{
   const data=structuredClone(cerea) as DistrictDefinition;
   delete data.taxi;
   data.nodes=[{id:'a',x:0,z:0,label:'A'},{id:'b',x:100,z:0,label:'B'}];
   data.roads=[{a:'a',b:'b',name:'Test road'}];data.mission.nodeId='b';
-  activateDistrict(data);
+  useDistrict(data);
   assert.equal(roadWidth(roads[0]),8);assert.equal(roadRect(roads[0]).depth,8);
   assert.equal(isPaved({x:50,z:3.9}),true);assert.equal(isPaved({x:50,z:4.1}),false);
   assert.match(atlasMarkup('map'),/stroke-width="8"/);
 });
-
 test('district validation rejects unsafe optional map text',()=>{
   for(const field of ['landmarkRoad','landmarkKind','featureName','roadClass']) {
     const data=structuredClone(cerea);

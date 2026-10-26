@@ -1,14 +1,9 @@
-import harborData from "../../public/maps/harbor.json";
-import type { DistrictDefinition, Point, Rect, Road, RoadNode, Landmark } from "./schema";
+import { Profiler } from "../diagnostics/Profiler";
+import { RouteGraph } from "../navigation/RouteGraph";
+import { SpatialGrid, rectBounds } from "./SpatialGrid";
+import type { DistrictDefinition, Point, Rect, Road, RoadNode, Landmark, MapBuilding } from "./schema";
 export type { Point, Rect, Road, RoadNode, ParkingZone, Landmark, DistrictDefinition } from "./schema";
 
-export let district = harborData as DistrictDefinition;
-export let nodes = district.nodes;
-export let roads = district.roads;
-export let parkingZones = district.parkingZones;
-export let landmarks = district.landmarks;
-export let spawn = district.spawn;
-export let hotelBay = parkingZones.find((zone) => zone.id === district.mission.bayId)!;
 export const ROAD_WIDTH = 8;
 export const roadWidth = (road: Road): number => road.width ?? ROAD_WIDTH;
 export const canal = { x: 40, z: -88, width: 12, depth: 48 };
@@ -48,21 +43,6 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   for (const feature of data.features) if (!(feature.width>0) || feature.points?.length<2 || feature.points.some((point) => !validPoint(point)) || !["water", "rail"].includes(feature.kind)) throw new Error("Invalid map feature");
 }
 
-export function activateDistrict(value: unknown) {
-  validateDistrict(value);
-  district = value;
-  nodes = district.nodes; roads = district.roads; parkingZones = district.parkingZones;
-  landmarks = district.landmarks; spawn = district.spawn;
-  hotelBay = parkingZones.find((zone) => zone.id === district.mission.bayId)!;
-}
-export const nodeById = (id: string): RoadNode => {
-  const node = nodes.find((node) => node.id === id);
-  if (!node) throw new Error(`Unknown road node: ${id}`);
-  return node;
-};
-export const landmarkById = (id: string): Landmark => landmarks.find((place) => place.id === id)!;
-export const areaAt = (point: Point): string => district.areas.find((area) => inRect(point, area))?.name ?? district.name;
-
 export function projectToSegment(point: Point, a: Point, b: Point): Point {
   const dx = b.x - a.x, dz = b.z - a.z;
   const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
@@ -86,13 +66,31 @@ export function inRect(point: Point, rect: Rect, margin = 0): boolean {
   }
   return Math.abs(point.x-rect.x) <= rect.width/2-margin && Math.abs(point.z-rect.z) <= rect.depth/2-margin;
 }
-export function roadRect(road: Road): Rect {
-  const a=nodeById(road.a), b=nodeById(road.b), width=roadWidth(road);
-  return { x:(a.x+b.x)/2,z:(a.z+b.z)/2,width:Math.abs(a.x-b.x)+width,depth:Math.abs(a.z-b.z)+width };
-}
-export function isPaved(point: Point): boolean {
-  return roads.some((road) => {
-    const projected=projectToSegment(point,nodeById(road.a),nodeById(road.b));
-    return Math.hypot(point.x-projected.x,point.z-projected.z) <= roadWidth(road)/2;
-  }) || parkingZones.some((zone)=>inRect(point,zone));
+
+export class District {
+ readonly district:DistrictDefinition;
+ readonly nodes;readonly roads;readonly parkingZones;readonly landmarks;readonly spawn;readonly hotelBay;
+ readonly profile:Profiler;
+ readonly graph:RouteGraph;
+ readonly buildings:SpatialGrid<MapBuilding>;
+ readonly roadGrid:SpatialGrid<Road>;
+ readonly nodeMap:Map<string,RoadNode>;
+ readonly adjacency=new Map<string,Road[]>();
+ constructor(value:unknown,options:{profile?:boolean}={}){
+  validateDistrict(value);this.district=value;this.profile=new Profiler(options.profile);
+  this.nodes=value.nodes;this.roads=value.roads;this.parkingZones=value.parkingZones;this.landmarks=value.landmarks;this.spawn=value.spawn;
+  this.hotelBay=value.parkingZones.find(zone=>zone.id===value.mission.bayId)!;
+  this.graph=new RouteGraph(this.nodes,this.roads);
+  this.nodeMap=new Map(this.nodes.map(node=>[node.id,node]));
+  for(const node of this.nodes)this.adjacency.set(node.id,[]);
+  for(const road of this.roads){this.adjacency.get(road.a)!.push(road);this.adjacency.get(road.b)!.push(road);}
+  this.buildings=new SpatialGrid(value.buildings,rectBounds);
+  this.roadGrid=new SpatialGrid(this.roads,road=>rectBounds(this.roadRect(road)));
+ }
+ nodeById=(id:string):RoadNode=>{const node=this.nodeMap.get(id);if(!node)throw new Error(`Unknown road node: ${id}`);return node;};
+ landmarkById=(id:string):Landmark=>this.landmarks.find(place=>place.id===id)!;
+ areaAt=(point:Point):string=>this.district.areas.find(area=>inRect(point,area))?.name??this.district.name;
+ roadRect=(road:Road):Rect=>{const a=this.nodeById(road.a),b=this.nodeById(road.b),width=roadWidth(road);return {x:(a.x+b.x)/2,z:(a.z+b.z)/2,width:Math.abs(a.x-b.x)+width,depth:Math.abs(a.z-b.z)+width};};
+ isPaved=(point:Point):boolean=>this.roadGrid.at(point).some(road=>{const p=projectToSegment(point,this.nodeById(road.a),this.nodeById(road.b));return Math.hypot(point.x-p.x,point.z-p.z)<=roadWidth(road)/2;})||this.parkingZones.some(zone=>inRect(point,zone));
+ nearestRoad=(point:Point)=>this.roadGrid.nearest(point,edge=>{const p=projectToSegment(point,this.nodeById(edge.a),this.nodeById(edge.b));return {edge,point:p,distance:Math.hypot(point.x-p.x,point.z-p.z)};});
 }

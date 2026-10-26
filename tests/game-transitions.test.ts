@@ -1,20 +1,26 @@
+import { LocalFrame } from "../src/world/LocalFrame";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Game } from '../src/game/Game';
-import { Car } from '../src/driving/Car';
-import { Parking } from '../src/navigation/Parking';
-import { Mission } from '../src/mission/Mission';
+import { createGame } from "../src/game/Game";
+import { createCar } from "../src/driving/Car";
+import { createParking } from "../src/navigation/Parking";
+import { createMission } from "../src/mission/Mission";
 import { BodyMotion } from '../src/presentation/Motion';
 import { defaults } from '../src/presentation/Settings';
 import type { Actions } from '../src/input/Input';
-import type { Screen } from '../src/ui/Hud';
-
-const idle:Actions={steer:0,throttle:0,brake:0,handbrake:false,glance:0,interact:false,pause:false,reminder:false,atlas:false,back:false,atlasPage:0,atlasMoveX:0,atlasMoveY:0,clearMarker:false,information:false,shiftGear:false,lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false,atlasZoom:0,atlasZoomStep:0,atlasPanX:0,atlasPanY:0};
+import { type Screen } from "../src/ui/Hud";
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {Game}=createGame(context);
+let {Car}=createCar(context);
+let {Parking}=createParking(context);
+let {Mission}=createMission(context);
 interface Harness {
- screen:Screen;car:Car;parking:Parking;mission:Mission;waitForDrivingRelease:boolean;
+ screen:Screen;car:InstanceType<typeof Car>;parking:InstanceType<typeof Parking>;mission:InstanceType<typeof Mission>;waitForDrivingRelease:boolean;
  frame(time:number):void;pause():void;requestInformation():void;
 }
-/** Exercise the real Game methods; stub only browser/render/UI boundaries. */
+const idle:Actions={steer:0,throttle:0,brake:0,handbrake:false,glance:0,interact:false,pause:false,reminder:false,atlas:false,back:false,atlasPage:0,atlasMoveX:0,atlasMoveY:0,clearMarker:false,information:false,shiftGear:false,lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false,atlasZoom:0,atlasZoomStep:0,atlasPanX:0,atlasPanY:0};
 function harness(){
  Object.defineProperty(globalThis,'document',{configurable:true,value:{pointerLockElement:null}});
  let actions={...idle},markers=0,estimates=0,clock=1000;
@@ -24,7 +30,7 @@ function harness(){
   screen:'running',car:new Car(),parking:new Parking(),mission:new Mission(),previousTime:1000,accumulator:0,
   districtSwitchReady:false,ignorePauseUntil:0,missionRevision:-1,waitForDrivingRelease:false,
   input:{settingsInput:{move:0,confirm:false,keyboardConfirm:false},poll:()=>({...actions}),controllerDisconnected:false,setMouseCaptured:noop},
-  retro:{render:noop},renderer:{domElement:{focus:noop},render:noop},world:{colliders:[],updateDaylight:noop},
+  retro:{render:noop},renderer:{domElement:{focus:noop},render:noop},world:{frame:new LocalFrame({x:0,z:0}),updateFrame:noop,collisionIndex:[],colliders:[],updateDaylight:noop},
   cockpit:{update:noop,camera:{}},interior:{update:noop,renderMirrors:noop},sound:{update:noop,unlock:noop},motion:new BodyMotion(),
   settings:{...defaults},settingsPanel:{update:()=>false},
   hud:{setHint:noop,confirmAtlasPosition:()=>markers++,setAtlasInformation:noop,show:noop,update:noop,setTaxiMessage:noop,

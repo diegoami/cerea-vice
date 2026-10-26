@@ -1,40 +1,21 @@
-import { district, nodeById, nodes, roads, hotelBay, projectToSegment, areaAt, type Point, type Road } from "../world/district";
+import { type Point, type Road } from "../world/district";
 import type { NavigationTarget } from "../world/schema";
-import { bearing, compass, directionHint as harborHint, nearestRoad as harborNearest } from "./HarborNavigation";
-export { bearing, compass };
+import { createHarborNavigation } from "./HarborNavigation";
+import { District } from "../world/district";
+export function createNavigation(context:District){
+const {district,nodeById,roads,hotelBay,areaAt}=context;
+const {bearing,compass,directionHint:harborHint,nearestRoad:harborNearest}=createHarborNavigation(context);
 
-export function nearestRoad(point: Point) {
-  if (district.id === "harbor") return harborNearest(point);
-  return roads.map((edge) => {
-    const projected = projectToSegment(point,nodeById(edge.a),nodeById(edge.b));
-    return {edge,point:projected,distance:Math.hypot(point.x-projected.x,point.z-projected.z)};
-  }).sort((a,b)=>a.distance-b.distance)[0];
+function nearestRoad(point: Point) {
+  return context.profile.measure("nearest-road",()=>district.id==="harbor"?harborNearest(point):context.nearestRoad(point));
 }
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
-export function shortestRoute(start: string, target = district.mission.nodeId): {cost:number;path:string[]} {
-  const costs=new Map(nodes.map((node)=>[node.id,Infinity]));
-  const previous=new Map<string,string>(); const remaining=new Set(costs.keys()); costs.set(start,0);
-  while (remaining.size) {
-    const current=[...remaining].reduce((a,b)=>costs.get(a)!<costs.get(b)!?a:b);
-    remaining.delete(current);
-    if (!Number.isFinite(costs.get(current)!)) break;
-    if (current===target) break;
-    for (const edge of roads) {
-      const next=edge.a===current?edge.b:edge.b===current&&!edge.oneWay?edge.a:undefined;
-      if (!next) continue;
-      const cost=costs.get(current)!+distance(nodeById(current),nodeById(next));
-      if (cost<costs.get(next)!) { costs.set(next,cost);previous.set(next,current); }
-    }
-  }
-  const cost=costs.get(target)??Infinity;
-  if (!Number.isFinite(cost)) return {cost,path:[]};
-  const path=[target];while(path[0]!==start)path.unshift(previous.get(path[0])!);
-  return {cost,path};
+function shortestRoute(start: string, target = district.mission.nodeId): {cost:number;path:string[]} {
+  return context.profile.measure("route-search",()=>context.graph.search(start,target));
 }
 const edgeBetween=(a:string,b:string):Road=>roads.find((road)=>(road.a===a&&road.b===b)||(road.b===a&&road.a===b))!;
 const cardinal=(from:Point,to:Point)=> Math.abs(to.x-from.x)>Math.abs(to.z-from.z)?(to.x>from.x?"east":"west"):(to.z>from.z?"south":"north");
-
-export function directionHint(point: Point, heading: number, target: NavigationTarget = {name:district.mission.name,nodeId:district.mission.nodeId,bay:hotelBay}): string {
+function directionHint(point: Point, heading: number, target: NavigationTarget = {name:district.mission.name,nodeId:district.mission.nodeId,bay:hotelBay}): string {
   if (district.id === "harbor") return harborHint(point,heading);
   const nearest=nearestRoad(point);
   const intro=`${nearest.distance>12?"Near":"On"} ${nearest.edge.name}, ${areaAt(point)}, facing ${compass(heading)}.`;
@@ -46,7 +27,7 @@ export function directionHint(point: Point, heading: number, target: NavigationT
   let index=0;
   while(index<best.path.length-1) {
     const id=best.path[index];
-    if(roads.filter((r)=>r.a===id||r.b===id).length!==2) break;
+    if((context.adjacency.get(id)??[]).length!==2) break;
     if(index>0&&edgeBetween(best.path[index-1],id).name!==edgeBetween(id,best.path[index+1]).name)break;
     index++;
   }
@@ -59,4 +40,6 @@ export function directionHint(point: Point, heading: number, target: NavigationT
   const delta=Math.atan2(Math.sin(Math.atan2(next.x-junction.x,-(next.z-junction.z))-Math.atan2(junction.x-incoming.x,-(junction.z-incoming.z))),Math.cos(Math.atan2(next.x-junction.x,-(next.z-junction.z))-Math.atan2(junction.x-incoming.x,-(junction.z-incoming.z))));
   const instruction=Math.abs(delta)<0.35?"continue":delta>0?"turn right":"turn left";
   return `${intro} ${away?"Turn around safely, then continue":"Continue"} ${cardinal(nearest.point,junction)} to ${junction.label}; ${instruction} onto ${edgeBetween(junction.id,next.id).name}.`;
+}
+return {bearing,compass,nearestRoad,shortestRoute,directionHint};
 }

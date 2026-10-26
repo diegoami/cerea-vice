@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import {Vector3} from 'three';
 import {MIRROR_MOUNTS} from '../src/driving/Cockpit';
 import {CockpitCamera} from '../src/driving/CockpitCamera';
-import {Car} from '../src/driving/Car';
+import { createCar } from "../src/driving/Car";
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {Car}=createCar(context);
 const idle={lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false};
-
 test('right-stick look can pass the rear and complete a full circle without turning the car',()=>{
   const camera=new CockpitCamera(),car=new Car();car.heading=0;
   const original={x:car.x,z:car.z,heading:car.heading};
@@ -24,7 +27,6 @@ test('mouse look can rotate through 360, pitch stays upright, and recenter retur
   camera.update(1/60,car,0,{...idle,resetLook:true});
   const forward=camera.camera.getWorldDirection(new Vector3());assert.ok(forward.x>.99);assert.ok(Math.abs(forward.z)<.001);
 });
-
 test('releasing the stick smoothly recenters yaw and pitch without steering',()=>{
   const camera=new CockpitCamera(),car=new Car();car.heading=.7;
   camera.update(.6,car,0,{...idle,lookX:1,lookY:1});
@@ -53,8 +55,6 @@ test('mouse inactivity returns to front, continuous input holds the view, and re
   car.heading=0;a.reset();a.update(1,car,1,idle);
   assert.ok(a.camera.getWorldDirection(new Vector3()).x>.8,'Held bumper glances still work');
 });
-
-
 test('both mirror housings fit the forward view at 4:3, default and widescreen aspects',()=>{
   const cockpit=new CockpitCamera(),car=new Car();car.x=0;car.z=0;car.heading=0;
   for(const aspect of [4/3,1280/900,1440/900,16/9]) {

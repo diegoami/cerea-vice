@@ -1,14 +1,19 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { junctionDirections } from "../src/world/directions";
-import { activateDistrict, nodes, roads } from "../src/world/district";
-
+import { createDirections } from "../src/world/directions";
 import cerea from "../public/maps/cerea.json";
 import harbor from "../public/maps/harbor.json";
-import {directionHint} from "../src/navigation/Navigation";
-import {Mission} from "../src/mission/Mission";
-afterEach(()=>activateDistrict(harbor));
-
+import { createNavigation } from "../src/navigation/Navigation";
+import { createMission } from "../src/mission/Mission";
+import { District } from "../src/world/district";
+import contextHarbor from "../public/maps/harbor.json";
+let context=new District(contextHarbor);
+let {nodes,roads}=context;
+let {junctionDirections}=createDirections(context);
+let {directionHint}=createNavigation(context);
+let {Mission}=createMission(context);
+function useDistrict(data:unknown){context=new District(data);({nodes,roads}=context);({junctionDirections}=createDirections(context));({directionHint}=createNavigation(context));({Mission}=createMission(context));}
+afterEach(()=>useDistrict(harbor));
 test("hotel signs reverse left/right for opposite approaches to Central Crossroads", () => {
   const eastbound = junctionDirections("c", "w").find((row) => row.detail === "BLUE HOTEL");
   const northbound = junctionDirections("c", "s").find((row) => row.detail === "BLUE HOTEL");
@@ -17,7 +22,6 @@ test("hotel signs reverse left/right for opposite approaches to Central Crossroa
   assert.equal(northbound?.direction, "right");
   assert.equal(southbound?.direction, "left");
 });
-
 test("every junction approach signs every onward exit without a U-turn", () => {
   for (const node of nodes) {
     const connected = roads.filter((road) => road.a === node.id || road.b === node.id);
@@ -32,19 +36,16 @@ test("every junction approach signs every onward exit without a U-turn", () => {
   assert.equal(junctionDirections("s", "sw").find((row) => row.text === "CENTRAL AVENUE")?.direction, "left");
   assert.equal(junctionDirections("e", "c").find((row) => row.detail === "BLUE HOTEL")?.direction, "left");
 });
-
-
 test('Cerea Paride/Cordioli boards name the correct turns and suppress a one-way entrance',()=>{
-  activateDistrict(cerea);
+  useDistrict(cerea);
   const northbound=junctionDirections('1229988085','3214419205');
   assert.deepEqual(northbound.map(row=>[row.text,row.direction]),[['VIA PARIDE','straight'],['VIA CORDIOLI','right']]);
   const southbound=junctionDirections('1229988085','2432129518');
   assert.deepEqual(southbound.map(row=>[row.text,row.direction]),[['VIA CORDIOLI','left']]);
   assert.equal(southbound.some(row=>row.text==='VIA PARIDE'),false,'No arrow may direct the driver against Paride one-way access');
 });
-
 test('Cerea information follows the current taxi target and gives a useful return instruction',()=>{
-  activateDistrict(cerea);
+  useDistrict(cerea);
   const mission=new Mission(),position=cerea.spawn;
   assert.match(directionHint(position,position.heading,mission.target),/Municipio di Cerea is beside you/);
   assert.equal(mission.serveAtStop(position,true),true);

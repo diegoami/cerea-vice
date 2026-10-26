@@ -908,3 +908,5 @@ h1 em {
 .presentation-settings label { display:flex;justify-content:space-between;align-items:center;gap:6px;margin:4px 0; }
 .presentation-settings select { background:#253e3c;color:#fff0ce;border:1px solid #81907a;padding:4px;max-width:145px;font:11px monospace; }
 .presentation-settings .controller-selected { outline:2px solid #e7bf74; }
+
+#performance-stats { position:absolute;z-index:20;left:12px;top:90px;margin:0;padding:8px;background:#142126ed;color:#ead6a9;font:11px/1.5 monospace;pointer-events:none; }
