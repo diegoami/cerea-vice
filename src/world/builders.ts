@@ -9,7 +9,7 @@ export function material(color: number) {
       color,
       new THREE.MeshLambertMaterial({ color, flatShading: true }),
     );
-  return materials.get(color)!;
+  const result=materials.get(color)!;result.userData.shared=true;return result;
 }
 
 export function box(
@@ -182,6 +182,7 @@ export function streetNamePlate(
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
     texture.magFilter=THREE.LinearFilter;texture.anisotropy=4;
     face=new THREE.MeshBasicMaterial({map:texture});
+    face.userData.shared=true;
     streetFaces.set(plan.name,face);
   }
   const geometry=new THREE.PlaneGeometry(plan.width,plan.width*192/1024);

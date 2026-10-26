@@ -43,7 +43,7 @@ function roofGeometry(points:Point[],holes:Point[][],height:number){
   }
   flat.dispose();const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geometry.computeVertexNormals();return geometry;
 }
-function decorateBuildings(parent:THREE.Group){
+function createFacadeMaterials(){
   const mats=[0,1,2,3].map(v=>paintedFacade(v));
   const groundMats=[0,1,2,3].map(v=>paintedFacade(v,true));
   const tile=document.createElement('canvas');tile.width=32;tile.height=32;const c=tile.getContext('2d')!;
@@ -52,7 +52,12 @@ function decorateBuildings(parent:THREE.Group){
   for(let y=0;y<=32;y+=8){c.beginPath();c.moveTo(0,y);c.lineTo(32,y);c.stroke();}
   const map=new THREE.CanvasTexture(tile);map.wrapS=map.wrapT=THREE.RepeatWrapping;map.colorSpace=THREE.SRGBColorSpace;map.magFilter=THREE.NearestFilter;
   const roof=new THREE.MeshLambertMaterial({map,side:THREE.DoubleSide});
-  for(const building of district.buildings){
+  for(const m of [...mats,...groundMats,roof])m.userData.shared=true;
+  return {mats,groundMats,roof};
+}
+function decorateBuildings(parent:THREE.Group,buildings=district.buildings,surfaces=createFacadeMaterials(),paletteOrigin:Point={x:0,z:0}){
+  const {mats,groundMats,roof}=surfaces;
+  for(const building of buildings){
     const points=building.points??[{x:building.x-building.width/2,z:building.z-building.depth/2},{x:building.x+building.width/2,z:building.z-building.depth/2},{x:building.x+building.width/2,z:building.z+building.depth/2},{x:building.x-building.width/2,z:building.z+building.depth/2}];
     parent.add(new THREE.Mesh(roofGeometry(points,building.holes??[],building.height+.02),roof));
     for(const ring of [points,...(building.holes??[])])for(let i=0;i<ring.length;i++){
@@ -60,7 +65,7 @@ function decorateBuildings(parent:THREE.Group){
       let nx=-(b.z-a.z)/length,nz=(b.x-a.x)/length;
       const mid={x:(a.x+b.x)/2,z:(a.z+b.z)/2};const probe={x:mid.x+nx*.1,z:mid.z+nz*.1};if(pointInPolygon(probe,points)&&!(building.holes??[]).some(hole=>pointInPolygon(probe,hole))){nx=-nx;nz=-nz;}
       const groundHeight=Math.min(3.2,building.height);
-      for(const [bottom,h,mat] of [[0,groundHeight,groundMats[facadeVariant(building.x,building.z)]],[groundHeight,building.height-groundHeight,mats[facadeVariant(building.x,building.z)]]] as const){
+      for(const [bottom,h,mat] of [[0,groundHeight,groundMats[facadeVariant(building.x+paletteOrigin.x,building.z+paletteOrigin.z)]],[groundHeight,building.height-groundHeight,mats[facadeVariant(building.x+paletteOrigin.x,building.z+paletteOrigin.z)]]] as const){
         if(h<=0)continue;
         const geometry=new THREE.PlaneGeometry(length,h);
         const uv=geometry.getAttribute('uv');for(let j=0;j<uv.count;j++)uv.setXY(j,uv.getX(j)*length/4,uv.getY(j)*h/3.2);
@@ -85,8 +90,8 @@ function planProps(signs:Sightline[]=[]):PropPlan[]{
  }
  return result;
 }
-function dressStreets(parent:THREE.Group,signs:Sightline[]=[]){
- for(const p of planProps(signs)){
+function dressStreets(parent:THREE.Group,signs:Sightline[]=[],planned=planProps(signs)){
+ for(const p of planned){
   const group=new THREE.Group();group.position.set(p.x,0,p.z);group.rotation.y=p.angle;parent.add(group);
   if(p.kind==='tree'){box(group,0,1.5,0,.35,3,.35,0x685744);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(2,0),material(0x687b48));crown.position.y=3.4;group.add(crown);}
   if(p.kind==='lamp'){box(group,0,2.7,0,.16,5.4,.16,0x455856);box(group,.4,5.4,0,1.2,.15,.4,0xd3c8a5);}
@@ -94,5 +99,5 @@ function dressStreets(parent:THREE.Group,signs:Sightline[]=[]){
   if(p.kind==='person'){box(group,0,1.05,0,.45,.8,.3,0x9b7959);for(const x of [-.12,.12])box(group,x,.35,0,.16,.7,.2,0x435252);const head=new THREE.Mesh(new THREE.IcosahedronGeometry(.21,0),material(0xc8a47d));head.position.y=1.65;group.add(head);}
  }
 }
-return {facadeVariant,facadeColor,roofGeometry,decorateBuildings,planProps,dressStreets};
+return {facadeVariant,facadeColor,roofGeometry,createFacadeMaterials,decorateBuildings,planProps,dressStreets};
 }

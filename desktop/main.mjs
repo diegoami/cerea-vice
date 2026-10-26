@@ -37,8 +37,9 @@ function createWindow() {
     }
   });
   const requestedDistrict = app.commandLine.getSwitchValue('district');
-  const selected = ['cerea','harbor'].includes(requestedDistrict) ? `#district=${requestedDistrict}` : '';
-  window.loadURL(`cerea://game/${app.commandLine.hasSwitch('profile')?'?profile=1':''}${selected}`);
+  const selected = ['cerea','harbor','cerea-outskirts'].includes(requestedDistrict) ? `#district=${requestedDistrict}` : '';
+  const parameters=new URLSearchParams();if(app.commandLine.hasSwitch('profile'))parameters.set('profile','1');if(app.commandLine.hasSwitch('tile-lab'))parameters.set('tile-lab','1');
+  window.loadURL(`cerea://game/${parameters.size?'?'+parameters:''}${selected}`);
 }
 
 app.whenReady().then(() => {

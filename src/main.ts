@@ -8,6 +8,9 @@ async function start() {
   try {
     app.innerHTML='<div class="fatal"><h1>Opening the district…</h1></div>';
     const context=await loadSelectedDistrict();
+    if(new URLSearchParams(window.location.search).has("tile-lab")){
+      app.replaceChildren();const {runTileLab}=await import("./diagnostics/TileLab");runTileLab(app,context);return;
+    }
     const {Game}=createGame(context);
     document.title = `Cerea Vice ${version} · ${context.district.name}`;
     app.replaceChildren();

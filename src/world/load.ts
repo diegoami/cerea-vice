@@ -3,6 +3,7 @@ import { District } from "./district";
 export const availableDistricts = [
   {id:"cerea",name:"Cerea Centro"},
   {id:"harbor",name:"Harbor District"},
+  {id:"cerea-outskirts",name:"Cerea outskirts prototype"},
 ] as const;
 export function requestedDistrict(): string {
   const hash = new URLSearchParams(window.location.hash.slice(1)).get("district");
@@ -12,9 +13,10 @@ export function requestedDistrict(): string {
 }
 export async function loadSelectedDistrict() {
   const id=requestedDistrict();
-  const response=await fetch(new URL(`./maps/${id}.json`,window.location.href));
+  const sourceUrl=new URL(id==="cerea-outskirts"?"./maps/cerea-outskirts/manifest.json":`./maps/${id}.json`,window.location.href);
+  const response=await fetch(sourceUrl);
   if(!response.ok)throw new Error(`Could not load district ${id}`);
-  return new District(await response.json(),{profile:new URLSearchParams(window.location.search).has("profile")});
+  return new District(await response.json(),{profile:new URLSearchParams(window.location.search).has("profile"),assetBase:new URL("./",sourceUrl).href});
 }
 export function selectDistrict(id: string) {
   if(!availableDistricts.some((map)=>map.id===id))return;

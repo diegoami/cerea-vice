@@ -51,7 +51,7 @@ class Hud {
     ui.innerHTML = `
       <div class="vignette" aria-hidden="true"></div>
       <header class="topbar">
-        <div class="district-tag"><span class="live-dot"></span> ${district.name.toUpperCase()} <small>${district.id === "cerea" ? "REAL STREETS / MODERN MAP" : "FICTIONAL PROTOTYPE"}</small></div>
+        <div class="district-tag"><span class="live-dot"></span> ${district.name.toUpperCase()} <small>${district.streaming ? "REAL CEREA / FICTIONAL TEST LINK" : district.id === "cerea" ? "REAL STREETS / MODERN MAP" : "FICTIONAL PROTOTYPE"}</small></div>
         <div class="compass-panel" aria-label="Compass">
           <div class="compass-window"><div class="compass-track">${Array.from({ length: 3 }, () => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"].map((s) => `<span>${s}</span>`).join("")).join("")}</div></div>
           <div class="compass-notch"></div><strong id="heading">E · 090°</strong>
@@ -65,7 +65,7 @@ class Hud {
         <div class="dashboard-left"><div class="speed-line"><strong id="speed">00</strong><span>KM/H<br><b id="gear">D</b></span></div><div class="stop-state" id="stop-state">SETTLING</div></div>
         <div class="dashboard-right"><strong class="car-badge">CEREA / 1986</strong><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div></div>
       </footer>
-      ${district.id === "cerea" ? `<div class="map-credit">${district.attribution} · openstreetmap.org/copyright</div>` : ""}
+      ${district.attribution.includes("OpenStreetMap") ? `<div class="map-credit">${district.attribution} · openstreetmap.org/copyright</div>` : ""}
       <div id="overlay" class="overlay"></div>
     `;
     root.append(ui);

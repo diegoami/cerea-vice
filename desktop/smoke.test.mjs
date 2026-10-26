@@ -483,3 +483,36 @@ test('Cerea remains playable 25 km from origin with optional timings and a stabl
   assert.deepEqual(errors,[]);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('offline outskirts prototype freezes while loading and supports city-to-hamlet taxi, atlas and a hamlet start', {timeout:120000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-outskirts-test-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  let release;const gate=new Promise(resolve=>release=resolve);let blocked=true;
+  await page.route('**/tiles/*.json',async route=>{if(blocked)await gate;await route.continue();});
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.locator('#stream-status').waitFor();assert.match(await page.locator('.map-credit').innerText(),/OpenStreetMap/);
+  const clock=await page.locator('#timer').innerText();await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
+  assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
+  blocked=false;release();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Test Hamlet'));
+  await page.keyboard.press('f');await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  assert.match(await page.locator('.atlas-map').innerHTML(),/TEST LINK/);assert.match(await page.locator('.atlas-attribution').innerText(),/OpenStreetMap/);
+  const pin=await page.locator('.atlas-pin').getAttribute('transform');await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.screenshot({path:'test-results/C-prototype-city.png'});assert.equal(await page.evaluate(()=>window.tileLabResult===undefined),true,'Normal gameplay has no lab globals');
+  // Separate fixture starts at the terminal, proving its offline assets and return fare.
+  await page.route('**/cerea-outskirts/manifest.json',async route=>{
+   const {readFile}=await import('node:fs/promises');const data=JSON.parse(await readFile('public/maps/cerea-outskirts/manifest.json','utf8'));
+   const bay=data.parkingZones.find(p=>p.id==='test-hamlet');data.spawn={x:bay.x,z:bay.z,heading:0,name:bay.name};data.taxi.fares=[{passenger:'Return tester',pickupId:'test-hamlet',destinationId:'municipio'}];await route.fulfill({json:data});
+  });
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Municipio'));
+  await page.keyboard.press('f');await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();const terminalPin=await page.locator('.atlas-pin').getAttribute('transform');assert.notEqual(terminalPin,pin);
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.down('w');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>3);await page.keyboard.up('w');
+  await page.keyboard.down('Space');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)===0);await page.keyboard.up('Space');await page.waitForFunction(()=>document.querySelector('#stop-state').textContent.includes('STOP'));
+  await page.screenshot({path:'test-results/C-prototype-hamlet.png'});
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),terminalPin);
+  assert.deepEqual(errors,[]);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});

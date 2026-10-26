@@ -1,3 +1,4 @@
+import { LayeredRouteGraph } from "./LayeredRouteGraph";
 import { type Point, type Road } from "../world/district";
 import type { NavigationTarget } from "../world/schema";
 import { createHarborNavigation } from "./HarborNavigation";
@@ -22,7 +23,7 @@ function directionHint(point: Point, heading: number, target: NavigationTarget =
   if (distance(point,target.bay)<35) return `${intro} ${target.name} is beside you. Stop in the marked ${target.bay.name}.`;
   const road=nearest.edge as Road;
   const starts=road.oneWay?[road.b]:[road.a,road.b];
-  const best=starts.map((id)=>{const route=shortestRoute(id,target.nodeId);return {...route,cost:route.cost+distance(nearest.point,nodeById(id))};}).sort((a,b)=>a.cost-b.cost)[0];
+  const best=starts.map((id)=>{const route=context.graph instanceof LayeredRouteGraph?context.profile.measure("route-search",()=>context.graph instanceof LayeredRouteGraph?context.graph.nextLeg(id,target.nodeId,road.region):shortestRoute(id,target.nodeId)):shortestRoute(id,target.nodeId);return {...route,cost:route.cost+distance(nearest.point,nodeById(id))};}).sort((a,b)=>a.cost-b.cost)[0];
   if (!best.path.length) return `${intro} This road leaves the playable district. Return to the signed junction and ask again.`;
   let index=0;
   while(index<best.path.length-1) {
@@ -34,6 +35,7 @@ function directionHint(point: Point, heading: number, target: NavigationTarget =
   const junction=nodeById(best.path[index]);
   const first=nodeById(best.path[0]);
   const away=distance(nearest.point,first)>2&&Math.cos(Math.atan2(first.x-nearest.point.x,-(first.z-nearest.point.z))-heading)<-0.5;
+  if(index===best.path.length-1&&'onward' in best&&best.onward) return `${intro} ${away?"Turn around safely, then follow":"Follow"} the road ${cardinal(nearest.point,junction)} toward ${best.onward}; use the permanent signs and ask again at the next junction.`;
   if(index===best.path.length-1) return `${intro} ${away?"Turn around safely, then follow":"Follow"} the road ${cardinal(nearest.point,junction)} toward ${target.name}; look for its signed stopping bay.`;
   const next=nodeById(best.path[index+1]);
   const incoming=index>0?nodeById(best.path[index-1]):nearest.point;
