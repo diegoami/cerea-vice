@@ -523,3 +523,32 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
   assert.deepEqual(errors,[]);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('a transient local tile failure retries while paused and recovers without restart or lost progress', {timeout:90000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-tile-retry-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ let release;
+ const gate=new Promise(resolve=>release=resolve);
+ try{
+  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  let attempts=0,signal;const retried=new Promise(resolve=>signal=resolve);
+  await page.route('**/tiles/0_0.json',async route=>{
+   attempts++;if(attempts===1){await route.abort('failed');return;}
+   signal();await gate;await route.continue();
+  });
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.waitForFunction(()=>document.querySelector('#stream-status').textContent.includes('Retrying automatically'));
+  assert.doesNotMatch(await page.locator('#stream-status').innerText(),/Pause and reload/);
+  const clock=await page.locator('#timer').innerText();assert.equal(Number(await page.locator('#speed').innerText()),0);
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  await retried;await page.waitForTimeout(2200);assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(attempts,2);
+  const response=page.waitForResponse(r=>r.url().endsWith('/tiles/0_0.json')&&r.status()===200);release();await (await response).finished();
+  await page.waitForTimeout(500);assert.equal(await page.getByRole('button',{name:'Back to the road'}).isVisible(),true,'Asset recovery must not resume a paused drive');
+  await page.evaluate(()=>{window.retryPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.retryPad],configurable:true});window.retryPad.buttons[9].value=1;});
+  await page.locator('#overlay').waitFor({state:'hidden'});await page.evaluate(()=>{window.retryPad.buttons[9].value=0;});
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  assert.equal(await page.locator('#stream-status').isHidden(),true);assert.equal(attempts,2);assert.equal(await page.locator('#gear').innerText(),'D');
+  await page.screenshot({path:'test-results/C-retry-recovered.png'});assert.deepEqual(errors,[]);
+ }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
+});

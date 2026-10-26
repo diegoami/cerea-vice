@@ -91,3 +91,24 @@ test('directions compare local endpoint costs even when one endpoint is already 
  const bay=data.parkingZones.find(b=>b.id==='test-hamlet')!;assert.ok(mission.serveAtStop(bay,true));
  assert.match(createNavigation(context).directionHint(bay,0,mission.target),/Turn around safely.*south.*Cerea Centro/);
 });
+
+test('transient tile errors retry after backoff, recover readiness and clear active error state',async()=>{
+ let now=0,attempts=0;
+ const stream=new TileStream(manifest,async ref=>{attempts++;if(attempts===1)throw new Error('Transient read');return payload(ref.id);},()=>({dispose(){}}),2,()=>now);
+ const point={x:100,z:100};stream.update(point);await flush();assert.equal(attempts,1);assert.equal(stream.recovering,true);assert.equal(stream.readyAt(point),false);
+ now=499;stream.update(point);await flush();assert.equal(attempts,1,'No tight retry loop');
+ now=500;stream.update(point);await flush();assert.equal(attempts,2);assert.equal(stream.readyAt(point),true);assert.equal(stream.recovering,false);assert.equal(stream.stats.failures,1,'Historical failure count remains diagnostic only');stream.dispose();
+});
+test('persistent errors use capped backoff and stop retrying outside the wanted set or after disposal',async()=>{
+ let now=0,attempts=0;
+ const stream=new TileStream(manifest,async()=>{attempts++;throw new Error('Still unavailable');},()=>({dispose(){}}),2,()=>now),point={x:100,z:100};
+ stream.update(point);await flush();
+ for(const delay of [500,1000,2000,4000,8000,8000]){const before=attempts;now+=delay-1;stream.update(point);await flush();assert.equal(attempts,before);now++;stream.update(point);await flush();assert.equal(attempts,before+1);}
+ stream.update({x:9000,z:9000});assert.equal(stream.recovering,false);now+=9000;stream.update({x:9000,z:9000});await flush();const before=attempts;stream.dispose();stream.update(point);await flush();assert.equal(attempts,before);
+});
+test('tile ids/bounds are canonical and the prototype grid has no overlaps or missing cells',()=>{
+ const shifted=structuredClone(data);shifted.streaming!.tiles[0].bounds.minX+=250;shifted.streaming!.tiles[0].bounds.maxX+=250;assert.throws(()=>new District(shifted),/canonical grid/);
+ const overlap=structuredClone(data);overlap.streaming!.tiles[1].bounds={...overlap.streaming!.tiles[0].bounds};assert.throws(()=>new District(overlap),/canonical grid/);
+ const alias=structuredClone(data),tile=alias.streaming!.tiles.find(t=>t.id==='0_0')!;tile.id='-0_0';tile.file='tiles/-0_0.json';assert.throws(()=>new District(alias),/canonical grid/);
+ const missing=structuredClone(data);missing.streaming!.tiles.pop();assert.throws(()=>new District(missing),/coverage/);
+});

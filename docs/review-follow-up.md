@@ -164,3 +164,36 @@ after driving. A zero-length portal-leg comparison bug found in a hamlet
 screenshot was fixed with unit and actual return-hint regressions. Final serial
 profiles and ten-copy logical sizing are in the C report; real Windows/GPU,
 physical controller and audio checks remain outstanding. C is not merged.
+
+## PR #5 independent review follow-up
+
+Claude Code / Sonnet 5.5 reviewed exact C head
+`5077517cef214896963b368a6962ee11ec978034` against main
+`ebd93fc93217f0f40654a0e1acc259a65d4819b8`. It requested rework for one
+SHOULD item, with one MINOR item and no MUST-FIX. The independent data,
+routing, collision, hint, ownership, export and lab comparisons matched the
+prototype's claims; its normal-play and physical-drive limitations remain.
+
+| Finding | Disposition and evidence |
+| --- | --- |
+| S1 — transient tile failure permanently freezes the session; misleading reload instruction | Confirmed directly on the reviewed code: one failed request remained excluded after another update, leaving one attempt and ready=false. Wanted failed tiles now retry at 0.5/1/2/4 s, then an 8 s cap, without tight loops or retries after close/outside the wanted set. Successful builds clear active failure state while retaining historical diagnostics. Local requests bypass the response cache. The UI says automatic retry and restart if persistent, rather than referring to a nonexistent desktop Reload menu. Unit tests use a deterministic clock; an Electron regression aborts the first tile request, allows recovery while paused, checks frozen time and explicit controller resume without restarting. |
+| M1 — tile IDs do not prove bounds/coverage consistency | Canonical integer IDs now determine all four 250 m bounds. Unsafe coordinates/aliases such as -0_0, duplicate IDs, moved/overlapping bounds, out-of-grid tiles and missing rectangle cells are rejected. Unique canonical cells plus the expected grid count establish non-overlap and complete prototype coverage. New tests reject shifted bounds, overlaps, aliases and removed cells; the committed manifest remains unchanged. |
+
+The successful scene/query algorithms and geometry are unchanged. Historical
+C measurements describe the original reviewed samples; no new speedup is
+claimed. The no-store retry policy can affect local read timing, so any fresh
+load profile is recorded separately rather than silently replacing earlier
+numbers. The review still did not include a physical end-to-end drive of the
+link, physical controller, real Windows gameplay/audio or Windows GPU checks.
+These remain outstanding/manual. C is not merged; no reviewer is selected or
+started, and the pushed fixes need their own exact-head re-review.
+
+Follow-up verification: Node 24.21.0, clean install (0 vulnerabilities), all
+77 unit tests, source/test build and all eight required Electron scenarios pass
+(~161 seconds). The new actual Electron abort/retry case recovers without
+restarting, holds time while paused, retains pause on success and resumes with
+the controller. A fresh serial no-store lab run retains the original geometry
+and disposal counts (69 loads / 51 unloads); timing samples are recorded
+separately in the C report. No final checks failed/skipped, and no generated
+runtime artifacts are tracked. End-to-end driving/Windows/controller/audio/GPU
+manual limitations remain explicit.

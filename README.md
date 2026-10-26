@@ -268,7 +268,9 @@ npm run desktop:win -- cerea-outskirts
 The prototype begins with a passenger at Municipio wanting the test hamlet,
 then a return ride. Controls, stopped atlas/information, marker knowledge,
 07:00–17:00 accounting and speed bonuses work as before. If nearby scenery is
-still loading, simulation time pauses. All data is bundled locally.
+still loading, simulation time pauses. Transient read errors retry automatically;
+persistent failures suggest restarting the application. A recovered load keeps
+your trip and pause state. All data is bundled locally.
 
 See [prototype scope, reproduction, measurements and ten-town limits](docs/TILED_PROTOTYPE.md).
 The experiment streams rendering, while logical collision/atlas data remain

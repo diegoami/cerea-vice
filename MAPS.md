@@ -122,3 +122,9 @@ must be a tree; arbitrary connected town networks are future work.
 Attribution is shown in the prototype's driving view, briefing and atlas, and
 source/synthetic provenance travels in every tile. See [the C feasibility
 report](docs/TILED_PROTOTYPE.md) and [source/licence details](data/README.md).
+
+Tile references must use canonical integer grid IDs with matching 250 m bounds
+and complete coverage of the prototype rectangle. Invalid overlaps, aliases or
+missing cells fail validation before play. Local read failures retry with capped
+backoff, holding the simulation gate until the current neighbourhood is ready.
+Recovery retains the existing trip, atlas knowledge and pause state.

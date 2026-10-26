@@ -213,7 +213,7 @@ class Game {
     this.world.updateFrame(this.car);
     const worldReady=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
     this.streamStatus.hidden=worldReady||this.screen!=="running";
-    this.streamStatus.textContent=this.world instanceof StreamingWorld&&this.world.stream.stats.failures?'Scenery could not be loaded. Pause and reload to retry.':'Loading scenery… simulation time is paused.';
+    this.streamStatus.textContent=this.world instanceof StreamingWorld&&this.world.stream.recovering?'Scenery load interrupted. Retrying automatically… time is paused. Restart the application if it persists.':'Loading scenery… simulation time is paused.';
     if(this.screen==="running"&&!worldReady)this.accumulator=0;
     if (this.screen === "running"&&worldReady) {
       if(this.waitForDrivingRelease&&actions.throttle<.1&&actions.brake<.1)this.waitForDrivingRelease=false;

@@ -68,12 +68,18 @@ Two loads run concurrently, nearest first. The loading radius is 465 m, retentio
 radius 615 m and radial fog ends at 300 m. The larger halo includes asset reach
 and the mirrored views. Cached tiles beyond the visible range are hidden; a
 wider retention range avoids repeatedly rebuilding a boundary tile. Payload
-identity/local paths and asset owners are checked. A late completion outside
+identity/local paths and asset owners are checked. IDs are canonical grid
+coordinates, bounds must match ID×250, and the current prototype requires a
+complete rectangular tile grid; aliases, overlaps and missing cells are rejected. A late completion outside
 the current halo or after disposal never installs a stale mesh.
 
 If the visible neighbourhood is not ready, car physics and mission time freeze
-with a generic loading notice. Failed local assets keep that gate closed and
-ask for a reload; no tile coordinates or location information are displayed.
+with a generic loading notice. Transient local reads retry automatically after
+0.5 s, then 1/2/4 s with an 8 s backoff cap while the tile remains wanted.
+Requests bypass the response cache so a retry rechecks the local asset. The
+gate stays closed until recovery; persistent failures suggest restarting the
+application. Recovery never resumes a paused drive or changes atlas knowledge.
+No tile coordinates or location information are displayed.
 Pause/atlas still freeze simulation time, and asset completion never moves an
 atlas marker. Keyboard and standard controller use the same existing game paths.
 
@@ -250,3 +256,40 @@ or were skipped. Physical controller, real Windows launch/gameplay/audio and
 Windows GPU measurements remain outstanding/manual. No independent reviewer
 was started or selected; this C prototype requires its own review and is not
 merged.
+
+## PR #5 review follow-up validation
+
+The first independent review covered `5077517cef214896963b368a6962ee11ec978034`
+and requested transient-load recovery (S1), with a minor grid-validation gap
+(M1). Both are addressed: automatic backoff/fresh reads preserve the session,
+and canonical IDs/matching bounds/full rectangle coverage reject malformed
+manifests. See `review-follow-up.md` for reproduction and dispositions.
+
+`npm ci` passed (0 vulnerabilities); **77 unit tests**, source/test type-check
+and build, and **all eight** required Xvfb/xfwm4 Electron scenarios pass together
+(~161 seconds). The new case aborts the first local tile request, confirms a
+retry while paused with frozen time/speed, restores the file response, checks
+that pause is retained, then resumes with the standard controller. Existing
+scene, atlas/marker, gear, offline and prototype tests remain passing.
+
+A serial lab repeat checks the new no-store local-read policy. Original evidence
+is preserved, and follow-up JSON/PNG is in ignored
+`test-results/C-retry-tile-lab.*`:
+
+| Scripted station | Tile wait s | Median / p95 frame ms |
+| --- | ---: | ---: |
+| City start | 1.96 | 100.0 / 133.3 |
+| City exit | 0.69 | 33.4 / 83.3 |
+| Country | 0.15 | 33.3 / 50.0 |
+| Hamlet | 0.07 | 33.4 / 50.0 |
+| City return | 0.94 | 100.0 / 116.7 |
+
+It again performs 69 loads / 51 unloads, returns to exactly
+10,639,660 city geometry-buffer bytes / 443 geometries, and disposes
+back to 0 resident tiles / 39 cockpit geometries / 48 retained textures.
+Frame/load differences are software-GPU/run variance, not a measured retry-policy
+speedup. No scene, route, collision or fare algorithms changed during follow-up.
+No final checks failed or were skipped. An actual end-to-end drive of the link,
+physical controller, Windows play/audio and Windows GPU measurements remain
+outstanding; the lab remains scripted jumps. The fix requires a fresh independent
+review of its exact head; no reviewer is started/chosen and C remains unmerged.
