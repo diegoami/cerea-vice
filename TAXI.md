@@ -13,7 +13,7 @@ Cerea Centro now plays as a taxi shift. Collect a passenger, read their destinat
 
 ## Collecting and delivering
 
-1. Find the current passenger's named pickup stop. A simple figure waits there.
+1. Find the current passenger's named pickup stop. Static waiting figures appear at all stops, so they do not identify the active pickup.
 2. Stop fully inside the marked stopping area, then press **A / Cross / Enter** to collect them.
 3. Read the passenger's request and street name in the objective and taxi radio message.
 4. Reach that destination, stop in its named area and press **A / Cross / Enter** again.
@@ -52,3 +52,5 @@ The expanded modern-map subset has **51 named streets** and **nine taxi stops**:
 The first trip takes Elena from the Municipio to the post office. Later passengers take you between the cinemas, church, school, restaurant, oratory and other stops. Ten authored customer requests cycle if you are fast enough to complete them all before closing, giving a repeatable basis for comparing shift scores.
 
 The map now extends farther south and east, including the post office and the Oratorio dello Spasimo area, plus additional streets north and west. All taxi stop pairs have finite directed road routes. Pickup areas are game placements near mapped places, not claims about real taxi ranks or parking permissions. See [map sources and layout](MAPS.md) and [source details](data/README.md).
+
+Presentation options never change fares, clocks, stopping areas or passenger-service rules. Sound fades out while the atlas or pause screen freezes the shift.

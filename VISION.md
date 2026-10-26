@@ -12,7 +12,7 @@ The intended atmosphere is the 1980s, before everyday satellite navigation and s
 
 The presentation is deliberately economical: first-person driving with a simple cockpit, sparse low-poly scenery and a C64/Amiga-inspired appearance. It should convey a believable place without requiring photorealistic buildings or sophisticated vehicle simulation.
 
-The retro look is an aesthetic choice, not a requirement to reproduce old hardware or rendering techniques. Driving should feel smooth with modern analog controller input.
+The retro look is an aesthetic choice, not a requirement to reproduce old hardware or rendering techniques. Driving should feel smooth with modern analog controller input. Configurable low-resolution rendering and light dithering may reinforce the aesthetic, with a Sharp option for small signs. Warm daylight, economical façades and ambient scenery should suggest everyday life without identifying the active goal.
 
 ## The central gameplay loop
 
@@ -77,6 +77,7 @@ The aim is accessible, credible driving rather than hardcore automotive simulati
 - Analog steering, acceleration and braking.
 - Simple reversing and parking. LT is brake only; B / Circle (R on keyboard) selects forward or reverse while fully stopped, and RT accelerates in the selected direction.
 - Free looking with the right stick and mouse, including full 360-degree horizontal rotation and a smooth return to the forward view when input is released, plus left/right glances for junctions and signs.
+- Optional subtle cockpit motion and synthesized engine/radio ambience, with motion-off and mute controls.
 - A recognizable, economical cockpit with a steering wheel, speedometer, forward/reverse selector and working side mirrors.
 - Basic collisions and readable vehicle behaviour.
 

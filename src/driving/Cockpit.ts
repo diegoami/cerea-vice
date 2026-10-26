@@ -91,10 +91,10 @@ export class Cockpit {
     }
   }
 
-  update(car:Car) {
+  update(car:Car,roll=0,pitch=0,wobble=0) {
     this.interior.position.set(car.x,0,car.z);
-    this.interior.rotation.y=-car.heading;
-    this.wheel.rotation.z=-car.steering*1.5;
+    this.interior.rotation.set(pitch,-car.heading,roll,"YXZ");
+    this.wheel.rotation.z=-car.steering*1.5+wobble;
     this.lever.rotation.x=car.gear==='D'?-.22:.22;
     const speed=Math.round(Math.abs(car.speed)*3.6);
     const readout=`${speed}/${car.gear}`;

@@ -1,3 +1,7 @@
+import { SettingsPanel, readSettings, renderSize } from "../presentation/Settings";
+import { Sound } from "../presentation/Sound";
+import { BodyMotion } from "../presentation/Motion";
+import { Retro } from "../presentation/Retro";
 import { district } from "../world/district";
 import { availableDistricts, selectDistrict } from "../world/load";
 import { WebGLRenderer } from "three";
@@ -12,6 +16,11 @@ import { World } from "../world/World";
 import { Hud, type Screen } from "../ui/Hud";
 
 export class Game {
+  private readonly sound = new Sound();
+  private readonly motion = new BodyMotion();
+  private readonly settings = readSettings();
+  private settingsPanel!: SettingsPanel;
+  private readonly retro = new Retro();
   private readonly renderer = new WebGLRenderer({
     antialias: true,
     powerPreference: "high-performance",
@@ -42,6 +51,8 @@ export class Game {
     );
     root.append(this.renderer.domElement);
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation());
+    this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);});
+    this.world.setDetail(this.settings.detail);
     this.renderer.domElement.addEventListener("click", () => {
       if(this.screen!=="running" || document.pointerLockElement===this.renderer.domElement)return;
       try { const result=this.renderer.domElement.requestPointerLock(); result?.catch(()=>this.hud.setHint("Mouse look could not capture the pointer. Click the windshield again, or use the right stick / Q and E.")); }
@@ -53,6 +64,9 @@ export class Game {
       this.input.setMouseCaptured(captured);
       if(!captured&&this.screen==="running") {this.pause();this.ignorePauseUntil=performance.now()+250;}
     });
+    window.addEventListener("pointerdown",()=>this.sound.unlock());
+    window.addEventListener("keydown",()=>this.sound.unlock());
+    window.addEventListener("pagehide",()=>this.sound.dispose(),{once:true});
     this.resize();
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("blur", () => this.pause());
@@ -73,12 +87,9 @@ export class Game {
   private resize() {
     const width = window.innerWidth,
       height = window.innerHeight;
-    const scale = Math.min(window.devicePixelRatio || 1, 2, 1920 / width);
-    this.renderer.setSize(
-      Math.round(width * scale),
-      Math.round(height * scale),
-      false,
-    );
+    const size=renderSize(width,height,this.settings.resolution,window.devicePixelRatio||1);
+    this.renderer.setSize(size.width,size.height,false);
+    this.renderer.domElement.classList.toggle('pixel-picture',this.settings.resolution!=='sharp');
     this.cockpit.camera.aspect = width / height;
     this.cockpit.camera.updateProjectionMatrix();
   }
@@ -105,11 +116,13 @@ export class Game {
       this.mission.reset();
       this.hud.resetAtlasNotes();
       this.cockpit.reset();
+      this.motion.reset();
       this.hud.setHint(
         district.mission.hint,
       );
       this.cockpit.update(1, this.car, 0);
     }
+    this.sound.unlock();
     this.screen = "running";
     this.accumulator = 0;
     this.renderer.domElement.focus({ preventScroll: true });
@@ -131,6 +144,8 @@ export class Game {
       : 0;
     this.previousTime = time;
     const actions = this.input.poll();
+    const menu=this.input.settingsInput;
+    if(this.settingsPanel.update(this.screen==="briefing"||this.screen==="paused",dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
     if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
       this.districtSwitchReady = false;
@@ -204,7 +219,6 @@ export class Game {
     if(this.mission.revision!==this.missionRevision) {
       this.missionRevision=this.mission.revision;
       if(this.mission.taxiMode)this.hud.setTaxiMessage(this.mission.notice);
-      this.world.setTaxiPassenger(this.mission.taxiMode&&!this.mission.finished&&this.mission.taxiStage==='pickup'?this.mission.target.bay:undefined);
     }
     if(this.mission.taxiMode)this.world.updateDaylight(this.mission.clockHours);
     this.hud.show(this.screen, this.mission, this.car, this.parking);
@@ -216,8 +230,11 @@ export class Game {
       this.input.gamepadBlocked,
       this.input.controllerStatus,
     );
-    this.interior.update(this.car);
+    this.sound.update(dt,this.screen==='running',this.car.speed,this.car.gear,this.car.steering,this.settings);
+    if(this.screen==='running')this.motion.update(dt,this.car.speed,this.car.steering,this.settings.motion);
+    this.interior.update(this.car,this.motion.roll,this.motion.pitch,this.motion.wobble);
     this.interior.renderMirrors(this.renderer,this.world.scene,dt);
-    this.renderer.render(this.world.scene, this.cockpit.camera);
+    if(this.settings.resolution==='sharp')this.renderer.render(this.world.scene, this.cockpit.camera);
+    else this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
   }
 }
