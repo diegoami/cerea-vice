@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Vector3} from 'three';
+import {MIRROR_MOUNTS} from '../src/driving/Cockpit';
 import {CockpitCamera} from '../src/driving/CockpitCamera';
 import {Car} from '../src/driving/Car';
 const idle={lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false};
@@ -51,4 +52,17 @@ test('mouse inactivity returns to front, continuous input holds the view, and re
   assert.ok(a.yawOffset>held,'Held stick input must never be pulled back');
   car.heading=0;a.reset();a.update(1,car,1,idle);
   assert.ok(a.camera.getWorldDirection(new Vector3()).x>.8,'Held bumper glances still work');
+});
+
+
+test('both mirror housings fit the forward view at 4:3, default and widescreen aspects',()=>{
+  const cockpit=new CockpitCamera(),car=new Car();car.x=0;car.z=0;car.heading=0;
+  for(const aspect of [4/3,1280/900,1440/900,16/9]) {
+    cockpit.camera.aspect=aspect;cockpit.camera.updateProjectionMatrix();cockpit.update(0,car,0,idle);
+    cockpit.camera.updateMatrixWorld(true);
+    for(const [x,z,angle,,width] of MIRROR_MOUNTS)for(const sx of [-1,1])for(const sy of [-1,1])for(const sz of [-1,1]) {
+      const corner=new Vector3(sx*width/2,sy*.105,sz*.035).applyAxisAngle(new Vector3(0,1,0),angle).add(new Vector3(x,1.88,z)).project(cockpit.camera);
+      assert.ok(Math.abs(corner.x)<1&&Math.abs(corner.y)<1&&Math.abs(corner.z)<1,`Mirror ${x} clipped at aspect ${aspect}`);
+    }
+  }
 });

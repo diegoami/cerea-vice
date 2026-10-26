@@ -61,3 +61,5 @@ npm run desktop:package:win
 From WSL, `npm run desktop:win` rebuilds and launches Cerea Centro in Windows. To launch an existing bundle without rebuilding, use `node desktop/run-windows.mjs cerea` (or `harbor`). The executable also accepts `--district=cerea` or `--district=harbor`.
 
 The importer works offline from `data/sources/cerea-osm.json`. Review provenance and source permissions when introducing a new extract. Attribution for the current OpenStreetMap data appears in the driving view, briefing and atlas; see `data/README.md`.
+
+Roads without an explicit `width` use the same 8 m carriageway width for rendering, atlas strokes, paving and sign/plate clearance. Bundled roads currently all specify their widths.

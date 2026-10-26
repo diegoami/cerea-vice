@@ -29,6 +29,7 @@ The main progression is personal familiarity: a district that initially feels co
 ## Navigation rules
 
 - No GPS, minimap, floating destination marker or route line.
+- No live current-street readout; street names are learned from signs or a stopped information request.
 - A visible compass shows the car’s heading—not the direction of the objective.
 - The atlas is available only while stopped.
 - Its position marker updates only after a successful information request or when the player manually marks where they think they are. Driving and parking alone do not update it; manual estimates may be wrong.

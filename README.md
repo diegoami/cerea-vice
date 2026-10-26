@@ -17,10 +17,10 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. In a cloud workspace, forward port **5173** and open its browser preview. Vite listens on `0.0.0.0` and accepts cloud preview hostnames. Its port is fixed at 5173, so it will report an occupied port rather than silently switching away from the preview. Use the forwarded HTTPS URL for controller access; localhost also supports it.
+Open `http://localhost:5173`. In a cloud workspace, forward port **5173** and open its browser preview. Vite binds to `127.0.0.1` and checks hostnames by default. For a remote preview, explicitly bind all interfaces and allow the exact gateway hostname: `CEREA_ALLOWED_HOSTS=your-preview.example npm run dev -- --host 0.0.0.0`. The same opt-in applies to `npm run preview`. Its port is fixed at 5173, so it will report an occupied port rather than silently switching away from the preview. Use the forwarded HTTPS URL for controller access; localhost also supports it.
 
 ```sh
-npm run build       # TypeScript checks and production build → dist/
+npm run build       # TypeScript checks (source and tests) and production build → dist/
 npm run preview     # Serve the production build on port 4173
 npm test            # Input, navigation, parking, driving, and mission checks
 ```
@@ -35,7 +35,7 @@ Build and launch the Windows x64 client from WSL:
 npm run desktop:win
 ```
 
-This rebuilds the Windows package, copies it to a fresh local Windows temporary folder and opens Cerea Centro. Each playtest launch uses an isolated temporary profile and checks that a game window opens. To package without launching:
+This rebuilds the Windows package, copies it to a fresh local Windows temporary folder and opens Cerea Centro. Each playtest launch uses an isolated temporary profile and checks that a game window opens. The command remains attached until you close that game window, then removes its temporary bundle and profile. Failed startup also cleans up its own copy; cleanup failures report the retained path. To package without launching:
 
 ```sh
 npm ci
@@ -191,3 +191,10 @@ See the [tentative development roadmap](ROADMAP.md) for milestones and playable 
 1. Playtest the taxi shift: pickup/dropoff clarity, route variety, shift pace and bonuses.
 2. Tune the expanded district from driving and sign feedback.
 3. Add a distinct “Where am I?” request if it improves navigation help.
+
+## Independent review
+
+The project uses an exact-head PR review handoff adapted from Geoclick2027.
+See [the review workflow](docs/EXTERNAL_REVIEW.md) and
+[the whole-project review brief](docs/whole-project-review.md). A fresh session
+of another model family runs `/review-pr`; setup alone does not start a review.

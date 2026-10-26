@@ -1,4 +1,4 @@
-import { district, areaAt, landmarks, nodeById, parkingZones, roads, type Point } from "../world/district";
+import { roadWidth, district, areaAt, landmarks, nodeById, parkingZones, roads, type Point } from "../world/district";
 
 export type AtlasPage = "map" | "index";
 
@@ -28,8 +28,8 @@ function mapSvg() {
   const maxX=minX+span,maxZ=minZ+span;
   const points=(list:Point[])=>list.map((p)=>`${p.x},${p.z}`).join(" ");
   const grid=Array.from({length:5},(_,i)=>`<path d="M ${minX+i*span/4} ${minZ} V ${maxZ} M ${minX} ${minZ+i*span/4} H ${maxX}"/>`).join("");
-  const edges=roads.map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${(road.width??16)+2}"/>`;}).join("");
-  const paths=roads.map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${road.width??16}"/>`;}).join("");
+  const edges=roads.map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${roadWidth(road)+2}"/>`;}).join("");
+  const paths=roads.map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${roadWidth(road)}"/>`;}).join("");
   const labels=atlasStreetEntries().map(street=>`<text data-street="${xml(street.name)}" x="${street.x}" y="${street.z-1*u}" transform="rotate(${street.angle} ${street.x} ${street.z})" style="font-size:${4*u}px">${xml(street.name.toUpperCase())}</text>`).join("");
   const bays=parkingZones.map((zone)=>`<rect x="${zone.x-zone.width/2}" y="${zone.z-zone.depth/2}" width="${zone.width}" height="${zone.depth}" class="atlas-bay"/><text x="${zone.x}" y="${zone.z+2*u}" class="atlas-parking" data-map-label="parking" style="font-size:${6*u}px">P</text>`).join("");
   const places=landmarks.map((place)=>`<path d="${(place.points?[place.points,...(place.holes??[])]:[[{x:place.x-place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z+place.depth/2},{x:place.x-place.width/2,z:place.z+place.depth/2}]]).map(ring=>`M ${ring.map(p=>`${p.x} ${p.z}`).join(" L ")} Z`).join(" ")}" fill-rule="evenodd" class="atlas-building"/><text x="${place.x}" y="${place.z-place.depth/2-4*u}" class="atlas-place-label" data-map-label="place" style="font-size:${4.5*u}px">${xml((place.kind==="church"?"San Zeno":place.kind==="school"?"Scuola Visentini":place.name).toUpperCase())}</text>`).join("");
@@ -53,7 +53,7 @@ function indexMarkup() {
   const entries = [...landmarks.map((place) => ({ name: place.name, road: place.road, area: areaAt(place), ref: atlasReference(place) })),
     ...parkingZones.map((zone) => ({ name: zone.name, road: "Legal stopping bay", area: areaAt(zone), ref: atlasReference(zone) }))]
     .sort((a, b) => a.name.localeCompare(b.name));
-  return `<div class="atlas-index"><h2>Places and parking</h2><table><thead><tr><th scope="col">Place</th><th scope="col">Street / area</th><th scope="col">Grid</th></tr></thead><tbody>${entries.map((entry) => `<tr><th scope="row">${entry.name}</th><td>${entry.road}<small>${entry.area}</small></td><td class="atlas-ref">${entry.ref}</td></tr>`).join("")}</tbody></table><p>Grid letters run west to east; numbers run north to south. Match a place’s reference to the squares on the district map.</p><h2>Street index</h2><p>Click a street name to open a detailed view. On controller use the right stick up/down to select a street, then A. Keyboard: I / K, then Enter.</p><table class="atlas-street-index"><thead><tr><th scope="col">Street</th><th scope="col">Grid</th></tr></thead><tbody>${atlasStreetEntries().map(street=>`<tr><th scope="row"><button type="button" class="atlas-street-link" data-atlas-street="${xml(street.name)}">${xml(street.name)}</button></th><td class="atlas-ref">${street.reference}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="atlas-index"><h2>Places and parking</h2><table><thead><tr><th scope="col">Place</th><th scope="col">Street / area</th><th scope="col">Grid</th></tr></thead><tbody>${entries.map((entry) => `<tr><th scope="row">${xml(entry.name)}</th><td>${xml(entry.road)}<small>${xml(entry.area)}</small></td><td class="atlas-ref">${entry.ref}</td></tr>`).join("")}</tbody></table><p>Grid letters run west to east; numbers run north to south. Match a place’s reference to the squares on the district map.</p><h2>Street index</h2><p>Click a street name to open a detailed view. On controller use the right stick up/down to select a street, then A. Keyboard: I / K, then Enter.</p><table class="atlas-street-index"><thead><tr><th scope="col">Street</th><th scope="col">Grid</th></tr></thead><tbody>${atlasStreetEntries().map(street=>`<tr><th scope="row"><button type="button" class="atlas-street-link" data-atlas-street="${xml(street.name)}">${xml(street.name)}</button></th><td class="atlas-ref">${street.reference}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 /** Printed geography only: this view never receives the car, heading or mission position. */

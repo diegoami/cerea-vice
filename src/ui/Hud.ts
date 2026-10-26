@@ -35,7 +35,6 @@ export class Hud {
   private compassValue: HTMLElement;
   private timer: HTMLElement;
   private stopState: HTMLElement;
-  private location: HTMLElement;
   private prompt: HTMLElement;
   private device: HTMLElement;
   private hint: HTMLElement;
@@ -59,7 +58,7 @@ export class Hud {
       <div class="interaction" id="prompt"></div>
       <footer class="dashboard">
         <div class="dashboard-left"><div class="speed-line"><strong id="speed">00</strong><span>KM/H<br><b id="gear">D</b></span></div><div class="stop-state" id="stop-state">SETTLING</div></div>
-        <div class="dashboard-right"><span class="eyebrow">CURRENT ROAD</span><strong id="location">Harbor Road</strong><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div></div>
+        <div class="dashboard-right"><strong class="car-badge">CEREA / 1986</strong><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div></div>
       </footer>
       ${district.id === "cerea" ? `<div class="map-credit">${district.attribution} · openstreetmap.org/copyright</div>` : ""}
       <div id="overlay" class="overlay"></div>
@@ -72,7 +71,6 @@ export class Hud {
     this.compassValue = find("#heading");
     this.timer = find("#timer");
     this.stopState = find("#stop-state");
-    this.location = find("#location");
     this.prompt = find("#prompt");
     this.device = find("#device");
     this.hint = find("#hint");
@@ -418,7 +416,6 @@ export class Hud {
         ? "SETTLING"
         : "ON THE MOVE";
     this.stopState.classList.toggle("unsafe", parking.stopped && !parking.legal);
-    this.location.textContent = nearestRoad(car).edge.name;
     this.device.textContent =
       device === "Controller"
         ? "● Controller connected"
