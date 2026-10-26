@@ -222,6 +222,8 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await page.getByRole('heading',{name:'Drive a taxi in Cerea.'}).waitFor();
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
+    assert.equal(await page.locator('[data-key=resolution]').inputValue(),'retro-fine');
+    await page.locator('[data-key=resolution]').selectOption('sharp');
     await page.getByRole('button',{name:'Start the engine'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
@@ -358,4 +360,50 @@ test('taxi shift ends at 17:00 with an earnings summary and can restart', {timeo
     await page.getByRole('button',{name:'Start another shift'}).click();
     await page.waitForFunction(()=>document.querySelector('#overlay').hidden);
   }finally{await electronApp.close();await rm(profile,{recursive:true,force:true});}
+});
+
+test('presentation modes preserve sharp UI, mirrors and controller settings without resuming', {timeout:90000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-picture-test-'));
+ const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.locator('[data-key=detail]').selectOption('true');
+  await page.locator('[data-key=resolution]').selectOption('retro');
+  await page.locator('[data-key=volume]').selectOption('0');
+  await page.locator('[data-key=motion]').selectOption('false');
+  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.waitForFunction(()=>document.querySelector('#viewport').height===270);
+  await page.locator('.presentation-settings').waitFor({state:'hidden'});
+  await page.waitForTimeout(400);
+  await page.screenshot({path:'test-results/cerea-retro-270p.png'});
+  await page.keyboard.press('p');
+  await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  const frozen=await page.locator('#timer').innerText();
+  await page.evaluate(()=>{
+   window.settingsPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};
+   Object.defineProperty(navigator,'getGamepads',{value:()=>[window.settingsPad],configurable:true});
+   window.settingsPad.buttons[13].value=1;
+  });
+  await page.waitForFunction(()=>document.querySelector('[data-key=detail]').classList.contains('controller-selected'));
+  await page.evaluate(()=>{window.settingsPad.buttons[13].value=0;window.settingsPad.buttons[0].value=1;});
+  await page.waitForFunction(()=>document.querySelector('[data-key=detail]').value==='false');
+  await page.evaluate(()=>{window.settingsPad.buttons[0].value=0;});
+  assert.equal(await page.locator('#timer').innerText(),frozen,'Changing settings cannot resume simulation');
+  assert.equal(await page.getByRole('button',{name:'Back to the road'}).isVisible(),true);
+  await page.locator('[data-key=resolution]').selectOption('sharp');
+  await page.locator('[data-key=detail]').selectOption('true');
+  await page.screenshot({path:'test-results/cerea-settings.png'});
+  await page.evaluate(()=>{window.settingsPad.buttons[9].value=1;});
+  await page.waitForFunction(()=>document.querySelector('#overlay').hidden);
+  await page.evaluate(()=>{window.settingsPad.buttons[9].value=0;});
+  assert.ok(await page.locator('#viewport').evaluate(canvas=>canvas.height>=innerHeight));
+  await page.screenshot({path:'test-results/cerea-sharp-mirrors.png'});
+  const overlap=await page.evaluate(()=>{
+   const a=document.querySelector('.map-credit').getBoundingClientRect(),b=document.querySelector('.dash-detail').getBoundingClientRect();
+   return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+  });
+  assert.equal(overlap,false,'OSM credit and pause/controller line have separate space');
+  assert.deepEqual(errors,[]);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });

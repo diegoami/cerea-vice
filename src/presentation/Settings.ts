@@ -5,12 +5,12 @@ export interface PresentationSettings {
   volume: number;
   radio: boolean;
 }
-export const defaults: PresentationSettings = {detail:true,resolution:'sharp',motion:true,volume:0.25,radio:false};
+export const defaults: PresentationSettings = {detail:true,resolution:'retro-fine',motion:true,volume:0.25,radio:false};
 export function readSettings(storage: Pick<Storage,'getItem'>): PresentationSettings {
   try {
     const value=JSON.parse(storage.getItem('cerea-presentation')??'{}');
     return {detail:typeof value.detail==='boolean'?value.detail:defaults.detail,
-      resolution:['sharp','retro','retro-fine'].includes(value.resolution)?value.resolution:'sharp',
+      resolution:['sharp','retro','retro-fine'].includes(value.resolution)?value.resolution:defaults.resolution,
       motion:typeof value.motion==='boolean'?value.motion:defaults.motion,
       volume:typeof value.volume==='number'&&Number.isFinite(value.volume)?Math.max(0,Math.min(1,value.volume)):defaults.volume,
       radio:typeof value.radio==='boolean'?value.radio:defaults.radio};

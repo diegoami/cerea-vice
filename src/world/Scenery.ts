@@ -53,7 +53,7 @@ export function decorateBuildings(parent:THREE.Group){
     const points=building.points??[{x:building.x-building.width/2,z:building.z-building.depth/2},{x:building.x+building.width/2,z:building.z-building.depth/2},{x:building.x+building.width/2,z:building.z+building.depth/2},{x:building.x-building.width/2,z:building.z+building.depth/2}];
     parent.add(new THREE.Mesh(roofGeometry(points,building.holes??[],building.height+.02),roof));
     for(const ring of [points,...(building.holes??[])])for(let i=0;i<ring.length;i++){
-      const a=ring[i],b=ring[(i+1)%ring.length];const length=Math.hypot(b.x-a.x,b.z-a.z);if(length<2)continue;
+      const a=ring[i],b=ring[(i+1)%ring.length];const length=Math.hypot(b.x-a.x,b.z-a.z);if(length<.00001)continue;
       let nx=-(b.z-a.z)/length,nz=(b.x-a.x)/length;
       const mid={x:(a.x+b.x)/2,z:(a.z+b.z)/2};const probe={x:mid.x+nx*.1,z:mid.z+nz*.1};if(pointInPolygon(probe,points)&&!(building.holes??[]).some(hole=>pointInPolygon(probe,hole))){nx=-nx;nz=-nz;}
       const groundHeight=Math.min(3.2,building.height);
@@ -72,14 +72,16 @@ export interface PropPlan extends Point {kind:'tree'|'lamp'|'car'|'person';angle
 export interface Sightline {position:Point;viewpoint?:Point}
 export function planProps(signs:Sightline[]=[]):PropPlan[]{
  const result:PropPlan[]=[];
- for(let i=0;i<roads.length;i+=11){const road=roads[i],a=nodeById(road.a),b=nodeById(road.b),length=Math.hypot(b.x-a.x,b.z-a.z);if(length<14)continue;
-  const offset=roadWidth(road)/2+4;
+ for(let i=0;i<roads.length;i+=3){const road=roads[i],a=nodeById(road.a),b=nodeById(road.b),length=Math.hypot(b.x-a.x,b.z-a.z);if(length<14)continue;
+  const kind=(['tree','lamp','car','person'] as const)[i%4];
+  const radius=kind==='tree'?2.3:kind==='car'?2.3:kind==='lamp'?1:.5;
+  const offset=roadWidth(road)/2+radius+1.8;
   const p={x:(a.x+b.x)/2-(b.z-a.z)/length*offset,z:(a.z+b.z)/2+(b.x-a.x)/length*offset};
   const bounds=district.bounds;if(p.x<bounds.minX+4||p.x>bounds.maxX-4||p.z<bounds.minZ+4||p.z>bounds.maxZ-4)continue;
-  if([-2.8,0,2.8].some(dx=>[-2.8,0,2.8].some(dz=>isPaved({x:p.x+dx,z:p.z+dz})||district.buildings.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-.5))||district.parkingZones.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-2)))))continue;
+  if([-radius,0,radius].some(dx=>[-radius,0,radius].some(dz=>isPaved({x:p.x+dx,z:p.z+dz})||district.buildings.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-.5))||district.parkingZones.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-2)))))continue;
   if(signs.some(sign=>Math.hypot(sign.position.x-p.x,sign.position.z-p.z)<5||(sign.viewpoint&&Math.hypot(projectToSegment(p,sign.position,sign.viewpoint).x-p.x,projectToSegment(p,sign.position,sign.viewpoint).z-p.z)<3)))continue;
   if(result.some(q=>Math.hypot(q.x-p.x,q.z-p.z)<15))continue;
-  result.push({...p,kind:(['tree','lamp','car','person'] as const)[result.length%4],angle:Math.atan2(-(b.z-a.z),b.x-a.x)});
+  result.push({...p,kind,angle:Math.atan2(-(b.z-a.z),b.x-a.x)});
  }
  return result;
 }

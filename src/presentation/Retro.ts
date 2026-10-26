@@ -7,7 +7,7 @@ export class Retro {
   constructor(){
     const mat=new THREE.ShaderMaterial({uniforms:{image:{value:this.target.texture}},depthTest:false,depthWrite:false,
       vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
-      fragmentShader:`uniform sampler2D image;varying vec2 vUv;void main(){vec4 c=texture2D(image,vUv);vec2 p=mod(floor(gl_FragCoord.xy),2.);float b=p.x==0.?(p.y==0.?0.:3.):(p.y==0.?2.:1.);c.rgb=floor(clamp(c.rgb+(b-1.5)/192.,0.,1.)*31.+.5)/31.;gl_FragColor=c;}`});
+      fragmentShader:`uniform sampler2D image;varying vec2 vUv;void main(){vec4 c=linearToOutputTexel(texture2D(image,vUv));vec2 p=mod(floor(gl_FragCoord.xy),2.);float b=p.x==0.?(p.y==0.?0.:3.):(p.y==0.?2.:1.);c.rgb=floor(clamp(c.rgb+(b-1.5)/192.,0.,1.)*31.+.5)/31.;gl_FragColor=c;}`});
     this.scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat));
   }
   render(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.Camera){

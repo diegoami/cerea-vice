@@ -31,7 +31,7 @@ export class Sound {
     this.engineGain.gain.setTargetAtTime(.07+Math.min(21,Math.abs(speed))*.004,ctx.currentTime,.08);
     const notes=[220,261.63,329.63,293.66,246.94,293.66,349.23,261.63];
     this.radio.frequency.setTargetAtTime(notes[Math.floor(this.time*2)%notes.length],ctx.currentTime,.08);
-    this.radioGain.gain.setTargetAtTime(settings.radio?.012:0,ctx.currentTime,.1);
+    this.radioGain.gain.setTargetAtTime(settings.radio ? .012 : 0,ctx.currentTime,.1);
     // Steering-linked tick is ambience, not a turn instruction or route cue.
     if(!running||Math.abs(steer)<.3){this.turning=false;this.tickAt=0;return;}
     if(!this.turning){this.turning=true;this.tickAt=this.time;}
