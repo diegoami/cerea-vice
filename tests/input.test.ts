@@ -227,3 +227,18 @@ test('atlas zoom and pan work independently of marker movement and information',
   for(const type of ['keydown','keyup']){const event=new Event(type);Object.defineProperty(event,'code',{value:'Equal'});target.dispatchEvent(event);}
   assert.equal(input.poll().atlasZoomStep,1);assert.equal(input.poll().atlasZoomStep,0);
 });
+
+test('settings distinguish controller navigation/A from keyboard movement/Enter',()=>{
+ const target=new EventTarget();Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+ const pad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};
+ Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[pad]},configurable:true});
+ const input=new Input();
+ const key=(type:string,code:string)=>{const e=new Event(type);Object.defineProperty(e,'code',{value:code});target.dispatchEvent(e);};
+ for(const code of ['KeyW','KeyS','ArrowUp','ArrowDown']){
+  key('keydown',code);input.poll();assert.equal(input.settingsInput.move,0);key('keyup',code);
+ }
+ pad.buttons[13].value=1;input.poll();assert.equal(input.settingsInput.move,1);
+ pad.buttons[13].value=0;pad.buttons[0].value=1;assert.equal(input.poll().interact,true);assert.equal(input.settingsInput.confirm,true);
+ input.poll();assert.equal(input.settingsInput.confirm,false);
+ key('keydown','Enter');assert.equal(input.poll().interact,true);assert.equal(input.settingsInput.keyboardConfirm,true);assert.equal(input.settingsInput.confirm,false);
+});

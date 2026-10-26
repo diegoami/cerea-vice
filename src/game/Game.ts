@@ -18,7 +18,7 @@ import { Hud, type Screen } from "../ui/Hud";
 export class Game {
   private readonly sound = new Sound();
   private readonly motion = new BodyMotion();
-  private readonly settings = readSettings(localStorage);
+  private readonly settings = readSettings();
   private settingsPanel!: SettingsPanel;
   private readonly retro = new Retro();
   private readonly renderer = new WebGLRenderer({
@@ -144,7 +144,8 @@ export class Game {
       : 0;
     this.previousTime = time;
     const actions = this.input.poll();
-    if(this.settingsPanel.update(this.screen==="briefing"||this.screen==="paused",dt,actions.atlasMoveY,actions.interact))actions.interact=false;
+    const menu=this.input.settingsInput;
+    if(this.settingsPanel.update(this.screen==="briefing"||this.screen==="paused",dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
     if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
       this.districtSwitchReady = false;

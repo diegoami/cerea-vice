@@ -23,7 +23,7 @@ function harness(){
  Object.assign(game,{
   screen:'running',car:new Car(),parking:new Parking(),mission:new Mission(),previousTime:1000,accumulator:0,
   districtSwitchReady:false,ignorePauseUntil:0,missionRevision:-1,waitForDrivingRelease:false,
-  input:{poll:()=>({...actions}),controllerDisconnected:false,setMouseCaptured:noop},
+  input:{settingsInput:{move:0,confirm:false,keyboardConfirm:false},poll:()=>({...actions}),controllerDisconnected:false,setMouseCaptured:noop},
   retro:{render:noop},renderer:{domElement:{focus:noop},render:noop},world:{colliders:[],updateDaylight:noop},
   cockpit:{update:noop,camera:{}},interior:{update:noop,renderMirrors:noop},sound:{update:noop,unlock:noop},motion:new BodyMotion(),
   settings:{...defaults},settingsPanel:{update:()=>false},

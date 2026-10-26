@@ -209,10 +209,13 @@ Both retro modes use nearest-neighbour scaling and a light ordered dither.
 HUD text and the atlas stay at display resolution in every mode. Side mirrors
 retain their 320×192 views at 10 Hz before the selected picture treatment.
 
-Use native keyboard/mouse form controls, or **D-pad up/down** to select a setting
+Use **Tab / arrows** or the mouse to edit form controls, or **controller
+D-pad / left stick up/down** to select a setting
 and **A / Cross** to cycle it. **Start / Options** drives/resumes regardless of
-the selected setting. **Enter / A** still starts normally before selecting a
-setting. Options are saved locally; the WSL Windows launcher starts a fresh
+the selected setting. **Enter / Escape** always starts/resumes on keyboard,
+even with a select focused; W/S and arrow keys outside the panel do not select
+settings. **A** starts normally before selecting a controller setting. Options
+are saved locally; the WSL Windows launcher starts a fresh
 profile, so its next launch uses defaults.
 
 **Simple scenery** hides the extra façades, tiled roof facets and decorative

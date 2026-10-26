@@ -223,7 +223,6 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
     assert.equal(await page.locator('[data-key=resolution]').inputValue(),'retro-fine');
-    await page.locator('[data-key=resolution]').selectOption('sharp');
     await page.getByRole('button',{name:'Start the engine'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
@@ -261,7 +260,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position: Sosta Municipio/);
     assert.match(await page.locator('.atlas-attribution').innerText(),/OpenStreetMap/);
     assert.match(await page.locator('.atlas-map').innerHTML(),/VIA PARIDE/);
-    assert.ok(await page.locator('#viewport').evaluate(canvas=>canvas.width>=Math.min(window.innerWidth,1920)), 'Street names render above the old 960px cap');
+    assert.equal(await page.locator('#viewport').evaluate(canvas=>canvas.height),540,'The main Cerea scenario exercises the chosen default');
     const readingTimer=await page.locator('#timer').innerText();
     await page.keyboard.press('f');
     await page.locator('.atlas-information:not([hidden])').waitFor();
@@ -399,11 +398,57 @@ test('presentation modes preserve sharp UI, mirrors and controller settings with
   await page.evaluate(()=>{window.settingsPad.buttons[9].value=0;});
   assert.ok(await page.locator('#viewport').evaluate(canvas=>canvas.height>=innerHeight));
   await page.screenshot({path:'test-results/cerea-sharp-mirrors.png'});
-  const overlap=await page.evaluate(()=>{
-   const a=document.querySelector('.map-credit').getBoundingClientRect(),b=document.querySelector('.dash-detail').getBoundingClientRect();
-   return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
-  });
-  assert.equal(overlap,false,'OSM credit and pause/controller line have separate space');
+  for(const [width,height] of [[960,640],[1280,900],[1440,900],[1920,1080]]){
+   await app.evaluate(({BrowserWindow},{width,height})=>BrowserWindow.getAllWindows()[0].setContentSize(width,height),{width,height});
+   await page.waitForFunction(({width,height})=>innerWidth===width&&innerHeight===height,{width,height});
+   const overlaps=await page.evaluate(()=>{
+    const credit=document.querySelector('.map-credit').getBoundingClientRect();
+    return ['#prompt','.dash-detail','.dashboard-left','.dashboard-right','.navigation-message'].filter(selector=>{
+     const other=document.querySelector(selector).getBoundingClientRect();
+     return credit.left<other.right&&credit.right>other.left&&credit.top<other.bottom&&credit.bottom>other.top;
+    });
+   });
+   assert.deepEqual(overlaps,[],`Attribution has clear space at ${width}x${height}`);
+  }
+  await page.screenshot({path:'test-results/cerea-credit-layout.png'});
   assert.deepEqual(errors,[]);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
+
+test('restricted storage and keyboard settings preserve startup and resume controls', {timeout:90000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-settings-regression-'));
+ const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  for(const key of ['ArrowDown','s','ArrowUp','w']){
+   if(await page.locator('#overlay').isHidden()){
+    await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+   }
+   const scenery=await page.locator('[data-key=detail]').inputValue();
+   await page.keyboard.down(key);await page.waitForTimeout(120);await page.keyboard.up(key);
+   await page.keyboard.press('Enter');
+   await page.locator('#overlay').waitFor({state:'hidden'});
+   assert.equal(await page.locator('[data-key=detail]').inputValue(),scenery,'Movement keys cannot arm settings selection');
+  }
+  for(const resumeKey of ['Enter','Escape']){
+   await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+   await page.locator('[data-key=radio]').selectOption('true');
+   await page.locator('[data-key=radio]').focus();
+   await page.keyboard.press(resumeKey);
+   await page.locator('#overlay').waitFor({state:'hidden'});
+  }
+  // The property getter itself throws, before a getItem call can be made.
+  await page.addInitScript(()=>{
+   Object.defineProperty(window,'localStorage',{configurable:true,get(){throw new DOMException('Blocked preview storage','SecurityError');}});
+  });
+  await page.reload();
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.equal(await page.locator('[data-key=resolution]').inputValue(),'retro-fine');
+  await page.locator('[data-key=volume]').selectOption('0'); // Writes may fail too; keep settings in memory.
+  await page.keyboard.press('Enter');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  assert.equal(await page.locator('.fatal').count(),0);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });

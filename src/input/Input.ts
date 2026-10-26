@@ -44,6 +44,10 @@ const deadzone = (value: number) =>
 
 /** Poll once per rendered frame; consume edge actions once per simulation update. */
 export class Input {
+  // Presentation menu input must retain its source; keyboard Enter always drives.
+  settingsInput={move:0,confirm:false,keyboardConfirm:false};
+  private previousSettingsConfirm=false;
+  private previousKeyboardConfirm=false;
   private queuedAtlasZoomStep = 0;
   private mouseCaptured = false;
   private mouseX = 0;
@@ -153,6 +157,14 @@ export class Input {
           : "Connect a controller and press any button. Keyboard works immediately.";
     const button = (index: number) => pad?.buttons[index]?.value ?? 0;
     this.device = pad ? "Controller" : "Keyboard";
+    const controllerConfirm=button(0)>.5;
+    this.settingsInput={
+      move:Number(button(13)>.5)-Number(button(12)>.5)||deadzone(pad?.axes[1]??0),
+      confirm:controllerConfirm&&!this.previousSettingsConfirm,
+      keyboardConfirm:this.queuedInteract||(down("Enter")&&!this.previousKeyboardConfirm),
+    };
+    this.previousSettingsConfirm=controllerConfirm;
+    this.previousKeyboardConfirm=down("Enter");
     const interact = down("Enter") || button(0) > 0.5;
     const pause = down("Escape", "KeyP") || button(9) > 0.5;
     const reminder = down("Tab", "KeyM") || button(12) > 0.5;

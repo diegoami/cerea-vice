@@ -899,8 +899,8 @@ h1 em {
   .interaction { bottom: 75px; font-size: 9px; }
 }
 
-/* Keep attribution clear of controller/pause text. */
-.map-credit { bottom: 65px; right: 16px; }
+/* Attribution has its own central space inside the dashboard, below prompts. */
+.map-credit { bottom:10px;right:auto;left:50%;transform:translateX(-50%);max-width:calc(100vw - 500px);text-align:center; }
 #viewport.pixel-picture { image-rendering: pixelated; }
 .presentation-settings { pointer-events:auto;position:absolute;z-index:12;left:18px;bottom:80px;background:#192c2fee;border:1px solid #87957b;padding:12px;width:240px;font:11px/1.5 monospace;color:#eee1c3; }
 .presentation-settings[hidden] { display:none; }

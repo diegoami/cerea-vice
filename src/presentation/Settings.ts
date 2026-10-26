@@ -6,9 +6,10 @@ export interface PresentationSettings {
   radio: boolean;
 }
 export const defaults: PresentationSettings = {detail:true,resolution:'retro-fine',motion:true,volume:0.25,radio:false};
-export function readSettings(storage: Pick<Storage,'getItem'>): PresentationSettings {
+export function readSettings(storage: Pick<Storage,'getItem'> | (()=>Pick<Storage,'getItem'>) = ()=>localStorage): PresentationSettings {
   try {
-    const value=JSON.parse(storage.getItem('cerea-presentation')??'{}');
+    const source=typeof storage==='function'?storage():storage;
+    const value=JSON.parse(source.getItem('cerea-presentation')??'{}');
     return {detail:typeof value.detail==='boolean'?value.detail:defaults.detail,
       resolution:['sharp','retro','retro-fine'].includes(value.resolution)?value.resolution:defaults.resolution,
       motion:typeof value.motion==='boolean'?value.motion:defaults.motion,
@@ -28,14 +29,22 @@ export class SettingsPanel {
   constructor(readonly values:PresentationSettings, private changed:()=>void) {
     this.element.className='presentation-settings';
     this.element.setAttribute('aria-label','Presentation settings');
-    this.element.innerHTML=`<strong>PICTURE & SOUND</strong><small>D-pad: select · A: change · Start: drive</small>
+    this.element.innerHTML=`<strong>PICTURE & SOUND</strong><small>D-pad: select · A: change · Start: drive<br>Keyboard: Tab / arrows edit · Enter / Esc drive</small>
       <label>Scenery <select data-key="detail"><option value="true">Detailed</option><option value="false">Simple</option></select></label>
       <label>Picture <select data-key="resolution"><option value="sharp">Sharp (read signs)</option><option value="retro">Retro 270p</option><option value="retro-fine">Retro 540p</option></select></label>
       <label>Cockpit motion <select data-key="motion"><option value="true">Subtle</option><option value="false">Off</option></select></label>
       <label>Volume <select data-key="volume"><option value="0">Mute</option><option value="0.25">Quiet</option><option value="0.5">Medium</option><option value="1">Full</option></select></label>
       <label>Radio <select data-key="radio"><option value="false">Off</option><option value="true">On</option></select></label>`;
     document.querySelector('#hud')!.append(this.element);
-    this.element.addEventListener('keydown',event=>event.stopPropagation());
+    this.element.addEventListener('keydown',event=>{
+      // Reserve the advertised start/resume controls even after a mouse edit.
+      if(event.code==='Enter'||event.code==='Escape'){
+        event.preventDefault();
+        (event.target as HTMLElement).blur();
+        return; // Let Input receive the key; ordinary form editing stays local.
+      }
+      event.stopPropagation();
+    });
     this.element.addEventListener('change',()=>this.commit());
     for(const select of this.selects)select.value=String(values[select.dataset.key as keyof PresentationSettings]);
   }

@@ -56,3 +56,8 @@ test('internal resolution respects aspect ratio and Sharp retains display legibi
  assert.deepEqual(renderSize(1280,900,'sharp'),{width:1280,height:900});
  assert.deepEqual(renderSize(3840,2160,'sharp',2),{width:1920,height:1080});
 });
+
+test('settings tolerate a throwing storage getter as well as blocked reads',()=>{
+ assert.deepEqual(readSettings(()=>{throw new DOMException('Storage disabled','SecurityError');}),defaults);
+ assert.deepEqual(readSettings({getItem:()=>{throw new DOMException('Storage disabled','SecurityError');}}),defaults);
+});

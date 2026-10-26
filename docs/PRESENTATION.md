@@ -9,7 +9,9 @@ of A. Work packages B and C remain separate, owner-gated work.
 The owner selected Detailed / Retro 540p after seeing the software-rendered
 tradeoff. Picture, scenery, volume, radio and cockpit-motion options are available
 in the briefing and pause screens, with native keyboard/mouse controls and
-D-pad selection / A cycling. Start always starts/resumes. Options persist in
+controller-only D-pad/left-stick selection / A cycling. Keyboard movement keys
+do not select settings. Tab and arrows edit form controls; Enter/Escape always
+start/resume, including from a focused select. Start always starts/resumes. Options persist in
 local storage, separately from district selection; a fresh Windows playtest
 profile uses defaults. The simulator remains paused while options are changed.
 
@@ -41,11 +43,15 @@ street level. Roofs are low triangular tile facets confined to the triangulated
 clipped footprints, including holes. This intentionally stylised roof treatment
 does not reconstruct individual real roofs. The sky is a small painted gradient;
 the existing 07:00–17:00 sun progression has stronger directional contrast.
-There are no shadow maps or extra shadow render passes.
+There are no shadow maps or extra shadow render passes. The sky is a
+screen-space backdrop: its horizon band does not move with camera pitch; this
+is an accepted visual limitation for this pass.
 
 Roadside tree/lamp/car/person candidates are deterministic, do not depend on
 passengers or objectives, and are rejected near paving, buildings, bays and
-signs/plate sightlines. These are static, non-colliding props. Every Cerea bay
+signs/plate sightlines. These are static, non-colliding props, including the trees and lamps. Parked
+cars sit on the verge rather than simulated kerbside parking; they are scenery
+and can be driven through. Every Cerea bay
 gets the same waiting figure; none appears or disappears when the active goal
 changes. Passenger service remains a deliberate stopped action in the named
 bay. Harbor retains its handcrafted scenery.
@@ -61,10 +67,13 @@ All façade, roof and sky pixels are painted at runtime by project code in
 `src/world/Scenery.ts` and `src/world/World.ts`. They use no external images,
 fonts or downloads. All sound is synthesized by original code in
 `src/presentation/Sound.ts`; there are no recordings, samples or network assets.
-The generated sound and texture output is dedicated to CC0-1.0 by this project.
+No third-party audio/texture licence is needed for these original generated
+assets. No project licence or public-domain dedication is assigned here;
+licensing decisions remain with the owner.
 OSM geography remains under the separate attribution/provenance documented in
 `data/README.md`; this presentation pass does not modify the source extract or
-its derived JSON. OSM credit remains visible and now clears the controller line.
+its derived JSON. OSM credit remains visible in its own central dashboard space, clear of
+controller text and the stopped interaction prompt.
 
 ## Reproducing the desktop measurement
 
@@ -150,3 +159,13 @@ a new test's one-frame settings-visibility assumption and its missing retro
 renderer boundary stub were corrected; final suites have no failed or skipped
 automated checks. Actual Windows launch/gameplay, physical controllers and audio
 listening remain manual, unperformed checks for this PR. No review was started.
+
+Review follow-up validation supersedes the counts above: 57 unit tests and all
+five Electron scenarios pass (about 131 seconds), including a throwing storage
+property getter, focused-select Enter/Escape, W/S/arrow movement followed by
+Enter, the main Cerea scenario at default 540p and credit/prompt/dashboard
+separation at four window sizes. Clean install (0 vulnerabilities), type-check,
+build and diff checks pass; the existing bundle-size advisory remains. The
+initial sandboxed clean install hit esbuild EPERM; it succeeded with subprocess
+permissions. Historical rendering samples above were not repeated because this
+follow-up does not alter scene geometry, resolution or shaders.
