@@ -96,7 +96,8 @@ full taxi route paths are checked against exhaustive references. Render geometry
 is constructed in a local coordinate frame before Float32 conversion; physics,
 directions and atlas markers keep logical world coordinates. A translated Cerea
 fixture exercises the general renderer 25 km from the origin. The original
-Harbor scene remains handcrafted in its authored local coordinates.
+Harbor scene remains handcrafted in its authored local coordinates; definitions
+requiring a nonzero Harbor render anchor are rejected explicitly.
 
 No map JSON/schema/importer or provenance changes are made by this work.
 There is no tile loading or second town yet. See [B architecture and measurements](docs/SCALABILITY.md).

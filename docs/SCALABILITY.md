@@ -203,3 +203,29 @@ Each World instance owns its mutable render origin, even when multiple instances
 are created from the same bound factory. A constructor-level regression builds
 two worlds with stubbed canvas painting and verifies that rebasing one leaves
 the other unchanged. The full Electron suite was repeated after that correction.
+
+## Independent review follow-up
+
+Review of `f44e71f83c5b77c0e17f9490e78397f5a9860b32` found no blocking items
+and confirmed old/new query, route and sign outputs independently. Its MINOR
+large-grid argument-limit finding was reproduced and fixed: bounds accumulation
+now uses loops for both whole grids and polygon/hole vertices. Regression checks
+cover 150,000 grid items and 150,000 vertices without RangeError. This removes
+that specific limit, not a general memory/load-time guarantee for large towns.
+
+The legacy Harbor renderer now rejects definitions needing a nonzero render
+anchor, rather than silently mixing local legacy collider coordinates with
+world-frame physics. Harbor must still use its original authored coordinates;
+this guard is not support for arbitrary translated Harbor data. The general
+Cerea renderer's translated-coordinate support remains unchanged. Shared render
+caches keyed only by colour/text are retained; resource lifetime under streaming
+remains future work. The reviewer found factory startup overhead negligible.
+
+Follow-up validation supersedes the initial count: 65 unit tests, source/test
+build and all six required Electron scenarios pass (~113 s); npm ci reports
+0 vulnerabilities. The sandboxed install initially failed its esbuild subprocess
+check and was retried successfully with subprocess permissions. No final
+checks failed or were skipped. Physical controller, real Windows play/audio
+and GPU measurements remain outstanding; the recorded performance samples
+above were not rerun because query algorithms and the supported scenes did
+not change.

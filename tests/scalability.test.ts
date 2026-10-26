@@ -80,3 +80,22 @@ test('two World instances from one bound factory own independent render origins'
   assert.deepEqual(second.frame.origin,origin);assert.notDeepEqual(first.frame.origin,origin);
  }finally{if(previous)Object.defineProperty(globalThis,'document',previous);else Reflect.deleteProperty(globalThis,'document');}
 });
+
+test('spatial grid and polygon bounds handle collections above the argument-count limit',()=>{
+ const items=Array.from({length:150000},(_,i)=>({x:i%1000,z:Math.floor(i/1000),width:1,depth:1}));
+ const grid=new SpatialGrid(items,rectBounds);
+ assert.deepEqual(grid.bounds,{minX:-.5,maxX:999.5,minZ:-.5,maxZ:149.5});
+ assert.ok(grid.at(items[items.length-1]).includes(items[items.length-1]));
+ const vertices=Array.from({length:150000},()=>({x:0,z:0}));vertices[0]={x:-20,z:-30};vertices[vertices.length-1]={x:40,z:50};
+ assert.deepEqual(rectBounds({x:0,z:0,width:2,depth:2,points:vertices}),{minX:-20,maxX:40,minZ:-30,maxZ:50});
+ assert.deepEqual(rectBounds({x:0,z:0,width:2,depth:2,holes:[vertices]}),{minX:-20,maxX:40,minZ:-30,maxZ:50});
+ const empty=new SpatialGrid<never>([],()=>{throw new Error('not called');});
+ assert.deepEqual(empty.query({minX:0,maxX:1,minZ:0,maxZ:1}),[]);
+ assert.deepEqual(empty.bounds,{minX:Infinity,maxX:-Infinity,minZ:Infinity,maxZ:-Infinity});
+});
+
+test('legacy Harbor rejects a nonzero render anchor instead of mixing coordinate frames',async()=>{
+ const {createWorld}=await import('../src/world/World');
+ assert.doesNotThrow(()=>createWorld(new District(harbor)));
+ assert.throws(()=>createWorld(new District(translateDistrict(new District(harbor).district,25000,25000))),/Harbor requires its authored coordinates/);
+});

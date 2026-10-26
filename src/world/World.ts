@@ -11,6 +11,8 @@ import { createSigns } from "./signs";
 import { District } from "./district";
 export function createWorld(logical:District){
 const frame=new LocalFrame(logical.spawn);
+// Legacy Harbor geometry/obstacles are authored around zero, not translated data.
+if(logical.district.id==='harbor'&&(frame.anchor.x!==0||frame.anchor.z!==0))throw new Error('Harbor requires its authored coordinates (zero render anchor)');
 const context=new District(translateDistrict(logical.district,-frame.anchor.x,-frame.anchor.z));
 const {district,roads,nodeById,parkingZones,landmarks,isPaved}=context;
 const {decorateBuildings,dressStreets,facadeColor}=createScenery(context);

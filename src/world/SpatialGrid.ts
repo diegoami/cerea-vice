@@ -1,8 +1,11 @@
 import type { Point, Rect } from './schema';
 export interface Box {minX:number;maxX:number;minZ:number;maxZ:number}
 export function rectBounds(rect:Rect):Box {
- const points=[{x:rect.x-rect.width/2,z:rect.z-rect.depth/2},{x:rect.x+rect.width/2,z:rect.z+rect.depth/2},...(rect.points??[]),...(rect.holes??[]).flat()];
- return {minX:Math.min(...points.map(p=>p.x)),maxX:Math.max(...points.map(p=>p.x)),minZ:Math.min(...points.map(p=>p.z)),maxZ:Math.max(...points.map(p=>p.z))};
+ const bounds={minX:Math.min(rect.x-rect.width/2,rect.x+rect.width/2),maxX:Math.max(rect.x-rect.width/2,rect.x+rect.width/2),minZ:Math.min(rect.z-rect.depth/2,rect.z+rect.depth/2),maxZ:Math.max(rect.z-rect.depth/2,rect.z+rect.depth/2)};
+ const include=(point:Point)=>{bounds.minX=Math.min(bounds.minX,point.x);bounds.maxX=Math.max(bounds.maxX,point.x);bounds.minZ=Math.min(bounds.minZ,point.z);bounds.maxZ=Math.max(bounds.maxZ,point.z);};
+ for(const point of rect.points??[])include(point);
+ for(const hole of rect.holes??[])for(const point of hole)include(point);
+ return bounds;
 }
 /** Conservative broad phase. Exact predicates remain the source of truth. */
 export class SpatialGrid<T> {
@@ -11,7 +14,8 @@ export class SpatialGrid<T> {
  constructor(readonly items:readonly T[],box:(item:T)=>Box,readonly size=32){
   if(!Number.isFinite(size)||size<=0)throw new Error("Grid size must be positive and finite");
   const boxes=items.map(box);
-  this.bounds={minX:Math.min(...boxes.map(b=>b.minX)),maxX:Math.max(...boxes.map(b=>b.maxX)),minZ:Math.min(...boxes.map(b=>b.minZ)),maxZ:Math.max(...boxes.map(b=>b.maxZ))};
+  this.bounds={minX:Infinity,maxX:-Infinity,minZ:Infinity,maxZ:-Infinity};
+  for(const b of boxes){this.bounds.minX=Math.min(this.bounds.minX,b.minX);this.bounds.maxX=Math.max(this.bounds.maxX,b.maxX);this.bounds.minZ=Math.min(this.bounds.minZ,b.minZ);this.bounds.maxZ=Math.max(this.bounds.maxZ,b.maxZ);}
   for(const [id,b] of boxes.entries())for(let x=Math.floor(b.minX/size);x<=Math.floor(b.maxX/size);x++)for(let z=Math.floor(b.minZ/size);z<=Math.floor(b.maxZ/size);z++){
    const key=`${x},${z}`,cell=this.cells.get(key)??{x,z,ids:[]};cell.ids.push(id);this.cells.set(key,cell);
   }
