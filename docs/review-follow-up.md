@@ -197,3 +197,33 @@ and disposal counts (69 loads / 51 unloads); timing samples are recorded
 separately in the C report. No final checks failed/skipped, and no generated
 runtime artifacts are tracked. End-to-end driving/Windows/controller/audio/GPU
 manual limitations remain explicit.
+
+## PR #5 re-review: final minor cleanup
+
+The re-review covered `7c03eaeaac4455a7dbb7c8121e1757aec057f6e0` and
+confirmed S1/M1 fixed, with no SHOULD or MUST-FIX. It independently exercised
+repeated failures/backoff, paused recovery and 21 manifest mutations; the prior
+geography/rendering/routing evidence remains applicable. Two minor items were
+then closed rather than carried into the prototype:
+
+| Item | Disposition |
+| --- | --- |
+| M2 — graphics-context loss still says “Reload the page” | Changed to “Restart the application”, which is valid in the desktop shell. The startup-failure message now uses the same wording. District selection's actual window.location.reload() remains intentional; no missing Reload menu is assumed. |
+| M3 — a request that never settles cannot enter retry | Tile fetches now use AbortSignal.timeout(10_000), covering both the request and consumption of its response body. A stalled read rejects into the existing monotonic capped backoff. A new Electron regression holds the first local request indefinitely, verifies frozen clock/speed, then observes a successful replacement request and the unchanged starting atlas marker. |
+
+No map, route/fare, physics, input, geometry, shader or security behaviour was
+changed by this cleanup. No new performance claim is made; earlier measured
+samples remain historical. Physical end-to-end driving, physical controller,
+real Windows gameplay/audio and Windows GPU checks remain outstanding/manual.
+C stays unmerged; no reviewer is started or selected.
+
+Final cleanup validation: clean install (0 vulnerabilities), all 77 unit tests,
+source/test type-check/build and all nine required Xvfb/xfwm4 Electron scenarios
+pass together (~172 s). The new actual Electron case never releases the first
+request until cleanup; its deadline causes a successful replacement request,
+with clock/speed held and the starting atlas marker unchanged. The targeted
+case passed separately too. Diff checks pass; no remaining user-facing reload
+instruction exists in src. No final automated failures/skips. Historical
+performance samples were not rerun: this is a stalled-read deadline and wording
+change, without geometry/query changes or a new speedup claim. Manual/end-to-end
+limitations remain unchanged.

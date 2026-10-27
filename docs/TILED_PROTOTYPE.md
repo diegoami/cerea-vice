@@ -76,7 +76,9 @@ the current halo or after disposal never installs a stale mesh.
 If the visible neighbourhood is not ready, car physics and mission time freeze
 with a generic loading notice. Transient local reads retry automatically after
 0.5 s, then 1/2/4 s with an 8 s backoff cap while the tile remains wanted.
-Requests bypass the response cache so a retry rechecks the local asset. The
+Requests bypass the response cache so a retry rechecks the local asset. A
+10-second browser-time abort signal covers the request and response body; a
+stalled read enters the same backoff instead of holding a load slot forever. The
 gate stays closed until recovery; persistent failures suggest restarting the
 application. Recovery never resumes a paused drive or changes atlas knowledge.
 No tile coordinates or location information are displayed.
@@ -293,3 +295,13 @@ No final checks failed or were skipped. An actual end-to-end drive of the link,
 physical controller, Windows play/audio and Windows GPU measurements remain
 outstanding; the lab remains scripted jumps. The fix requires a fresh independent
 review of its exact head; no reviewer is started/chosen and C remains unmerged.
+
+The re-review at `7c03eaeaac4455a7dbb7c8121e1757aec057f6e0` verified S1/M1
+fixed and found no blocking items. Its remaining minor notes are also addressed:
+graphics/startup failures now say “restart the application”, and a 10-second
+request/body deadline sends never-settling reads into the existing backoff.
+Final cleanup validation is 77 unit tests, source/test build and all nine
+required Electron scenarios passing (~172 s), including an indefinitely held
+first request that times out and recovers without clock or marker changes.
+No performance sample or Windows/manual check is newly claimed by that cleanup.
+C remains unmerged and the updated head requires an independent recheck.

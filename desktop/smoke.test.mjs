@@ -552,3 +552,25 @@ test('a transient local tile failure retries while paused and recovers without r
   await page.screenshot({path:'test-results/C-retry-recovered.png'});assert.deepEqual(errors,[]);
  }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('a hung local tile request times out into backoff and recovers without advancing the clock', {timeout:90000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-tile-timeout-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ let release;const held=new Promise(resolve=>release=resolve);
+ try{
+  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();let attempts=0;
+  await page.route('**/tiles/0_0.json',async route=>{
+   attempts++;if(attempts===1){await held;try{await route.abort('failed');}catch{/* The client's deadline already cancelled this request. */}return;}
+   await route.continue();
+  });
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();const clock=await page.locator('#timer').innerText();
+  await page.waitForFunction(()=>document.querySelector('#stream-status').textContent.includes('Retrying automatically'),{},{timeout:25000});
+  assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  assert.equal(attempts,2,'The still-held first request must be replaced by a successful retry');
+  assert.equal(await page.locator('#stream-status').isHidden(),true);
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position/);
+  assert.deepEqual(errors,[]);
+ }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
+});

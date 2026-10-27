@@ -90,7 +90,7 @@ class Game {
       e.preventDefault();
       this.pause();
       this.hud.setHint(
-        "Graphics context interrupted. Reload the page to restart the prototype.",
+        "Graphics context interrupted. Restart the application to continue.",
       );
     });
     this.cockpit.update(1, this.car, 0);

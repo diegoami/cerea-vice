@@ -17,7 +17,7 @@ async function start() {
     new Game(app);
   } catch (error) {
     console.error(error);
-    app.innerHTML='<div class="fatal"><h1>Unable to start the drive</h1><p>Check that the district files are available and WebGL 2 hardware acceleration is enabled, then reload.</p></div>';
+    app.innerHTML='<div class="fatal"><h1>Unable to start the drive</h1><p>Check that the district files are available and WebGL 2 hardware acceleration is enabled, then restart the application.</p></div>';
   }
 }
 void start();
