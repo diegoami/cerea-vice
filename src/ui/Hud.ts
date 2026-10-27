@@ -8,13 +8,16 @@ import { selectDistrict, availableDistricts } from "../world/load";
 import { type Point } from "../world/district";
 import { createNavigation } from "../navigation/Navigation";
 import { District } from "../world/district";
-export type Screen = "briefing" | "running" | "paused" | "result" | "atlas";
+import type {AtlasSnapshot} from '../navigation/AtlasNotes';
+import {bindingLabel,defaultBindings,type Bindings} from '../input/Bindings';
+export type Screen = "briefing" | "running" | "paused" | "result" | "atlas" | "offer";
 export function createHud(context:District){
 const {district,areaAt}=context;
 const {AtlasView}=createAtlasView(context);
 const {AtlasNotes}=createAtlasNotes(context);
 const {atlasFrame,atlasStreetEntries,atlasReference,atlasMarkup}=createAtlas(context);
 const {bearing,compass,nearestRoad}=createNavigation(context);
+const escapeHtml=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const formatMoney=(cents:number)=>`€${(cents/100).toFixed(2)}`;
 const formatTime = (seconds: number) =>
   `${Math.floor(seconds / 60)
@@ -44,8 +47,12 @@ class Hud {
   private device: HTMLElement;
   private hint: HTMLElement;
   private hintLabel: HTMLElement;
+  private bindings:Bindings=defaultBindings;
+  setBindings(bindings:Bindings){this.bindings=bindings;this.currentScreen=undefined;}
+  saveAtlas(){return this.atlasNotes.snapshot();}
+  restoreAtlas(value:AtlasSnapshot){this.atlasNotes.restore(value);this.atlasInformation='';this.atlasView.reset();this.currentScreen=undefined;}
 
-  constructor(root: HTMLElement, onAction: () => void, onInformation: () => void) {
+  constructor(root: HTMLElement, onAction: () => void, onInformation: () => void, private onOffer:(accept:boolean)=>void=()=>{}) {
     const ui = document.createElement("div");
     ui.id = "hud";
     ui.innerHTML = `
@@ -96,6 +103,7 @@ class Hud {
         return;
       }
       if(button.dataset.atlasZoom) {this.zoomAtlas(Math.pow(1.5,Number(button.dataset.atlasZoom)));return;}
+      if(button.dataset.fare){this.onOffer(button.dataset.fare==='accept');this.currentScreen=undefined;return;}
       if(button.hasAttribute("data-atlas-overview")){this.resetAtlasView();return;}
       if(button.dataset.atlasStreet){this.focusAtlasStreet(button.dataset.atlasStreet);return;}
       if (button.dataset.district) {
@@ -151,7 +159,7 @@ class Hud {
     if(oldCursor.x<box.x||oldCursor.x>box.x+box.width||oldCursor.z<box.z||oldCursor.z>box.z+box.height)this.atlasNotes.pointAt(this.atlasView.centre);
     map.setAttribute("viewBox",`${box.x} ${box.z} ${box.width} ${box.height}`);
     const scale=map.getScreenCTM()?.a??1;if(!(scale>0))return;
-    const pixels=Math.min(16,8+4*(this.atlasView.zoom-1));
+    const pixels=Math.min(24,14+3*(this.atlasView.zoom-1));
     for(const label of map.querySelectorAll<SVGTextElement>("[data-street]")){
       const selected=label.dataset.street===this.selectedStreet;
       label.style.fontSize=`${(selected?pixels+2:pixels)/scale}px`;
@@ -316,6 +324,10 @@ class Hud {
     this.overlay.classList.toggle("atlas-open", screen === "atlas");
     this.overlay.hidden = screen === "running";
     if (screen === "running") return;
+    if(screen==='offer'){
+      this.overlay.innerHTML=`<section class="fare-offer modal" aria-labelledby="screen-title"><span class="eyebrow accent">TAXI DISPATCH / TIME PAUSED</span><h1 id="screen-title">A fare for you.</h1><p>${escapeHtml(mission.offerText)}</p><p>Accept to commit to this trip, or decline for another offer. No earnings or penalty for declining. Atlas and information remain available after accepting.</p><button data-fare="accept">Accept fare · A / Enter</button><button data-fare="decline">Decline fare · B / Backspace</button><small>Start / Escape: pause menu and save. Reading this offer stops the shift clock.</small></section>`;return;
+    }
+    const label=(action:Parameters<typeof bindingLabel>[1],controller=false)=>bindingLabel(this.bindings,action,controller);
     if (screen === "atlas") {
       this.atlasPage = "map";
       this.overlay.innerHTML = atlasMarkup(this.atlasPage);
@@ -325,29 +337,29 @@ class Hud {
     }
     const controls = `<div class="control-table">
       <div class="control-heading"><span>ACTION</span><span>CONTROLLER</span><span>KEYBOARD</span></div>
-      ${mission.taxiMode ? `<div><span>Collect / drop off passenger</span><b>A / Cross</b><b>Enter</b></div>` : ""}
-      <div><span>Steer</span><b>Left stick</b><b>A D / ← →</b></div>
-      <div><span>Accelerate</span><b>RT</b><b>W / ↑</b></div>
-      <div><span>Brake only</span><b>LT</b><b>S / ↓</b></div>
-      <div><span>Forward / reverse (stopped)</span><b>B / Circle</b><b>R</b></div>
-      <div><span>Handbrake</span><b>X / Square</b><b>Space</b></div>
+      ${mission.taxiMode ? `<div><span>Collect / drop off passenger</span><b>${label('interact',true)}</b><b>${label('interact')}</b></div>` : ""}
+      <div><span>Steer</span><b>Left stick</b><b>${label('steerLeft')} / ${label('steerRight')}</b></div>
+      <div><span>Accelerate</span><b>${label('throttle',true)}</b><b>${label('throttle')}</b></div>
+      <div><span>Brake only</span><b>${label('brake',true)}</b><b>${label('brake')}</b></div>
+      <div><span>Forward / reverse (stopped)</span><b>${label('shiftGear',true)}</b><b>${label('shiftGear')}</b></div>
+      <div><span>Handbrake</span><b>${label('handbrake',true)}</b><b>${label('handbrake')}</b></div>
       <div><span>Look around</span><b>Right stick</b><b>Click view + mouse</b></div>
-      <div><span>Look forward</span><b>R3</b><b>C</b></div>
-      <div><span>Glance</span><b>LB / RB</b><b>Q / E</b></div>
-      <div><span>Ask for information (road / atlas)</span><b>View / Select</b><b>F</b></div>
-      <div><span>Atlas (while stopped)</span><b>Y / Triangle</b><b>T</b></div>
-      <div><span>Mission reminder</span><b>D-pad up</b><b>Tab / M</b></div>
+      <div><span>Look forward</span><b>${label('resetLook',true)}</b><b>${label('resetLook')}</b></div>
+      <div><span>Glance</span><b>${label('glanceLeft',true)} / ${label('glanceRight',true)}</b><b>${label('glanceLeft')} / ${label('glanceRight')}</b></div>
+      <div><span>Ask for information (road / atlas)</span><b>${label('information',true)}</b><b>${label('information')}</b></div>
+      <div><span>Atlas (while stopped)</span><b>${label('atlas',true)}</b><b>${label('atlas')}</b></div>
+      <div><span>Mission reminder</span><b>${label('reminder',true)}</b><b>${label('reminder')}</b></div>
       <div><span>Pause</span><b>Start</b><b>Esc / P</b></div>
     </div>`;
     if (screen === "briefing") {
       this.overlay.innerHTML = `<section class="briefing modal" aria-labelledby="screen-title">
         <div class="briefing-main"><span class="eyebrow accent">CEREA VICE &nbsp; / &nbsp; A DRIVING EXPERIMENT</span>
-          <h1 id="screen-title">A place.<br>A deadline.<br><em>Your own way.</em></h1>
+          <h1 id="screen-title">A place.<br> A deadline.<br> <em>Your own way.</em></h1>
           <p class="intro">${mission.taxiMode ? "Collect passengers, learn the streets and see how much you can earn before 17:00." : "No familiar streets. Just a compass, a few signs, and the road ahead."}</p>
           <button type="button">Start the engine <span aria-hidden="true">&gt;</span></button><span class="button-note">${mission.taxiMode ? `A / ENTER TO START · ${mission.shiftLabel} TAXI SHIFT` : `A / ENTER TO BEGIN · ${Math.round(district.mission.duration/60)} MINUTE DRIVE`}</span>
         </div>
-        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><h2>${mission.taxiMode ? "Drive a taxi in Cerea." : `Find ${district.mission.name}.`}</h2><p>${district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${availableDistricts.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${map.name}</button>`).join("")}</div><small class="controller-note">LB / RB or Q / E: change district before starting.</small><small class="controller-note">${district.attribution}</small>
-          <div class="briefing-tip">${mission.taxiMode ? `<b>A working day in ${Math.ceil(mission.duration/60)} active minutes.</b><p>Clock: ${mission.shiftLabel}. Stop in the named bay and press A / Enter to collect or drop off a passenger. Faster rides earn more; slow rides still pay a base fare. Pausing or reading the atlas freezes the shift.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere. Press Y / T for the atlas, or View / F for a local direction hint. Marked P bays are legal stopping places.</p></div>
+        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><h2>${mission.taxiMode ? "Drive a taxi in Cerea." : `Find ${district.mission.name}.`}</h2><p>${mission.taxiMode?"Dispatch offers a different pickup and destination each shift. Read the guaranteed payment, accept or decline, then collect your passenger at a full stop.":district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${availableDistricts.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${map.name}</button>`).join("")}</div><small class="controller-note">LB / RB or Q / E: change district before starting.</small><small class="controller-note">${district.attribution}</small>
+          <div class="briefing-tip">${mission.taxiMode ? `<b>A working day in ${Math.ceil(mission.duration/60)} active minutes.</b><p>Clock: ${mission.shiftLabel}. Stop in the named bay and use ${label('interact',true)} / ${label('interact')} to collect or drop off a passenger. Faster rides earn more; slow rides still pay a base fare. Pausing or reading the atlas freezes the shift.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere. Use ${label('atlas',true)} / ${label('atlas')} for the atlas, or ${label('information',true)} / ${label('information')} for information. Marked P bays are legal stopping places.</p></div>
           ${controls}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
       </section>`;
@@ -390,8 +402,8 @@ class Hud {
     const description=document.querySelector<HTMLElement>('#objective-description')!;
     const taxiStatus=document.querySelector<HTMLElement>('#taxi-status')!;
     if(mission.taxiMode) {
-      stage.textContent=`TAXI / ${mission.taxiStage==='pickup'?'COLLECT PASSENGER':'PASSENGER ABOARD'}`;
-      const text=mission.taxiStage==='pickup'?`Collect ${mission.passenger} at ${target.name}`:`${mission.passenger} → ${target.name}`;
+      stage.textContent=`TAXI / ${mission.offerPending?'FARE OFFER':mission.taxiStage==='pickup'?'COLLECT PASSENGER':'PASSENGER ABOARD'}`;
+      const text=mission.offerPending?'New fare: stop to read the offer':mission.taxiStage==='pickup'?`Collect ${mission.passenger} at ${target.name}`:`${mission.passenger} → ${target.name}`;
       if(title.textContent!==text)title.textContent=text;
       if(description.textContent!==mission.objective)description.textContent=mission.objective;
       taxiStatus.hidden=false;
@@ -430,9 +442,10 @@ class Hud {
     this.device.title = gamepadBlocked
       ? "Open the preview in a new browser tab to use a controller."
       : "";
-    const serve=mission.canServe(car,parking.stopped)?`<kbd>${device === "Controller" ? "A" : "Enter"}</kbd> ${mission.taxiStage==='pickup'?`Collect ${mission.passenger}`:'Complete fare'} &nbsp; `:'';
+    const control=(action:Parameters<typeof bindingLabel>[1])=>bindingLabel(this.bindings,action,device==='Controller');
+    const serve=mission.canServe(car,parking.stopped)?`<kbd>${control('interact')}</kbd> ${mission.taxiStage==='pickup'?`Collect ${escapeHtml(mission.passenger)}`:'Complete fare'} &nbsp; `:'';
     this.prompt.innerHTML = parking.stopped
-      ? `${serve}<kbd>${device === "Controller" ? "View" : "F"}</kbd> Ask for information &nbsp; <kbd>${device === "Controller" ? "Y" : "T"}</kbd> Atlas &nbsp; <kbd>${device === "Controller" ? "B" : "R"}</kbd> ${car.gear === "D" ? "Select reverse" : "Select forward"} <span>· ${parking.zone ?? (parking.legal ? "stopping allowed" : "unsafe stopping place")}</span>`
+      ? `${serve}<kbd>${control('information')}</kbd> Ask for information &nbsp; <kbd>${control('atlas')}</kbd> Atlas &nbsp; <kbd>${control('shiftGear')}</kbd> ${car.gear === "D" ? "Select reverse" : "Select forward"} <span>· ${parking.zone ?? (parking.legal ? "stopping allowed" : "unsafe stopping place")}</span>`
       : "Stop fully for the atlas or directions";
   }
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Car } from './Car';
+import {createPerson} from '../world/People';
 
 export const MIRROR_MOUNTS = [[-1.13,-1.30,.50,-.35,.24],[1.45,-1.85,-.85,.35,.34]] as const;
 
@@ -11,6 +12,8 @@ export class Cockpit {
   private instruments = document.createElement('canvas');
   private instrumentTexture: THREE.CanvasTexture;
   private lastReadout = '';
+  private passenger?:THREE.Group;
+  private passengerIdentity='';
   private mirrorTime = 0;
   private mirrors: { camera: THREE.PerspectiveCamera; target: THREE.WebGLRenderTarget; position: THREE.Vector3; direction: THREE.Vector3 }[] = [];
 
@@ -89,6 +92,13 @@ export class Cockpit {
       const glass=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({map:target.texture}));glass.position.z=.038;housing.add(glass);
       this.mirrors.push({camera:new THREE.PerspectiveCamera(65,320/192,.15,1000),target,position:new THREE.Vector3(x,1.88,z),direction:new THREE.Vector3(outward,-.08,1).normalize()});
     }
+  }
+
+  setPassenger(identity:string){
+    if(identity===this.passengerIdentity)return;
+    this.passengerIdentity=identity;
+    if(this.passenger){this.passenger.removeFromParent();this.passenger.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});this.passenger=undefined;}
+    if(identity){this.passenger=createPerson(identity,true);this.passenger.position.set(.98,.94,.63);this.interior.add(this.passenger);}
   }
 
   update(car:Pick<Car,"x"|"z"|"heading"|"steering"|"gear"|"speed">,roll=0,pitch=0,wobble=0) {

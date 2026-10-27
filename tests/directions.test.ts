@@ -46,7 +46,7 @@ test('Cerea Paride/Cordioli boards name the correct turns and suppress a one-way
 });
 test('Cerea information follows the current taxi target and gives a useful return instruction',()=>{
   useDistrict(cerea);
-  const mission=new Mission(),position=cerea.spawn;
+  const mission=new Mission({authored:true}),position=cerea.spawn;
   assert.match(directionHint(position,position.heading,mission.target),/Municipio di Cerea is beside you/);
   assert.equal(mission.serveAtStop(position,true),true);
   assert.match(directionHint(position,position.heading,mission.target),/Continue north.*turn left onto Via Municipio/);

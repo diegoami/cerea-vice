@@ -4,6 +4,65 @@ import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { _electron } from 'playwright-core';
+async function seedDispatch(page,seed=75){await page.addInitScript(seed=>{Math.random=()=>seed/4294967296;},seed);await page.reload();}
+async function acceptOffer(page){await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});}
+
+test('fare choices, remapping and saved passenger/atlas state survive a complete desktop relaunch', {timeout:120000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-save-controls-'));
+ const launch=()=>_electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ let app=await launch();const errors=[];
+ try{
+  let page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));await seedDispatch(page);
+  await page.getByRole('button',{name:'Change controls',exact:true}).click();
+  const gearKey=page.locator('[data-control=shiftGear][data-device=key]');
+  await gearKey.click();await page.keyboard.press('w');
+  await page.getByRole('status').filter({hasText:/assigned to Accelerate/}).waitFor();
+  await page.keyboard.press('g');await page.locator('[data-control=shiftGear][data-device=key]').filter({hasText:'G'}).waitFor();
+  await page.evaluate(()=>{window.savePad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.savePad],configurable:true});});
+  const padButton=async(index,value)=>{await page.evaluate(({index,value})=>window.savePad.buttons[index].value=value,{index,value});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));};
+  await page.locator('[data-control=shiftGear][data-device=pad]').click();await padButton(10,1);await padButton(10,0);
+  await page.locator('[data-control=shiftGear][data-device=pad]').filter({hasText:'L3'}).waitFor();
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.locator('[data-fare=accept]').waitFor();const offerClock=await page.locator('#timer').innerText();
+  const original=await page.locator('.fare-offer p').first().innerText();await page.waitForTimeout(900);assert.equal(await page.locator('#timer').innerText(),offerClock);
+  await padButton(1,1);await padButton(1,0);assert.notEqual(await page.locator('.fare-offer p').first().innerText(),original,'B declines without changing the gear or earning');
+  assert.equal(await page.locator('#gear').innerText(),'D');assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Save shift',exact:true}).click();
+  await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
+  const pending=await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-cerea')));assert.equal(pending.mission.offerPending,true);
+  // Return to the known Municipio fixture through the actual stored snapshot, keeping validation active.
+  await page.evaluate(original=>{const s=JSON.parse(localStorage.getItem('cerea-save-cerea'));s.mission.currentFare={passenger:'Elena',pickupId:'municipio',destinationId:'post'};s.mission.offerPending=true;s.mission.offerQuoted=false;s.mission.approachDistance=0;s.mission.notice=original;localStorage.setItem('cerea-save-cerea',JSON.stringify(s));},original);
+  await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.getByRole('button',{name:'Back to the road'}).click();
+  await acceptOffer(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-stage').textContent.includes('PASSENGER ABOARD'));
+  await padButton(10,1);await padButton(10,0);await page.waitForFunction(()=>document.querySelector('#gear').textContent==='R');
+  await padButton(1,1);await padButton(1,0);assert.equal(await page.locator('#gear').innerText(),'R','B is free after selecting L3');
+  await page.evaluate(()=>window.savePad.axes[2]=1);await page.waitForTimeout(750);
+  await page.screenshot({path:'test-results/passenger-beside-driver.png'});await page.evaluate(()=>window.savePad.axes[2]=0);
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  await page.keyboard.down('d');await page.waitForTimeout(250);await page.keyboard.up('d');await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>document.querySelector('#atlas-marker-status').textContent.includes('Your estimated position'));
+  const pin=await page.locator('.atlas-pin').getAttribute('transform');await padButton(1,1);await padButton(1,0);await page.locator('#overlay').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#gear').innerText(),'R','Atlas B never shifts the remapped gear');
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Save shift',exact:true}).click();
+  const saved=await page.evaluate(()=>localStorage.getItem('cerea-save-cerea'));
+  await app.close();app=await launch();page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-save-cerea')),saved);
+  assert.equal(await page.locator('#gear').innerText(),'R');assert.match(await page.locator('#objective-stage').innerText(),/PASSENGER ABOARD/);
+  const loadedClock=await page.locator('#timer').innerText();await page.waitForTimeout(700);assert.equal(await page.locator('#timer').innerText(),loadedClock);
+  assert.match(await page.locator('.control-table').innerText(),/L3/);
+  await page.getByRole('button',{name:'Back to the road'}).click();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),pin);assert.match(await page.locator('#atlas-marker-status').innerText(),/Your estimated position/);
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.press('p');
+  await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  await page.evaluate(()=>localStorage.setItem('cerea-save-cerea','{damaged'));await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();
+  await page.locator('.save-status').filter({hasText:/Could not load/}).waitFor();assert.match(await page.locator('#objective-stage').innerText(),/PASSENGER ABOARD/);
+  assert.deepEqual(errors,[]);
+ }catch(error){const page=await app.firstWindow();await page.screenshot({path:'test-results/save-controls-failure.png'});console.log(await page.locator('body').innerText());throw error;}finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
 
 // On headless Linux use Xvfb with a window manager for the fullscreen check.
 test('desktop runs offline and supports a controller-only drive, disconnect and resume', { timeout: 90000 }, async () => {
@@ -218,6 +277,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     const page=await electronApp.firstWindow();
     page.on('pageerror',error=>errors.push(error.message));
     page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
+    await seedDispatch(page);
     await page.getByRole('button',{name:'Cerea Centro',exact:true,pressed:true}).waitFor();
     await page.getByRole('heading',{name:'Drive a taxi in Cerea.'}).waitFor();
     await mkdir('test-results',{recursive:true});
@@ -227,6 +287,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
     assert.equal(await page.locator('.car-badge').innerText(),'CEREA / 1986');
+    await acceptOffer(page);
     assert.match(await page.locator('#objective-title').innerText(),/Collect Elena/);
     assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
     assert.match(await page.locator('#timer').innerText(),/^07:/);
@@ -353,6 +414,7 @@ test('taxi shift ends at 17:00 with an earnings summary and can restart', {timeo
     });
     await page.reload();
     await page.getByRole('button',{name:'Start the engine'}).click();
+    await acceptOffer(page);
     await page.getByRole('heading',{name:'You earned €0.00.'}).waitFor();
     assert.equal(await page.locator('#timer').innerText(),'17:00');
     await page.screenshot({path:'test-results/taxi-shift-results.png'});
@@ -372,6 +434,7 @@ test('presentation modes preserve sharp UI, mirrors and controller settings with
   await page.locator('[data-key=volume]').selectOption('0');
   await page.locator('[data-key=motion]').selectOption('false');
   await page.getByRole('button',{name:'Start the engine'}).click();
+  await acceptOffer(page);
   await page.waitForFunction(()=>document.querySelector('#viewport').height===270);
   await page.locator('.presentation-settings').waitFor({state:'hidden'});
   await page.waitForTimeout(400);
@@ -418,7 +481,7 @@ test('presentation modes preserve sharp UI, mirrors and controller settings with
 
 test('restricted storage and keyboard settings preserve startup and resume controls', {timeout:90000}, async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-settings-regression-'));
- const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=harbor',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
   const page=await app.firstWindow();
   await page.getByRole('button',{name:'Start the engine'}).waitFor();
@@ -466,7 +529,8 @@ test('Cerea remains playable 25 km from origin with optional timings and a stabl
    }
    shift(data);await route.fulfill({json:data});
   });
-  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
+  await seedDispatch(page);await page.getByRole('button',{name:'Start the engine'}).click();
+  await acceptOffer(page);
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
   await page.keyboard.press('f');await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Via Venticinque Aprile'));
@@ -491,11 +555,11 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
   const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/THREE|shader/i.test(m.text()))errors.push(m.text());});
   let release;const gate=new Promise(resolve=>release=resolve);let blocked=true;
   await page.route('**/tiles/*.json',async route=>{if(blocked)await gate;await route.continue();});
-  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
+  await seedDispatch(page,141);await page.getByRole('button',{name:'Start the engine'}).click();
   await page.locator('#stream-status').waitFor();assert.match(await page.locator('.map-credit').innerText(),/OpenStreetMap/);
   const clock=await page.locator('#timer').innerText();await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
   assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
-  blocked=false;release();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  blocked=false;release();await acceptOffer(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Test Hamlet'));
   await page.evaluate(()=>{window.prototypePad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.prototypePad],configurable:true});window.prototypePad.buttons[8].value=1;});
   await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Via Venticinque Aprile'));
@@ -513,7 +577,7 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
    const {readFile}=await import('node:fs/promises');const data=JSON.parse(await readFile('public/maps/cerea-outskirts/manifest.json','utf8'));
    const bay=data.parkingZones.find(p=>p.id==='test-hamlet');data.spawn={x:bay.x,z:bay.z,heading:0,name:bay.name};data.taxi.fares=[{passenger:'Return tester',pickupId:'test-hamlet',destinationId:'municipio'}];await route.fulfill({json:data});
   });
-  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await seedDispatch(page,1771);await page.getByRole('button',{name:'Start the engine'}).click();await acceptOffer(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Municipio'));
   await page.keyboard.press('f');await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Turn around safely'));await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();const terminalPin=await page.locator('.atlas-pin').getAttribute('transform');assert.notEqual(terminalPin,pin);
   await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.down('w');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>3);await page.keyboard.up('w');
@@ -548,6 +612,7 @@ test('a transient local tile failure retries while paused and recovers without r
   await page.evaluate(()=>{window.retryPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.retryPad],configurable:true});window.retryPad.buttons[9].value=1;});
   await page.locator('#overlay').waitFor({state:'hidden'});await page.evaluate(()=>{window.retryPad.buttons[9].value=0;});
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await acceptOffer(page);
   assert.equal(await page.locator('#stream-status').isHidden(),true);assert.equal(attempts,2);assert.equal(await page.locator('#gear').innerText(),'D');
   await page.screenshot({path:'test-results/C-retry-recovered.png'});assert.deepEqual(errors,[]);
  }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
@@ -569,6 +634,7 @@ test('a hung local tile request times out into backoff and recovers without adva
   assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   assert.equal(attempts,2,'The still-held first request must be replaced by a successful retry');
+  await acceptOffer(page);
   assert.equal(await page.locator('#stream-status').isHidden(),true);
   await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position/);
   assert.deepEqual(errors,[]);

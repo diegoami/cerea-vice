@@ -1,5 +1,10 @@
 # Work package A — economical town presentation
 
+This report records the earlier implementation and measurements. The later
+[playtest follow-up](PLAYTEST_IMPROVEMENTS.md) supersedes its typography, static
+passenger, fixed dispatch, fare and temporary-player-profile descriptions.
+
+
 This is a presentation pass on the existing Cerea district, using Three.js.
 No content expansion, streaming, spatial index or route/physics rewrite is part
 of A. Work packages B and C remain separate, owner-gated work.

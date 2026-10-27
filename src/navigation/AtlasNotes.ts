@@ -1,5 +1,6 @@
 import { type Point } from "../world/district";
 import { District } from "../world/district";
+export interface AtlasSnapshot {cursor:Point;marker:Point|null;source:'start'|'confirmed'|'estimate';label:string}
 export function createAtlasNotes(context:District){
 const {district,spawn}=context;
 const paperBounds = () => {
@@ -13,6 +14,13 @@ class AtlasNotes {
   marker: Point | undefined = { x: spawn.x, z: spawn.z };
   source: "start" | "confirmed" | "estimate" = "start";
   label = spawn.name;
+
+  snapshot():AtlasSnapshot{return {cursor:{...this.cursor},marker:this.marker?{...this.marker}:null,source:this.source,label:this.label};}
+  restore(value:AtlasSnapshot){
+    const valid=(p:Point)=>p&&Number.isFinite(p.x)&&Number.isFinite(p.z)&&p.x===boundedX(p.x)&&p.z===boundedZ(p.z);
+    if(!value||!valid(value.cursor)||(value.marker!==null&&!valid(value.marker))||!['start','confirmed','estimate'].includes(value.source)||typeof value.label!=='string'||value.label.length>500)throw new Error('Invalid saved atlas');
+    this.cursor={...value.cursor};this.marker=value.marker?{...value.marker}:undefined;this.source=value.source;this.label=value.label;
+  }
 
   reset() {
     this.cursor = { x: spawn.x, z: spawn.z };

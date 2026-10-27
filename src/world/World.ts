@@ -156,13 +156,6 @@ class World {
     const noEntry=planVittoriaNoEntrySign();
     if(noEntry)signpost(scene,noEntry.position.x,noEntry.position.z,["SENSO VIETATO","V.LE VITTORIA"],noEntry.angle,"#943f37",noEntry.width,noEntry.height);
     for(const plan of planEdgeSigns())signpost(scene,plan.position.x,plan.position.z,[plan.boundary?"FINE ZONA":"STRADA CHIUSA","TORNA INDIETRO"],plan.angle,"#755e46",plan.width,plan.height);
-    // All stops have the same waiting figure, independent of the active fare.
-    for(const bay of parkingZones){
-      const figure=new THREE.Group();figure.position.set(bay.x+bay.width/2-1,0,bay.z+bay.depth/2-1);
-      box(figure,0,1.05,0,.5,.9,.3,0x3b5772);
-      for(const side of [-1,1])box(figure,side*.14,.35,0,.18,.7,.22,0x33464a);
-      const head=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),material(0xd1ab88));head.position.y=1.7;figure.add(head);this.detail.add(figure);
-    }
     decorateBuildings(this.detail);dressStreets(this.detail,[...streetPlates.plates,...plannedSigns.signs,...planParkingSigns(),...planEdgeSigns(),...(noEntry?[noEntry]:[])]);
     const batch=(parent:THREE.Object3D)=>{
     parent.updateMatrixWorld(true);

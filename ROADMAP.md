@@ -4,6 +4,21 @@ The goal is to reach a small playable version of the [game vision](VISION.md): l
 
 This is a proposed sequence, not a fixed schedule. Each milestone ends with a playable checkpoint; findings can change the next milestone's scope. Choose the first real location early, but build only a small district until the navigation loop works.
 
+## Next playtest milestones (27 October 2026)
+
+The current feedback is assigned to two GitHub milestones, with implementation
+on `feat/playtest-improvements` and owner playtesting still required:
+
+- [0.7 — Readability, people and controls](https://github.com/diegoami/cerea-vice/milestone/1):
+  #6 larger retro typography, #7 passenger presence and better people, and
+  #10 configurable keyboard/controller bindings including L3 for gears.
+- [0.8 — A shift worth continuing](https://github.com/diegoami/cerea-vice/milestone/2):
+  #8 randomized dispatch, #11 accept/decline offers, #12 worthwhile long fares,
+  and #9 persistent save/resume.
+
+These are the immediate release checkpoints within the longer roadmap below.
+See [behavior and validation](docs/PLAYTEST_IMPROVEMENTS.md).
+
 ## Current starting point
 
 The prototype already has first-person driving, analog controller input with keyboard fallback, reversing, handbraking, glances, collisions, a heading compass, junction direction boards, legal stopping areas, stopped-only direction requests, and one timed journey through fictional Harbor District.

@@ -1,3 +1,4 @@
+import {createPerson} from './People';
 import * as THREE from 'three';
 import { roadWidth, inRect, pointInPolygon, projectToSegment, type Point } from "./district";
 import { box, material } from './builders';
@@ -96,7 +97,7 @@ function dressStreets(parent:THREE.Group,signs:Sightline[]=[],planned=planProps(
   if(p.kind==='tree'){box(group,0,1.5,0,.35,3,.35,0x685744);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(2,0),material(0x687b48));crown.position.y=3.4;group.add(crown);}
   if(p.kind==='lamp'){box(group,0,2.7,0,.16,5.4,.16,0x455856);box(group,.4,5.4,0,1.2,.15,.4,0xd3c8a5);}
   if(p.kind==='car'){box(group,0,.65,0,3.8,.8,1.65,0x8d6953);box(group,0,1.25,0,2,.6,1.5,0x698785);for(const x of [-1.2,1.2])for(const z of [-.8,.8])box(group,x,.35,z,.6,.6,.2,0x293537);}
-  if(p.kind==='person'){box(group,0,1.05,0,.45,.8,.3,0x9b7959);for(const x of [-.12,.12])box(group,x,.35,0,.16,.7,.2,0x435252);const head=new THREE.Mesh(new THREE.IcosahedronGeometry(.21,0),material(0xc8a47d));head.position.y=1.65;group.add(head);}
+  if(p.kind==='person')group.add(createPerson(`${p.x}/${p.z}`));
  }
 }
 return {facadeVariant,facadeColor,roofGeometry,createFacadeMaterials,decorateBuildings,planProps,dressStreets};

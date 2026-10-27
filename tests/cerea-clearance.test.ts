@@ -56,7 +56,7 @@ test('large arrow boards are reserved for junctions between major thoroughfares'
 });
 test('Cerea allows stopped information requests anywhere without unsafe-stop counts',()=>{
   useDistrict(cerea);
-  const parking=new Parking(),mission=new Mission();
+  const parking=new Parking(),mission=new Mission({authored:true});
   parking.update(1,spawn,5);parking.update(1,{x:0,z:0},0);
   assert.equal(parking.zone,undefined);assert.equal(parking.stopped,true);
   assert.equal(parking.legal,true);assert.equal(parking.unsafeStops,0);

@@ -17,7 +17,8 @@ $process = $null
 try {
   New-Item -ItemType Directory -Path $target -Force | Out-Null
   Copy-Item -Path (Join-Path $source '*') -Destination $target -Recurse -Force
-  $profile = Join-Path $target 'profile'
+  $profile = Join-Path (Join-Path $env:LOCALAPPDATA 'CereaVice') 'profile'
+  New-Item -ItemType Directory -Path $profile -Force | Out-Null
   $arguments = @(${literal('--district='+requested)}, ('--user-data-dir="' + $profile + '"'))
   $process = Start-Process -FilePath (Join-Path $target 'cerea-vice.exe') -ArgumentList $arguments -WorkingDirectory $target -PassThru
   $opened = $false
@@ -33,7 +34,7 @@ try {
   }
   if (-not $opened) { throw 'The game did not open a window within 15 seconds.' }
   # Keep this launcher attached until its own game exits, then remove its copy
-  # and isolated profile. Other playtests and their profiles are never touched.
+  # only. The durable profile (saves and settings) is never removed.
   $process.WaitForExit()
   if ($process.ExitCode -ne 0) { throw ('Game exited with code ' + $process.ExitCode) }
 } finally {

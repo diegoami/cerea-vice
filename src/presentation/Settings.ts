@@ -26,6 +26,8 @@ export class SettingsPanel {
   private readonly element=document.createElement('section');
   private index=-1;
   private delay=0;
+  private actions:{button:HTMLButtonElement;run:()=>void}[]=[];
+  addAction(label:string,run:()=>void){const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',run);this.element.append(button);this.actions.push({button,run});return button;}
   constructor(readonly values:PresentationSettings, private changed:()=>void) {
     this.element.className='presentation-settings';
     this.element.setAttribute('aria-label','Presentation settings');
@@ -37,6 +39,7 @@ export class SettingsPanel {
       <label>Radio <select data-key="radio"><option value="false">Off</option><option value="true">On</option></select></label>`;
     document.querySelector('#hud')!.append(this.element);
     this.element.addEventListener('keydown',event=>{
+      if(event.target instanceof HTMLButtonElement){event.stopPropagation();return;}
       // Reserve the advertised start/resume controls even after a mouse edit.
       if(event.code==='Enter'||event.code==='Escape'){
         event.preventDefault();
@@ -59,9 +62,12 @@ export class SettingsPanel {
     this.element.hidden=!visible;
     if(!visible){this.index=-1;this.delay=0;return false;}
     this.delay=Math.max(0,this.delay-dt);
-    if(Math.abs(y)>.5&&this.delay===0){this.index=this.index<0?(y>0?0:this.selects.length-1):(this.index+(y>0?1:-1)+this.selects.length)%this.selects.length;this.delay=.25;}
+    const count=this.selects.length+this.actions.length;
+    if(Math.abs(y)>.5&&this.delay===0){this.index=this.index<0?(y>0?0:count-1):(this.index+(y>0?1:-1)+count)%count;this.delay=.25;
+      const item=this.selects[this.index]??this.actions[this.index-this.selects.length]?.button;item?.scrollIntoView({block:'nearest'});}
     for(const [i,select] of this.selects.entries())select.classList.toggle('controller-selected',i===this.index);
-    if(confirm&&this.index>=0){const select=this.selects[this.index];select.selectedIndex=(select.selectedIndex+1)%select.options.length;this.commit();return true;}
+    for(const [i,action] of this.actions.entries())action.button.classList.toggle('controller-selected',i+this.selects.length===this.index);
+    if(confirm&&this.index>=0){const select=this.selects[this.index];if(select){select.selectedIndex=(select.selectedIndex+1)%select.options.length;this.commit();}else this.actions[this.index-this.selects.length]?.button.click();return true;}
     return false;
   }
 }

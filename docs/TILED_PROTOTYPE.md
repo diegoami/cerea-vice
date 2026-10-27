@@ -1,5 +1,10 @@
 # Tiled outskirts feasibility prototype — work package C
 
+This report records the earlier implementation and measurements. The later
+[playtest follow-up](PLAYTEST_IMPROVEMENTS.md) supersedes its typography, static
+passenger, fixed dispatch, fare and temporary-player-profile descriptions.
+
+
 B was accepted and merged through PR #4 at
 `ebd93fc93217f0f40654a0e1acc259a65d4819b8`. This is a separate opt-in C
 experiment, still using Three.js. Cerea Centro and Harbor remain their existing

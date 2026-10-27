@@ -1,3 +1,4 @@
+import {readBindings,type Bindings,type ControlAction} from './Bindings';
 export interface Actions {
   steer: number;
   throttle: number;
@@ -44,6 +45,9 @@ const deadzone = (value: number) =>
 
 /** Poll once per rendered frame; consume edge actions once per simulation update. */
 export class Input {
+  context:'driving'|'atlas'|'menu'='driving';
+  currentPad:Gamepad|undefined;
+  drivingReleased=true;
   // Presentation menu input must retain its source; keyboard Enter always drives.
   settingsInput={move:0,confirm:false,keyboardConfirm:false};
   private previousSettingsConfirm=false;
@@ -79,26 +83,27 @@ export class Input {
   controllerStatus = "Connect a controller and press any button. Keyboard works immediately.";
   private hadController = false;
 
-  constructor() {
+  constructor(readonly bindings:Bindings=readBindings()) {
     window.addEventListener("keydown", (event) => {
-      if (blockedKeys.has(event.code)) event.preventDefault();
+      if (blockedKeys.has(event.code) || (this.context==='driving' && Object.values(this.bindings).some(b=>b.keys.includes(event.code)))) event.preventDefault();
+      const matches=(action:ControlAction,fallback:string[])=>this.context==='driving'?this.bindings[action].keys.includes(event.code):fallback.includes(event.code);
       // Preserve quick taps that begin and end between render frames.
       if (!this.keys.has(event.code) && !event.repeat) {
-        if (event.code === "Enter")
+        if (matches("interact",["Enter"]))
           this.queuedInteract = true;
         if (event.code === "Escape" || event.code === "KeyP")
           this.queuedPause = true;
-        if (event.code === "KeyF") this.queuedInformation = true;
-        if (event.code === "KeyR") this.queuedShiftGear = true;
-        if (event.code === "KeyC" || event.code === "Home") this.queuedResetLook = true;
+        if (matches("information",["KeyF"])) this.queuedInformation = true;
+        if (matches("shiftGear",["KeyR"])) this.queuedShiftGear = true;
+        if (matches("resetLook",["KeyC","Home"])) this.queuedResetLook = true;
         if (event.code === "Equal" || event.code === "NumpadAdd") this.queuedAtlasZoomStep = 1;
         if (event.code === "Minus" || event.code === "NumpadSubtract") this.queuedAtlasZoomStep = -1;
-        if (event.code === "KeyT") this.queuedAtlas = true;
-        if (event.code === "Escape") this.queuedBack = true;
+        if (matches("atlas",["KeyT"])) this.queuedAtlas = true;
+        if (event.code === "Escape" || (this.context==='menu'&&event.code==='Backspace')) this.queuedBack = true;
         if (event.code === "Delete" || event.code === "Backspace") this.queuedClearMarker = true;
         if (event.code === "KeyQ") this.queuedAtlasPage = -1;
         if (event.code === "KeyE") this.queuedAtlasPage = 1;
-        if (event.code === "Tab" || event.code === "KeyM")
+        if (matches("reminder",["Tab","KeyM"]))
           this.queuedReminder = true;
       }
       this.keys.add(event.code);
@@ -146,6 +151,7 @@ export class Input {
     const pad = Array.from(pads).find(
       (p) => p?.connected && p.mapping === "standard",
     );
+    this.currentPad=pad??undefined;
     this.controllerDisconnected = this.hadController && !pad;
     this.hadController = Boolean(pad);
     this.controllerStatus = pad
@@ -165,27 +171,29 @@ export class Input {
     };
     this.previousSettingsConfirm=controllerConfirm;
     this.previousKeyboardConfirm=down("Enter");
-    const interact = down("Enter") || button(0) > 0.5;
+    const boundDown=(action:ControlAction)=>down(...this.bindings[action].keys);
+    const boundButton=(action:ControlAction)=>this.bindings[action].button===null?0:button(this.bindings[action].button!);
+    this.drivingReleased=!Object.entries(this.bindings).some(([action,b])=>b.keys.some(k=>this.keys.has(k))||boundButton(action as ControlAction)>.1);
+    const active=(action:ControlAction,keys:string[],index:number)=>this.context==='driving'?(boundDown(action)||boundButton(action)>.5):(down(...keys)||button(index)>.5);
+    const interact = active('interact',["Enter"],0);
     const pause = down("Escape", "KeyP") || button(9) > 0.5;
-    const reminder = down("Tab", "KeyM") || button(12) > 0.5;
-    const atlas = down("KeyT") || button(3) > 0.5;
-    const back = down("Escape") || button(1) > 0.5;
+    const reminder = active('reminder',['Tab','KeyM'],12);
+    const atlas = active('atlas',['KeyT'],3);
+    const back = down('Escape') || (this.context==='menu'&&down('Backspace')) || button(1) > 0.5;
     const atlasPage = Number(down("KeyE") || button(5) > 0.5)
       - Number(down("KeyQ") || button(4) > 0.5);
-    const information = down("KeyF") || button(8) > 0.5;
-    const shiftGear = down("KeyR") || button(1) > 0.5;
-    const resetLook = down("KeyC", "Home") || button(11) > 0.5;
+    const information = active('information',['KeyF'],8);
+    const shiftGear = active('shiftGear',['KeyR'],1);
+    const resetLook = active('resetLook',['KeyC','Home'],11);
     const clearMarker = down("Delete", "Backspace") || button(2) > 0.5;
     const keyboardSteer =
       Number(down("KeyD", "ArrowRight")) - Number(down("KeyA", "ArrowLeft"));
     const actions: Actions = {
-      steer: keyboardSteer || deadzone(pad?.axes[0] ?? 0),
-      throttle: Math.max(Number(down("KeyW", "ArrowUp")), button(7)),
-      brake: Math.max(Number(down("KeyS", "ArrowDown")), button(6)),
-      handbrake: down("Space") || button(2) > 0.5,
-      glance:
-        Number(down("KeyE") || button(5) > 0.5) -
-        Number(down("KeyQ") || button(4) > 0.5),
+      steer: (this.context==='driving'?Number(boundDown('steerRight'))-Number(boundDown('steerLeft')):keyboardSteer) || deadzone(pad?.axes[0] ?? 0),
+      throttle: this.context==='driving'?Math.max(Number(boundDown('throttle')),boundButton('throttle')):Math.max(Number(down('KeyW','ArrowUp')),button(7)),
+      brake: this.context==='driving'?Math.max(Number(boundDown('brake')),boundButton('brake')):Math.max(Number(down('KeyS','ArrowDown')),button(6)),
+      handbrake: active('handbrake',['Space'],2),
+      glance: Number(active('glanceRight',['KeyE'],5))-Number(active('glanceLeft',['KeyQ'],4)),
       interact: this.queuedInteract || (interact && !this.previousInteract),
       pause: this.queuedPause || (pause && !this.previousPause),
       reminder: this.queuedReminder || (reminder && !this.previousReminder),

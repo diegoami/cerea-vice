@@ -2,6 +2,14 @@ import { app, BrowserWindow, Menu, net, protocol, session } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assetPath } from './assets.mjs';
+import { mkdirSync } from 'node:fs';
+
+// Portable Windows launches and the WSL launcher share durable player data.
+if(process.platform==='win32'&&!app.commandLine.hasSwitch('user-data-dir')){
+  const profile=path.join(process.env.LOCALAPPDATA??app.getPath('appData'),'CereaVice','profile');
+  mkdirSync(profile,{recursive:true});
+  app.setPath('userData',profile);
+}
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'cerea', privileges: { standard: true, secure: true, supportFetchAPI: true } },

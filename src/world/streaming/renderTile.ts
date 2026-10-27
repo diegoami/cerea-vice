@@ -44,7 +44,7 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
  }
  for(const index of payload.bays){const b=localRect(context.parkingZones[index]);box(group,b.x,.14,b.z,b.width,.08,b.depth,0x647d6f);
   for(const s of [-1,1]){box(group,b.x+s*b.width/2,.2,b.z,.2,.03,b.depth,0xf0d7a0);box(group,b.x,.2,b.z+s*b.depth/2,b.width,.03,.2,0xf0d7a0);}
-  const person=new THREE.Group();person.position.set(b.x+b.width/2-1,0,b.z+b.depth/2-1);detail.add(person);box(person,0,1.05,0,.5,.9,.3,0x3b5772);for(const s of [-1,1])box(person,s*.14,.35,0,.18,.7,.22,0x33464a);const head=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),material(0xd1ab88));head.position.y=1.7;person.add(head);
+
  }
  for(const p of payload.plates)streetNamePlate(group,{...p,position:local(p.position)});
  for(const p of payload.boards){const q=local(p.position);if(p.mounted)sign(group,q.x,p.height,q.z,p.rows,p.width,p.angle,p.color);else signpost(group,q.x,q.z,p.rows,p.angle,p.color,p.width,p.height);}
