@@ -50,7 +50,11 @@ class Mission {
   private get fare(){return this.currentFare!;}
   get pickupStop(){return this.taxi?this.stop(this.fare.pickupId):undefined;}
   get destinationStop(){return this.taxi?this.stop(this.fare.destinationId):undefined;}
-  get offerText(){return this.taxi?`${this.passenger}: ${this.pickupStop!.name}, ${this.pickupStop!.road} → ${this.destinationStop!.name}, ${this.destinationStop!.road}. Guaranteed €${(this.baseFareCents/100).toFixed(2)} + up to €${(this.taxi.maxBonusCents/100).toFixed(2)} speed bonus.`:'';}
+  get offerText(){
+    if(!this.taxi)return '';
+    const journey=`${this.passenger}: ${this.pickupStop!.name}, ${this.pickupStop!.road} → ${this.destinationStop!.name}, ${this.destinationStop!.road}.`;
+    return this.offerQuoted?`${journey} Guaranteed €${(this.baseFareCents/100).toFixed(2)} + up to €${(this.taxi.maxBonusCents/100).toFixed(2)} speed bonus.`:`${journey} Stop to receive a fare quote.`;
+  }
   private random(){this.randomState=(Math.imul(this.randomState,1664525)+1013904223)>>>0;return this.randomState/4294967296;}
   private dispatch(){
     if(!this.taxi)return;
@@ -80,12 +84,12 @@ class Mission {
       this.approachDistance=Math.min(...starts.map(id=>shortestRoute(id,stop.nodeId).cost+Math.hypot(near.point.x-context.nodeById(id).x,near.point.z-context.nodeById(id).z)+near.distance));
       if(!Number.isFinite(this.approachDistance))this.approachDistance=0;
     }
-    this.offerQuoted=true;this.notice=this.quotedOfferNotice();this.revision++;
+    this.offerQuoted=true;this.notice=this.dispatchNotice();this.revision++;
   }
   private receiptNotice(receipt:FareReceipt){return `${receipt.passenger}: “Thank you!” Fare €${(receipt.totalCents/100).toFixed(2)} (base €${(receipt.baseCents/100).toFixed(2)} + speed bonus €${(receipt.bonusCents/100).toFixed(2)}).`;}
-  private quotedOfferNotice(){const receipt=this.receipts.at(-1);return `${receipt?this.receiptNotice(receipt)+' ':''}${this.clockText} · Taxi dispatch: ${this.objective}`;}
+  private dispatchNotice(){const receipt=this.receipts.at(-1);return `${receipt?this.receiptNotice(receipt)+' ':''}${this.clockText} · Taxi dispatch: ${this.objective}`;}
   acceptOffer(){if(!this.offerPending||this.finished)return false;this.offerPending=false;this.notice=`Fare accepted. ${this.objective}`;this.revision++;return true;}
-  declineOffer(){if(!this.offerPending||this.finished)return false;this.fareIndex++;this.dispatch();this.notice=`New offer: ${this.offerText}`;this.revision++;return true;}
+  declineOffer(){if(!this.offerPending||this.finished)return false;this.fareIndex++;this.dispatch();this.notice=this.dispatchNotice();this.revision++;return true;}
   private stop(id:string):TaxiStop {return this.taxi!.stops.find(stop=>stop.id===id)!;}
   get target():NavigationTarget {
     if(!this.taxi)return {name:district.mission.name,nodeId:district.mission.nodeId,bay:hotelBay};
@@ -112,7 +116,7 @@ class Mission {
     this.rideDistance=0;this.rideBudget=180;this.currentFare=null;
     this.randomState=(this.options.seed??Math.floor(Math.random()*4294967296))>>>0;
     this.dispatch();
-    this.notice=this.taxi?`${this.clockText} · Taxi dispatch: ${this.objective}`:district.mission.hint;
+    this.notice=this.taxi?this.dispatchNotice():district.mission.hint;
     this.revision++;
   }
   recordDirectionRequest(stopped:boolean,legallyParked:boolean):boolean {
@@ -136,7 +140,7 @@ class Mission {
       this.receipts.push({passenger:fare.passenger,pickup:pickup.name,destination:destination.name,distanceMetres:this.rideDistance,seconds:this.elapsed,baseCents,bonusCents,totalCents});
       this.earningsCents+=totalCents;this.bonusEarnedCents+=bonusCents;
       this.fareIndex++;this.taxiStage='pickup';this.elapsed=0;this.dispatch();
-      this.notice=`${this.receiptNotice(this.receipts[this.receipts.length-1])} Dispatch: ${this.objective}`;
+      this.notice=this.dispatchNotice();
     }
     this.revision++;return true;
   }
@@ -171,7 +175,7 @@ class Mission {
     const {elapsed,totalElapsed,state,taxiStage,fareIndex,earningsCents,bonusEarnedCents,receipts,directionRequests,offerPending,offerQuoted,approachDistance,currentFare,randomState,notice}=value;
     Object.assign(this,structuredClone({elapsed,totalElapsed,state,taxiStage,fareIndex,earningsCents,bonusEarnedCents,receipts,directionRequests,offerPending,offerQuoted,approachDistance,currentFare,randomState,notice}));
     this.rideDistance=distance;this.rideBudget=Math.max(100,90+distance/4.5);
-    if(this.offerPending&&this.offerQuoted)this.notice=this.quotedOfferNotice();
+    if(this.offerPending)this.notice=this.dispatchNotice();
     this.revision++;
   }
   update(dt:number,position:Point,stopped:boolean){

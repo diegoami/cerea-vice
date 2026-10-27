@@ -55,14 +55,14 @@ to collect also pays the quoted collection supplement. These are transparent
 initial game-balance assumptions; real controller journeys and return demand
 still need owner playtesting.
 
-Validation on 27 October 2026 (updated for the rc.2 review fixes):
+Validation on 27 October 2026 (updated for the rc.3 startup-quote correction):
 
-- `npm test`: 90/90 checks passed, including dispatch reachability/variation,
+- `npm test`: 91/91 checks passed, including dispatch reachability/variation,
   long collection quotes, saved offer/ride/receipts, corrupt-save rejection,
   passenger presence and remapped input context isolation.
 - TypeScript/Vite production build passed. Vite retains the existing warning
   about a main chunk above 500 kB; it is not a build failure.
-- The prescribed Xvfb/xfwm4 desktop suite passed 11/11 scenarios: offline
+- The prescribed Xvfb/xfwm4 desktop suite passed 12/12 scenarios: offline
   controller driving, atlas knowledge and frozen clocks, fare accept/decline,
   keyboard/L3 capture and conflicts, Electron close/relaunch persistence,
   damaged saves, small-window layout, translated coordinates and tile recovery.
@@ -81,3 +81,12 @@ notices from fare state while retaining payout feedback, and gives B/Backspace
 a dedicated decline action. Regression checks cover each case. The rc.1 review
 covers `e96e5c4bc07dab7f68867fb1504d854fbd0871f9`; substantive fixes need an
 independent recheck. Physical Windows/controller checks remain with the owner.
+
+The rc.2 recheck confirmed the prior fixes and identified an initial unquoted
+price while scenery loads. Rc.3 withholds guarantees in both radio and objective
+text until the full quote is ready at a settled stop. Restoring an older pending
+unquoted save also refreshes its notice. A held-tile desktop fixture verifies
+the startup interval and the eventual €72.22 collection-inclusive quote; clocks,
+quote timing, fare calculation and payout rules are unchanged. The rc.2 recheck
+covered `687231ad1b3b299d3732b7711c88de639ea3e9d9` and explicitly recorded an
+owner-approved same-session continuation by the non-OpenAI reviewer.

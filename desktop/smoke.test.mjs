@@ -7,6 +7,22 @@ import { _electron } from 'playwright-core';
 async function seedDispatch(page,seed=75){await page.addInitScript(seed=>{Math.random=()=>seed/4294967296;},seed);await page.reload();}
 async function acceptOffer(page){await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});}
 
+test('startup during held scenery loading withholds prices until the complete collection quote is ready', {timeout:90000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-startup-quote-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ let release;const gate=new Promise(resolve=>release=resolve);let blocked=true;
+ try{
+  const page=await app.firstWindow();await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.route('**/tiles/*.json',async route=>{if(blocked)await gate;await route.continue();});
+  await seedDispatch(page,683129967);await page.getByRole('button',{name:'Start the engine'}).click();await page.locator('#stream-status').waitFor();
+  assert.doesNotMatch(await page.locator('#hint').innerText(),/Guaranteed|€/);assert.match(await page.locator('#hint').innerText(),/Stop to receive a fare quote/);
+  assert.doesNotMatch(await page.locator('#objective-description').innerText(),/Guaranteed|€/);
+  const clock=await page.locator('#timer').innerText();await page.waitForTimeout(900);assert.equal(await page.locator('#timer').innerText(),clock);
+  blocked=false;release();await page.locator('[data-fare=accept]').waitFor();
+  const quote=await page.locator('.fare-offer p').first().innerText();assert.match(quote,/Guaranteed €72.22/);assert.ok((await page.locator('#hint').innerText()).includes(quote));
+ }finally{blocked=false;release();await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
 test('review regressions: focused settings resume by keyboard and only advertised controls decline offers', {timeout:90000},async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-review-regressions-'));
  const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});

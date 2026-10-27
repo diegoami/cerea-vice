@@ -98,6 +98,16 @@ test('initial, declined and post-dropoff radio notices match the fixed quoted gu
   mission.quoteOffer(hamlet);check();assert.match(mission.notice,/Thank you.*Fare €/,'Quoting the next offer must retain the completed payout');
  }
 });
+test('unquoted startup and restored offers never advertise an incomplete guarantee',()=>{
+ const rural=new District(outskirts),{Mission}=createMission(rural),mission=new Mission({seed:683129967});
+ assert.equal(mission.baseFareCents,4080,'Review fixture has a long collection supplement that is not quoted yet');
+ for(const text of [mission.offerText,mission.objective,mission.notice]){assert.doesNotMatch(text,/Guaranteed|€/);assert.match(text,/Stop to receive a fare quote/);}
+ const value=mission.snapshot();value.notice='Old startup dispatch: Guaranteed €40.80';
+ const restored=new Mission();restored.restore(value);assert.doesNotMatch(restored.notice,/Guaranteed|€/);
+ restored.quoteOffer(rural.spawn);assert.equal(restored.baseFareCents,7222);assert.match(restored.offerText,/Guaranteed €72.22/);assert.ok(restored.notice.includes(restored.offerText));
+ restored.declineOffer();assert.doesNotMatch(restored.offerText,/Guaranteed|€/);assert.doesNotMatch(restored.notice,/Guaranteed/);
+ restored.quoteOffer(rural.spawn);const quote=restored.baseFareCents;restored.quoteOffer({x:100000,z:100000});assert.equal(restored.baseFareCents,quote);
+});
 test('only B and Backspace decline in menus; handbrake and atlas erasing remain separate',()=>{
  const target=new EventTarget();Object.defineProperty(globalThis,'window',{value:target,configurable:true});
  const buttons=Array.from({length:17},()=>({value:0}));
