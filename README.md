@@ -10,7 +10,7 @@
 
 ## Run
 
-Prerequisites: **Node.js 22.12+** (Node 24 also works), npm, and a desktop browser with WebGL 2. A graphical editor, backend, account, and external assets are not required.
+Prerequisites: **Node.js 22.12+** (Node 24 also works), npm, and a desktop browser with WebGL 2. **Python 3** is also required for the release-archive checks in `npm test` and for `npm run release:win`. A graphical editor, backend, account, and external assets are not required.
 
 ```sh
 npm install
@@ -64,6 +64,33 @@ xvfb-run -a sh -c 'xfwm4 --compositor=off & npm run test:desktop'
 ```
 
 The desktop smoke test covers offline startup, sandbox settings, controller-only start/driving, steering, handbraking, directions, atlas pages and moving-access rejection, frozen reading time, mission reminders, disconnect/pause/reconnect, keyboard fallback, and fullscreen. The Windows x64 bundle has also been launched successfully on the Windows host from a local Windows directory. Physical controller testing and full Windows gameplay validation remain separate checks.
+
+## Release candidate
+
+The next portable playtest is **0.8.0-rc.1**. See
+[release notes](docs/releases/0.8.0-rc.1.md) for installation, controls, saves and
+remaining playtest checks. Its draft release is prepared from PR #13 rather
+than a merged stable version.
+
+From a clean, committed checkout in WSL/Linux with Node 22.12+, Python 3 and
+`npm ci` completed:
+
+```sh
+npm run release:win
+```
+
+This rebuilds the Windows app and writes a portable ZIP, `release-info.json`,
+release notes and `SHA256SUMS.txt` under `release/v0.8.0-rc.1/`. The ZIP has one
+versioned root folder and contains the entire offline app. The source commit
+and hashes of all bundled files are recorded. Changed source must be committed
+first; using a different commit for an existing version requires a new version.
+Generated bundles stay out of git. This command prepares local artifacts; the
+GitHub release is created separately as a draft for review.
+
+Verify the downloaded files on WSL/Linux with `sha256sum -c SHA256SUMS.txt`.
+On Windows, `Get-FileHash .\Cerea-Vice-0.8.0-rc.1-win32-x64.zip -Algorithm SHA256`
+prints the ZIP hash for comparison with the checksums file. Extract all files
+before opening `cerea-vice.exe`.
 
 ## Saves and dispatch
 
