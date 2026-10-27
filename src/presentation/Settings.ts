@@ -26,10 +26,12 @@ export class SettingsPanel {
   private readonly element=document.createElement('section');
   private index=-1;
   private delay=0;
+  private actions:{button:HTMLButtonElement;run:()=>void}[]=[];
+  addAction(label:string,run:()=>void){const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',()=>{run();if(document.activeElement===button)button.blur();});this.element.append(button);this.actions.push({button,run});return button;}
   constructor(readonly values:PresentationSettings, private changed:()=>void) {
     this.element.className='presentation-settings';
     this.element.setAttribute('aria-label','Presentation settings');
-    this.element.innerHTML=`<strong>PICTURE & SOUND</strong><small>D-pad: select · A: change · Start: drive<br>Keyboard: Tab / arrows edit · Enter / Esc drive</small>
+    this.element.innerHTML=`<strong>PICTURE & SOUND</strong><small>D-pad: select · A: change · Start: drive<br>Keyboard: Tab / arrows edit · Space activates buttons · Enter / Esc / P drive</small>
       <label>Scenery <select data-key="detail"><option value="true">Detailed</option><option value="false">Simple</option></select></label>
       <label>Picture <select data-key="resolution"><option value="sharp">Sharp (read signs)</option><option value="retro">Retro 270p</option><option value="retro-fine">Retro 540p</option></select></label>
       <label>Cockpit motion <select data-key="motion"><option value="true">Subtle</option><option value="false">Off</option></select></label>
@@ -38,7 +40,7 @@ export class SettingsPanel {
     document.querySelector('#hud')!.append(this.element);
     this.element.addEventListener('keydown',event=>{
       // Reserve the advertised start/resume controls even after a mouse edit.
-      if(event.code==='Enter'||event.code==='Escape'){
+      if(event.code==='Enter'||event.code==='Escape'||event.code==='KeyP'){
         event.preventDefault();
         (event.target as HTMLElement).blur();
         return; // Let Input receive the key; ordinary form editing stays local.
@@ -59,9 +61,12 @@ export class SettingsPanel {
     this.element.hidden=!visible;
     if(!visible){this.index=-1;this.delay=0;return false;}
     this.delay=Math.max(0,this.delay-dt);
-    if(Math.abs(y)>.5&&this.delay===0){this.index=this.index<0?(y>0?0:this.selects.length-1):(this.index+(y>0?1:-1)+this.selects.length)%this.selects.length;this.delay=.25;}
+    const count=this.selects.length+this.actions.length;
+    if(Math.abs(y)>.5&&this.delay===0){this.index=this.index<0?(y>0?0:count-1):(this.index+(y>0?1:-1)+count)%count;this.delay=.25;
+      const item=this.selects[this.index]??this.actions[this.index-this.selects.length]?.button;item?.scrollIntoView({block:'nearest'});}
     for(const [i,select] of this.selects.entries())select.classList.toggle('controller-selected',i===this.index);
-    if(confirm&&this.index>=0){const select=this.selects[this.index];select.selectedIndex=(select.selectedIndex+1)%select.options.length;this.commit();return true;}
+    for(const [i,action] of this.actions.entries())action.button.classList.toggle('controller-selected',i+this.selects.length===this.index);
+    if(confirm&&this.index>=0){const select=this.selects[this.index];if(select){select.selectedIndex=(select.selectedIndex+1)%select.options.length;this.commit();}else this.actions[this.index-this.selects.length]?.button.click();return true;}
     return false;
   }
 }

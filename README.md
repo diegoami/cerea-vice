@@ -2,7 +2,7 @@
 
 [Game vision](VISION.md) defines the direction and scope. [Loadable districts](MAPS.md) describes the map format, sources and the new real-place pilot.
 
-**Cerea Centro** now offers a [taxi shift](TAXI.md): work from 07:00 to 17:00, collect passengers and follow their requests to nine real places across an expanded neighbourhood with 51 named streets. Completed rides pay a base fare plus a speed bonus. The accelerated day takes about 20 active minutes; the atlas and pause screens stop the clock. Start at the Municipio, where Elena wants a ride to the post office. The library is now just one of several places to learn.
+**Cerea Centro** now offers a [taxi shift](TAXI.md): work from 07:00 to 17:00, collect passengers and follow their requests to nine real places across an expanded neighbourhood with 51 named streets. Completed rides pay a base fare plus a speed bonus. The accelerated day takes about 20 active minutes; the atlas and pause screens stop the clock. Start at the Municipio and read a dispatch offer with a randomized pickup and destination. Accept or decline before collecting the passenger. The library is now just one of several places to learn.
 
 **Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline. Small street-name plates identify lateral streets at crossings and repeat along longer stretches; larger arrow boards are reserved for major thoroughfares.
 
@@ -10,7 +10,7 @@
 
 ## Run
 
-Prerequisites: **Node.js 22.12+** (Node 24 also works), npm, and a desktop browser with WebGL 2. A graphical editor, backend, account, and external assets are not required.
+Prerequisites: **Node.js 22.12+** (Node 24 also works), npm, and a desktop browser with WebGL 2. **Python 3** is also required for the release-archive checks in `npm test` and for `npm run release:win`. A graphical editor, backend, account, and external assets are not required.
 
 ```sh
 npm install
@@ -35,7 +35,7 @@ Build and launch the Windows x64 client from WSL:
 npm run desktop:win
 ```
 
-This rebuilds the Windows package, copies it to a fresh local Windows temporary folder and opens Cerea Centro. Each playtest launch uses an isolated temporary profile and checks that a game window opens. The command remains attached until you close that game window, then removes its temporary bundle and profile. Failed startup also cleans up its own copy; cleanup failures report the retained path. To package without launching:
+This rebuilds the Windows package, copies it to a fresh local Windows temporary folder and opens Cerea Centro. Each playtest launch checks that a game window opens. The bundle is temporary; saves, presentation settings and control bindings persist in `%LOCALAPPDATA%\CereaVice\profile`. The command remains attached until you close that game window, then removes its temporary bundle. A portable Windows copy uses the same durable profile. Failed startup also cleans up its own copy; cleanup failures report the retained path. To package without launching:
 
 ```sh
 npm ci
@@ -65,14 +65,66 @@ xvfb-run -a sh -c 'xfwm4 --compositor=off & npm run test:desktop'
 
 The desktop smoke test covers offline startup, sandbox settings, controller-only start/driving, steering, handbraking, directions, atlas pages and moving-access rejection, frozen reading time, mission reminders, disconnect/pause/reconnect, keyboard fallback, and fullscreen. The Windows x64 bundle has also been launched successfully on the Windows host from a local Windows directory. Physical controller testing and full Windows gameplay validation remain separate checks.
 
+## Release candidate
+
+The next portable playtest is **0.8.0-rc.3**. See
+[release notes](docs/releases/0.8.0-rc.3.md) for installation, controls, saves and
+remaining playtest checks. Its draft release is prepared from PR #13 rather
+than a merged stable version.
+
+From a clean, committed checkout in WSL/Linux with Node 22.12+, Python 3 and
+`npm ci` completed:
+
+```sh
+npm run release:win
+```
+
+This rebuilds the Windows app and writes a portable ZIP, `release-info.json`,
+release notes and `SHA256SUMS.txt` under `release/v0.8.0-rc.3/`. The ZIP has one
+versioned root folder and contains the entire offline app. The source commit
+and hashes of all bundled files are recorded. Changed source must be committed
+first; using a different commit for an existing version requires a new version.
+Generated bundles stay out of git. This command prepares local artifacts; the
+GitHub release is created separately as a draft for review.
+
+Verify the downloaded files on WSL/Linux with `sha256sum -c SHA256SUMS.txt`.
+On Windows, `Get-FileHash .\Cerea-Vice-0.8.0-rc.3-win32-x64.zip -Algorithm SHA256`
+prints the ZIP hash for comparison with the checksums file. Extract all files
+before opening `cerea-vice.exe`.
+
+## Saves and dispatch
+
+Dispatch offers a pickup, destination and guaranteed payment while you are fully
+stopped. **A / Enter** accepts; **B / Backspace** declines and requests another
+fare without a penalty. Reading an offer pauses time. **Start / Escape** opens
+the pause menu, including **Save shift** and **Continue saved shift**.
+
+There is one manual save per district. Continue restores the car, gear, clocks,
+earnings, ride/offer, passenger and your atlas knowledge, and leaves the game
+paused. It does not replace your atlas estimate with the car's real position.
+A new shift keeps the saved shift until you explicitly save again. Browser saves
+stay in that browser's local site storage; Windows saves survive closing the
+app, removing the temporary bundle and launching a new build. A changed map
+may make an old save incompatible; failures are reported without replacing it.
+
+Choose **Change controls** from the briefing or pause menu to remap driving
+keys and controller buttons, including **L3 for forward/reverse**. Select a
+binding, press a new key/button, and resolve any reported conflict. Escape
+cancels capture; Start cancels controller capture. Restore defaults is always
+available with the fixed menu controls. Sticks retain steering/look axes. The
+atlas and menus retain their own controls; the help and driving prompts show
+your chosen bindings. Settings persist independently of shift saves.
+
 ## Controls
+
+Driving defaults are shown below; use **Change controls** to customize them.
 
 | Action                             | Standard controller   | Keyboard                     |
 | ---------------------------------- | --------------------- | ---------------------------- |
 | Steer                              | Left stick            | A / D or left / right arrows |
 | Accelerate                         | Right trigger         | W or up arrow                |
 | Brake only                       | Left trigger          | S or down arrow              |
-| Forward / reverse (fully stopped)  | B / Circle            | R                            |
+| Forward / reverse (fully stopped)  | B / Circle by default; L3 selectable | R by default |
 | Handbrake                          | X / Square (west face button)  | Space                        |
 | Look around                        | Right stick           | Click windshield, move mouse |
 | Look forward                       | Right stick press (R3) | C                            |
@@ -180,8 +232,8 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 - A vehicle's centre must be at least 1.1 metres inside a marked bay to count as legally parked or arrived. Direction requests need exact zero speed, followed by the brief settling interval. Coasting eventually settles; the handbrake is faster.
 - Unsafe stops count once per stopped episode after the car has moved above 1 m/s. Impact counting has a cooldown so one contact does not inflate the count every frame. These are feedback metrics, with no extra penalties.
 - The deadline measures active simulation time. Hidden windows pause, and a frame delay contributes at most 0.1 seconds to avoid unstable catch-up after a stalled browser.
-- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The car has a 3D interior with a rotating three-spoke steering wheel, analog and digital speed indicators, D/R selector, dashboard, seats and working side mirrors. Mirror views update at 10 Hz. Cerea shows static waiting figures at all stops; taxi mode supplies short passenger requests.
-- Drive and taxi-shift progress, markers and earnings live in memory; reloading starts a fresh drive or shift. District selection is stored locally within the current profile. There is no backend or save-game system.
+- The view supports full 360-degree horizontal looking with the controller right stick or captured mouse, bounded vertical looking and held left/right glances. The car has a 3D interior with a rotating three-spoke steering wheel, analog and digital speed indicators, D/R selector, dashboard, seats and working side mirrors. Mirror views update at 10 Hz. Cerea has clothed waiting people at taxi stops. Boarding moves the active passenger from the pavement into the adjacent seat; dropoff clears the seat.
+- Manual Save/Continue preserves drive and taxi-shift progress, markers, earnings and dispatch locally, without a backend. A reload starts at the briefing, where Continue restores the saved state paused.
 - Automated controller checks use simulated standard gamepad input. Browser and operating-system mappings still warrant testing on a physical controller before a public playtest.
 
 ## Next steps
@@ -215,8 +267,9 @@ and **A / Cross** to cycle it. **Start / Options** drives/resumes regardless of
 the selected setting. **Enter / Escape** always starts/resumes on keyboard,
 even with a select focused; W/S and arrow keys outside the panel do not select
 settings. **A** starts normally before selecting a controller setting. Options
-are saved locally; the WSL Windows launcher starts a fresh
-profile, so its next launch uses defaults.
+are saved locally and survive Windows playtest launches. Action buttons such as
+Save and Change controls use Space to activate the focused button.
+Enter, Escape and P resume even when a settings action has focus.
 
 **Simple scenery** hides the extra façades, tiled roof facets and decorative
 props. Detailed scenery uses locally painted shutters, windows, ground-floor

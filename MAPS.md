@@ -1,12 +1,12 @@
 # Loadable districts
 
-Cerea Vice now loads a selected district from a bundled JSON file. Cerea Centro is the default; Harbor District remains available from the briefing. Select with the map buttons or LB / RB (Q / E on keyboard) before starting. Selection is remembered locally and also recorded in the URL hash. The WSL playtest launcher uses a fresh temporary profile for each launch. Loading another district restarts the drive.
+Cerea Vice now loads a selected district from a bundled JSON file. Cerea Centro is the default; Harbor District remains available from the briefing. Select with the map buttons or LB / RB (Q / E on keyboard) before starting. Selection is remembered locally and also recorded in the URL hash. The WSL playtest launcher uses a temporary app bundle and a durable Windows profile for saves and settings. Loading another district restarts the drive.
 
 ## Cerea Centro pilot
 
 The approximately 1,020 × 1,080 metre modern subset includes 51 named streets, the Sommariva roundabout, Via Paride, Viale della Vittoria, Via Roma, Via Venticinque Aprile, the Menago and railway lines. It now reaches the post office and Oratorio dello Spasimo area to the south/east, with Teatro del Gusto and additional street connections to the north/west. There are 1,081 retained building masses; 137 source footprints are trimmed and five removed to keep road, sidewalk and stopping areas clear.
 
-The default game is a [07:00–17:00 taxi shift](TAXI.md) with nine pickup/dropoff locations and ten authored customer requests. The JSON carries a `taxi` definition with clock rate, game fare parameters, named stops, bay IDs, road node IDs and customer pickup/destination pairs. Stops and fares are validated on load; all nine-stop directed route pairs are covered by tests.
+The default game is a [07:00–17:00 taxi shift](TAXI.md) with nine pickup/dropoff locations and ten passenger names used by randomized requests. The JSON carries a `taxi` definition with clock rate, game fare parameters, named stops, bay IDs, road node IDs and customer pickup/destination pairs. Stops and fares are validated on load; all nine-stop directed route pairs are covered by tests. New shifts draw reachable, distinct stop pairs rather than cycling the authored fare order.
 
 Passenger service uses A / Enter after a full stop in the current target area. Information uses View / Select (PS Share) / F in both road and atlas views. LT is brake only; B / Circle (R) selects forward/reverse while stopped, and RT accelerates in that direction. Stopping or serving a passenger does not move the atlas marker.
 
@@ -75,8 +75,9 @@ Simple and Detailed building meshes share the original collision polygons.
 
 Decorative trees, lamps, parked cars and people are placed deterministically
 beside selected roads, outside carriageways/buildings/bays, with space reserved
-for signs and street-plate sightlines. All stopping areas get the same waiting
-figure; serving a fare never changes these decorations. They add no collision
+for signs and street-plate sightlines. Taxi stops have clothed waiting people managed separately from static scenery.
+Boarding hides the figure at that pickup and places a matching passenger in the
+adjacent seat; dropoff clears the seat. This state survives tile eviction and save/load. They add no collision
 or stopping rules. No JSON schema or importer changes are required for this
 presentation pass. Harbor retains its legacy scenery. See
 [presentation measurements and limits](docs/PRESENTATION.md).

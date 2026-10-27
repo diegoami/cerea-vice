@@ -7,11 +7,13 @@ let app;
 try {
  app=await _electron.launch({args:[path.resolve('.'),'--profile',...(process.env.CEREA_DISTRICT?['--district='+process.env.CEREA_DISTRICT]:[]),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  const page=await app.firstWindow();
+ await page.addInitScript(seed=>{Math.random=()=>seed/4294967296;},process.env.CEREA_DISTRICT==='cerea-outskirts'?141:75);await page.reload();
  await page.getByRole('button',{name:'Start the engine'}).waitFor();
  if(process.env.CEREA_PICTURE)await page.locator('[data-key=resolution]').selectOption(process.env.CEREA_PICTURE);
  if(process.env.CEREA_DETAIL)await page.locator('[data-key=detail]').selectOption(process.env.CEREA_DETAIL);
  await page.getByRole('button',{name:'Start the engine'}).click();
  await page.waitForFunction(()=>document.querySelector('#stop-state')?.textContent==='P · LEGAL STOP');
+ if(process.env.CEREA_DISTRICT!=='harbor')await page.locator('[data-fare=accept]').click();
  await page.waitForTimeout(2000);
  await page.keyboard.press('f'); // Stopped request exercises nearest-road/route profiling without exposing a live location.
  await page.keyboard.press('Enter'); // Start the first fare, exercising route accounting.

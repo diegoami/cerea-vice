@@ -1,5 +1,6 @@
+@font-face { font-family: Vice; src: url("/fonts/VT323-Regular.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
 :root {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Vice", monospace;
   color: #e9e6d4;
   background: #141e26;
   font-synthesis: none;
@@ -67,7 +68,7 @@ button:focus-visible {
   background: linear-gradient(#101b25d9, #101b2500);
 }
 .district-tag {
-  font: 11px monospace;
+  font: 20px "Vice", monospace;
   letter-spacing: 2px;
   padding-top: 6px;
   display: flex;
@@ -79,7 +80,7 @@ button:focus-visible {
 .district-tag small {
   display: block;
   flex-basis: 100%;
-  font-size: 9px;
+  font-size: 16px;
   color: #bac3bd;
   margin: 2px 0 0 17px;
   letter-spacing: 1.6px;
@@ -123,7 +124,7 @@ button:focus-visible {
   width: 52px;
   flex-shrink: 0;
   position: relative;
-  font: 12px monospace;
+  font: 20px "Vice", monospace;
   letter-spacing: 2px;
   padding-top: 2px;
   color: #e2e4d8;
@@ -145,7 +146,7 @@ button:focus-visible {
 }
 #heading {
   display: block;
-  font: 11px monospace;
+  font: 20px "Vice", monospace;
   letter-spacing: 2px;
   margin-top: 12px;
   color: var(--accent);
@@ -156,13 +157,13 @@ button:focus-visible {
 }
 .deadline span {
   display: block;
-  font: 9px monospace;
+  font: 16px "Vice", monospace;
   letter-spacing: 1.7px;
   color: #c2c7bc;
 }
 .deadline strong {
   display: block;
-  font: 34px monospace;
+  font: 34px "Vice", monospace;
   letter-spacing: -1px;
   margin-top: 3px;
 }
@@ -178,7 +179,7 @@ button:focus-visible {
   padding: 15px 24px 15px 0;
 }
 .eyebrow {
-  font: 10px monospace;
+  font: 18px "Vice", monospace;
   letter-spacing: 2px;
   color: var(--muted);
 }
@@ -186,13 +187,13 @@ button:focus-visible {
   color: #d8c59f;
 }
 .objective h2 {
-  font-size: 19px;
+  font-size: 28px;
   font-weight: 500;
   letter-spacing: -0.3px;
   margin: 9px 0;
 }
 .objective p {
-  font: 11px monospace;
+  font: 20px "Vice", monospace;
   color: #e2e3d5;
   margin: 0;
 }
@@ -208,7 +209,7 @@ button:focus-visible {
   box-shadow: 0 6px 24px #13232c22;
 }
 .hint-header {
-  font: 9px monospace;
+  font: 16px "Vice", monospace;
   letter-spacing: 1.6px;
   color: var(--mint);
   display: flex;
@@ -218,10 +219,10 @@ button:focus-visible {
 .hint-header > span:last-child {
   margin-left: auto;
   color: #91a09e;
-  font-size: 8px;
+  font-size: 14px;
 }
 .navigation-message p {
-  font: 13px/1.6 monospace;
+  font: 22px/1.6 "Vice", monospace;
   margin: 8px 0 0;
   color: #e2e4d6;
 }
@@ -231,7 +232,7 @@ button:focus-visible {
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  font: 11px monospace;
+  font: 20px "Vice", monospace;
   text-shadow: 0 1px 4px #13242c;
 }
 .interaction span {
@@ -242,7 +243,7 @@ kbd {
   background: #e6e3d2;
   color: #203036;
   border-radius: 2px;
-  font: bold 11px monospace;
+  font: bold 20px "Vice", monospace;
   min-width: 20px;
   padding: 3px;
   text-align: center;
@@ -275,20 +276,20 @@ kbd {
   gap: 12px;
 }
 .speed-line > strong {
-  font: 55px monospace;
+  font: 55px "Vice", monospace;
   letter-spacing: -4px;
   color: #d9e5cd;
 }
 .speed-line > span {
-  font: 9px/1.6 monospace;
+  font: 16px/1.6 "Vice", monospace;
   color: var(--muted);
 }
 .speed-line b {
-  font-size: 15px;
+  font-size: 24px;
   color: var(--accent);
 }
 .stop-state {
-  font: 9px monospace;
+  font: 16px "Vice", monospace;
   letter-spacing: 1.4px;
   color: var(--mint);
   margin-top: 2px;
@@ -303,7 +304,7 @@ kbd {
 }
 .dashboard-right > strong {
   display: block;
-  font: 19px monospace;
+  font: 28px "Vice", monospace;
   font-weight: 400;
   margin-top: 8px;
 }
@@ -311,7 +312,7 @@ kbd {
   display: flex;
   justify-content: flex-end;
   gap: 18px;
-  font: 8px monospace;
+  font: 14px "Vice", monospace;
   color: #9ba7a0;
   margin-top: 14px;
 }
@@ -352,7 +353,7 @@ kbd {
 .briefing-main::after {
   content: "01";
   position: absolute;
-  font: 200px monospace;
+  font: 200px "Vice", monospace;
   font-weight: bold;
   color: #8cb0a106;
   bottom: 5px;
@@ -374,7 +375,7 @@ h1 em {
   color: #a9bdb1;
 }
 .intro {
-  font-size: 15px;
+  font-size: 24px;
   line-height: 1.7;
   color: #b8c3ba;
   max-width: 290px;
@@ -389,7 +390,7 @@ h1 em {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 22px;
   font-weight: 600;
   cursor: pointer;
   position: relative;
@@ -403,7 +404,7 @@ h1 em {
 }
 .button-note {
   display: block;
-  font: 9px monospace;
+  font: 16px "Vice", monospace;
   letter-spacing: 1px;
   color: #9aaba3;
   margin-top: 14px;
@@ -423,7 +424,7 @@ h1 em {
 }
 .briefing-side > p,
 .briefing-tip p {
-  font-size: 13px;
+  font-size: 22px;
   line-height: 1.65;
   color: #b4c0b7;
   margin: 0;
@@ -435,16 +436,16 @@ h1 em {
   background: #b5bfa405;
 }
 .briefing-tip b {
-  font-size: 12px;
+  font-size: 20px;
   color: #d8d8c6;
   display: block;
   margin-bottom: 5px;
 }
 .briefing-tip p {
-  font-size: 12px;
+  font-size: 20px;
 }
 .control-table {
-  font: 10px monospace;
+  font: 18px "Vice", monospace;
 }
 .control-table > div {
   display: grid;
@@ -454,7 +455,7 @@ h1 em {
   padding: 8px 0;
 }
 .control-table > div.control-heading {
-  font-size: 8px;
+  font-size: 14px;
   letter-spacing: 1px;
   color: #879f95;
   border: 0;
@@ -470,7 +471,7 @@ h1 em {
 .controller-note {
   display: block;
   color: #8fa399;
-  font-size: 10px;
+  font-size: 18px;
   line-height: 1.5;
   margin-top: 17px;
 }
@@ -486,7 +487,7 @@ h1 em {
 }
 .pause > p,
 .result > p {
-  font-size: 14px;
+  font-size: 22px;
   line-height: 1.7;
   color: #b1c1b6;
 }
@@ -503,19 +504,19 @@ h1 em {
   border-bottom: 1px solid #71837644;
 }
 .result-stats strong {
-  font: 30px monospace;
+  font: 30px "Vice", monospace;
   display: block;
   color: var(--accent);
 }
 .result-stats span {
   display: block;
-  font: 8px monospace;
+  font: 14px "Vice", monospace;
   letter-spacing: 1px;
   margin-top: 8px;
   color: #9eb0a5;
 }
 .result-footnote {
-  font-size: 12px !important;
+  font-size: 20px !important;
   margin-bottom: 24px;
 }
 .fatal {
@@ -556,7 +557,7 @@ h1 em {
   }
   .intro {
     margin-bottom: 25px;
-    font-size: 13px;
+    font-size: 22px;
   }
   .briefing-tip {
     margin: 16px 0;
@@ -587,12 +588,12 @@ h1 em {
     height: 95px;
   }
   .district-tag {
-    font-size: 9px;
+    font-size: 16px;
     width: 150px;
     letter-spacing: 1px;
   }
   .district-tag small {
-    font-size: 7px;
+    font-size: 14px;
     letter-spacing: 0.3px;
   }
   .compass-panel {
@@ -600,7 +601,7 @@ h1 em {
     top: 16px;
   }
   .deadline span {
-    font-size: 7px;
+    font-size: 14px;
   }
   .deadline strong {
     font-size: 26px;
@@ -610,10 +611,10 @@ h1 em {
     left: 20px;
   }
   .objective h2 {
-    font-size: 16px;
+    font-size: 24px;
   }
   .objective p {
-    font-size: 10px;
+    font-size: 18px;
   }
   .dashboard {
     height: 125px;
@@ -629,13 +630,13 @@ h1 em {
     width: 160px;
   }
   .dashboard-right > strong {
-    font-size: 13px;
+    font-size: 22px;
   }
   .dashboard-right .eyebrow {
-    font-size: 8px;
+    font-size: 14px;
   }
   .dash-detail {
-    font-size: 7px;
+    font-size: 14px;
     gap: 8px;
     flex-direction: column;
     margin-top: 7px;
@@ -646,14 +647,14 @@ h1 em {
     padding: 12px 14px;
   }
   .navigation-message p {
-    font-size: 11px;
+    font-size: 20px;
   }
   .hint-header > span:last-child {
     display: none;
   }
   .interaction {
     bottom: 150px;
-    font-size: 10px;
+    font-size: 18px;
   }
   .interaction span {
     display: none;
@@ -674,7 +675,7 @@ h1 em {
     margin: 22px 0 18px;
   }
   .intro {
-    font-size: 13px;
+    font-size: 22px;
     margin-bottom: 24px;
     max-width: 100%;
   }
@@ -684,7 +685,7 @@ h1 em {
     padding: 28px;
   }
   .briefing-main > .eyebrow {
-    font-size: 8px;
+    font-size: 14px;
   }
   .briefing-side h2 {
     font-size: 23px;
@@ -725,7 +726,7 @@ h1 em {
   height: min(820px, calc(100dvh - 48px));
   display: flex;
   flex-direction: column;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Vice", monospace;
 }
 .atlas-header {
   padding: 18px 26px 14px;
@@ -736,12 +737,12 @@ h1 em {
   gap: 12px;
 }
 .atlas-edition, .atlas-paused {
-  font: 10px/1.5 monospace;
+  font: 18px/1.5 "Vice", monospace;
   letter-spacing: 1px;
 }
 .atlas-paused { text-align: right; max-width: 180px; }
 .atlas-header h1 {
-  font: 32px/1.1 Georgia, serif;
+  font: 32px/1.1 "Vice", monospace;
   letter-spacing: -1px;
   margin: 4px 0 0;
 }
@@ -752,7 +753,7 @@ h1 em {
   border: 0;
   padding: 12px 18px;
   cursor: pointer;
-  font: bold 12px monospace;
+  font: bold 20px "Vice", monospace;
 }
 .atlas-tabs button { flex: 1; }
 .atlas-tabs button[aria-pressed="true"] { background: #304b47; color: #f8efd7; }
@@ -777,25 +778,25 @@ h1 em {
 .atlas-road-edge { fill: none; stroke: #8b8e76; stroke-width: 13; stroke-linecap: square; }
 .atlas-roads { fill: none; stroke: #f9f2df; stroke-width: 11; stroke-linecap: square; }
 .atlas-bay { fill: #c1ceab; stroke: #5c775b; stroke-width: 0.5; }
-.atlas-parking { font: bold 6px monospace; }
+.atlas-parking { font: bold 6px "Vice", monospace; }
 .atlas-building { fill: #b1a289; stroke: #655f4b; stroke-width: 0.5; }
 .atlas-building-hotel { fill: #80a9b8; }
 .atlas-building-market { fill: #b5816b; }
 .atlas-building-station { fill: #ceba77; }
 .atlas-bridge { stroke: #4a625e; stroke-width: 1; fill: none; }
 .atlas-rail { stroke: #6d6450; stroke-width: 0.5; stroke-dasharray: 2 1; fill: none; }
-.atlas-road-label { font: bold 4.5px monospace; }
-.atlas-place-label { font: bold 4.5px monospace; paint-order: stroke; stroke: #f3ebd6; stroke-width: 1.5px; }
-.atlas-feature-label { font: italic 3.8px Georgia, serif; }
-.atlas-region-label { font: 5px Georgia, serif; letter-spacing: 0.7px; opacity: 0.8; }
-.atlas-grid-label { font: bold 5px monospace; }
-.atlas-north { font: bold 5px monospace; fill: none; stroke: #29443f; stroke-width: 0.8; }
+.atlas-road-label { font: bold 4.5px "Vice", monospace; }
+.atlas-place-label { font: bold 4.5px "Vice", monospace; paint-order: stroke; stroke: #f3ebd6; stroke-width: 1.5px; }
+.atlas-feature-label { font: italic 3.8px "Vice", monospace; }
+.atlas-region-label { font: 5px "Vice", monospace; letter-spacing: 0.7px; opacity: 0.8; }
+.atlas-grid-label { font: bold 5px "Vice", monospace; }
+.atlas-north { font: bold 5px "Vice", monospace; fill: none; stroke: #29443f; stroke-width: 0.8; }
 .atlas-north text { stroke: none; }
 .atlas-margin { width: 205px; padding: 20px; border-left: 1px solid #b4ad91; }
 .atlas-margin h2, .atlas-index h2 { font-size: 20px; margin: 0 0 12px; }
-.atlas-margin h3 { font: bold 12px monospace; text-transform: uppercase; margin-top: 24px; }
-.atlas-margin p { font-size: 14px; line-height: 1.5; }
-.atlas-margin ul { list-style: none; padding: 0; font: 12px/2.4 monospace; }
+.atlas-margin h3 { font: bold 20px "Vice", monospace; text-transform: uppercase; margin-top: 24px; }
+.atlas-margin p { font-size: 22px; line-height: 1.5; }
+.atlas-margin ul { list-style: none; padding: 0; font: 20px/2.4 "Vice", monospace; }
 .atlas-margin li { display: flex; align-items: center; gap: 10px; }
 .atlas-margin b { display: inline-block; width: 18px; text-align: center; }
 .atlas-key-road, .atlas-key-building, .atlas-key-water { display: inline-block; width: 18px; height: 10px; border: 1px solid #8b8e76; background: #f9f2df; }
@@ -803,26 +804,26 @@ h1 em {
 .atlas-key-water { background: #9cbfc1; }
 .atlas-margin .atlas-margin-note { font-style: italic; border-top: 1px solid #b4ad91; padding-top: 14px; }
 .atlas-footer { border-top: 1px solid #9d9f87; display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; gap: 10px; }
-.atlas-footer > span { font: 10px/1.7 monospace; }
+.atlas-footer > span { font: 18px/1.7 "Vice", monospace; }
 .atlas-footer button { border: 1px solid #8b8e76; }
-.atlas-footer small { display: block; font: 9px monospace; margin-top: 6px; }
+.atlas-footer small { display: block; font: 16px "Vice", monospace; margin-top: 6px; }
 .atlas-index { width: 100%; padding: 24px 36px; overflow: auto; }
-.atlas-index table { width: 100%; border-collapse: collapse; text-align: left; font-size: 15px; }
+.atlas-index table { width: 100%; border-collapse: collapse; text-align: left; font-size: 24px; }
 .atlas-index th, .atlas-index td { padding: 10px; border-bottom: 1px solid #b4ad91; }
-.atlas-index thead { font: bold 11px monospace; text-transform: uppercase; }
+.atlas-index thead { font: bold 20px "Vice", monospace; text-transform: uppercase; }
 .atlas-index tbody th { font-weight: normal; }
 .atlas-index small { display: block; margin-top: 4px; color: #57695c; }
-.atlas-index .atlas-ref { font: bold 16px monospace; }
-.atlas-index > p { font-size: 14px; line-height: 1.5; }
+.atlas-index .atlas-ref { font: bold 24px "Vice", monospace; }
+.atlas-index > p { font-size: 22px; line-height: 1.5; }
 @media (max-width: 760px) {
   .overlay.atlas-open { padding: 8px; }
   .atlas-book { height: calc(100dvh - 16px); }
   .atlas-header { padding: 12px; }
   .atlas-header h1 { font-size: 25px; }
-  .atlas-edition, .atlas-paused { font-size: 8px; letter-spacing: 0; }
+  .atlas-edition, .atlas-paused { font-size: 14px; letter-spacing: 0; }
   .atlas-margin { display: none; }
   .atlas-index { padding: 16px; }
-  .atlas-index table { font-size: 12px; }
+  .atlas-index table { font-size: 20px; }
   .atlas-index th, .atlas-index td { padding: 8px 4px; }
   .atlas-footer { padding: 8px; }
   .atlas-footer button { padding: 10px; }
@@ -832,30 +833,30 @@ h1 em {
 .atlas-cursor circle { stroke-dasharray: 2 1; }
 .atlas-pin { fill: #a53b30; stroke: #f9f2df; stroke-width: 0.8; pointer-events: none; }
 .atlas-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; border-top: 1px solid #9d9f87; padding: 8px 18px; }
-.atlas-tools > span { margin-right: auto; font: 11px/1.5 monospace; }
+.atlas-tools > span { margin-right: auto; font: 20px/1.5 "Vice", monospace; }
 .atlas-tools button { padding: 8px 12px; border: 1px solid #8b8e76; }
-.atlas-tools small { display: block; font: 9px monospace; margin-top: 4px; }
+.atlas-tools small { display: block; font: 16px "Vice", monospace; margin-top: 4px; }
 .atlas-tools button:disabled { opacity: 0.45; cursor: default; }
 @media (max-width: 760px) {
   .atlas-tools { padding: 6px 8px; gap: 4px; }
-  .atlas-tools > span { font-size: 9px; }
-  .atlas-tools button { font-size: 10px; padding: 7px; }
+  .atlas-tools > span { font-size: 16px; }
+  .atlas-tools button { font-size: 18px; padding: 7px; }
 }
 .district-switch { display:flex;gap:8px;margin:16px 0 8px; }
-.modal .district-switch button { padding:10px;font:11px monospace;justify-content:center;background:#30453f;color:#dce4cf; }
+.modal .district-switch button { padding:10px;font:20px "Vice", monospace;justify-content:center;background:#30453f;color:#dce4cf; }
 .modal .district-switch button[aria-pressed="true"] { background:var(--accent);color:#17262c; }
-.atlas-attribution { font:9px/1.4 monospace; padding:4px 18px;color:#516254; }
-.map-credit { position:absolute;right:16px;bottom:5px;font:9px monospace;color:#c7cbb9;z-index:3;background:#17252cd9;padding:3px 6px; }
+.atlas-attribution { font:16px/1.4 "Vice", monospace; padding:4px 18px;color:#516254; }
+.map-credit { position:absolute;right:16px;bottom:5px;font:16px "Vice", monospace;color:#c7cbb9;z-index:3;background:#17252cd9;padding:3px 6px; }
 /* Street plates use native-resolution rendering rather than nearest-neighbour upscaling. */
 #viewport { image-rendering: auto; }
 .atlas-information { border-bottom:1px solid #9d9f87;padding:10px 18px;background:#e5e3c8; }
 .atlas-information[hidden] { display:none; }
-.atlas-information strong { font:10px monospace;letter-spacing:1px;color:#365950; }
-.atlas-information p { font:13px/1.5 monospace;margin:5px 0 0; }
+.atlas-information strong { font:18px "Vice", monospace;letter-spacing:1px;color:#365950; }
+.atlas-information p { font:22px/1.5 "Vice", monospace;margin:5px 0 0; }
 .atlas-tools { flex-wrap:wrap; }
 .atlas-tools > span { min-width:180px;flex:1; }
 .atlas-information-sidebar { padding:0 0 12px;background:transparent; }
-.atlas-information-sidebar p { font-size:12px;line-height:1.6; }
+.atlas-information-sidebar p { font-size:20px;line-height:1.6; }
 .atlas-introduction[hidden] { display:none; }
 @media(max-width:760px) {
   .atlas-book.has-information .atlas-content { flex-direction:column; }
@@ -864,12 +865,12 @@ h1 em {
   .atlas-book.has-information .atlas-margin > :not(.atlas-information) { display:none; }
 }
 .objective { max-width:min(690px,75vw); }
-#taxi-status { margin-top:8px;font:12px/1.5 monospace;color:var(--accent); }
+#taxi-status { margin-top:8px;font:20px/1.5 "Vice", monospace;color:var(--accent); }
 .objective h2 { overflow-wrap:anywhere; }
 .atlas-sheet { position:relative;overflow:hidden;touch-action:none;user-select:none; }
 .atlas-zoom-controls { position:absolute;left:14px;top:10px;z-index:1;display:flex;align-items:center;border:1px solid #8b8e76;box-shadow:0 2px 6px #263d3d22;background:#eee5cdeb; }
 .atlas-book .atlas-zoom-controls button { padding:8px 12px;background:transparent; }
-.atlas-zoom-controls output { min-width:52px;text-align:center;font:11px monospace; }
+.atlas-zoom-controls output { min-width:52px;text-align:center;font:20px "Vice", monospace; }
 .atlas-zoom-controls button:disabled { opacity:.4;cursor:default; }
 .atlas-map { cursor:grab; }
 .atlas-map:active { cursor:grabbing; }
@@ -881,35 +882,110 @@ h1 em {
 .dashboard-left { width: 210px; display: flex; align-items: center; gap: 18px; }
 .speed-line { gap: 8px; }
 .speed-line > strong { font-size: 28px; letter-spacing: 0; }
-.speed-line > span { font-size: 8px; }
-.stop-state { font-size: 8px; letter-spacing: .5px; }
+.speed-line > span { font-size: 14px; }
+.stop-state { font-size: 14px; letter-spacing: .5px; }
 .dashboard-right { width: auto; }
 .dashboard-right > .eyebrow { display: none; }
-.dashboard-right > strong { font-size: 13px; margin: 0; }
-.dash-detail { margin-top: 4px; font-size: 8px; flex-direction: row; }
+.dashboard-right > strong { font-size: 22px; margin: 0; }
+.dash-detail { margin-top: 4px; font-size: 14px; flex-direction: row; }
 .interaction { bottom: 73px; }
 .navigation-message { left: auto; right: 22px; bottom: 107px; transform: none; width: min(450px, 44vw); padding: 10px 14px; }
-.navigation-message p { font-size: 12px; line-height: 1.45; }
+.navigation-message p { font-size: 20px; line-height: 1.45; }
 @media (max-width: 800px) {
   .dashboard { padding: 6px 14px; }
   .dashboard-left { width: 180px; gap: 10px; }
   .speed-line > strong { font-size: 26px; }
   .navigation-message { width: min(360px, 47vw); right: 14px; bottom: 105px; }
-  .navigation-message p { font-size: 10px; }
-  .interaction { bottom: 75px; font-size: 9px; }
+  .navigation-message p { font-size: 18px; }
+  .interaction { bottom: 75px; font-size: 16px; }
 }
 
 /* Attribution has its own central space inside the dashboard, below prompts. */
 .map-credit { bottom:10px;right:auto;left:50%;transform:translateX(-50%);max-width:calc(100vw - 500px);text-align:center; }
 #viewport.pixel-picture { image-rendering: pixelated; }
-.presentation-settings { pointer-events:auto;position:absolute;z-index:12;left:18px;bottom:80px;background:#192c2fee;border:1px solid #87957b;padding:12px;width:240px;font:11px/1.5 monospace;color:#eee1c3; }
+.presentation-settings { pointer-events:auto;position:absolute;z-index:12;left:18px;bottom:80px;background:#192c2fee;border:1px solid #87957b;padding:12px;width:240px;font:20px/1.5 "Vice", monospace;color:#eee1c3; }
 .presentation-settings[hidden] { display:none; }
 .presentation-settings strong,.presentation-settings small { display:block;margin-bottom:5px; }
 .presentation-settings label { display:flex;justify-content:space-between;align-items:center;gap:6px;margin:4px 0; }
-.presentation-settings select { background:#253e3c;color:#fff0ce;border:1px solid #81907a;padding:4px;max-width:145px;font:11px monospace; }
+.presentation-settings select { background:#253e3c;color:#fff0ce;border:1px solid #81907a;padding:4px;max-width:145px;font:20px "Vice", monospace; }
 .presentation-settings .controller-selected { outline:2px solid #e7bf74; }
 
-#performance-stats { position:absolute;z-index:20;left:12px;top:90px;margin:0;padding:8px;background:#142126ed;color:#ead6a9;font:11px/1.5 monospace;pointer-events:none; }
+#performance-stats { position:absolute;z-index:20;left:12px;top:90px;margin:0;padding:8px;background:#142126ed;color:#ead6a9;font:20px/1.5 "Vice", monospace;pointer-events:none; }
 
-#stream-status { position:absolute;z-index:15;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 20px;background:#172b2eee;color:#f0dfb9;font:14px monospace;max-width:70vw;text-align:center; }
+#stream-status { position:absolute;z-index:15;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 20px;background:#172b2eee;color:#f0dfb9;font:22px "Vice", monospace;max-width:70vw;text-align:center; }
 #stream-status[hidden] {display:none;}
+
+/* A restrained home-computer palette and large, narrow bitmap-inspired type. */
+:root { font-size:22px; --muted:#b0bdb0; }
+button, select, input { font-family:Vice,monospace; }
+h1 { letter-spacing:0; line-height:1.05; }
+.objective { max-width:min(780px,calc(100vw - 68px)); background:#14232bd9; padding:12px 18px; }
+.objective h2 { font-size:28px; margin:6px 0; }
+.objective p { font-size:22px; line-height:1.15; }
+#taxi-status { font:22px/1.2 Vice,monospace; margin-top:8px; color:#edc58d; }
+.navigation-message { width:min(580px,48vw); border:2px solid #819582; box-shadow:4px 4px 0 #0a171e; }
+.navigation-message p { font-size:24px; line-height:1.15; }
+.interaction { max-width:calc(100vw - 32px); white-space:normal; text-align:center; background:#14232be8; font-size:22px; }
+.interaction span { display:none; }
+.dashboard { height:76px; }
+.interaction { bottom:86px; }
+.navigation-message { bottom:130px; }
+.speed-line > span, .stop-state, .dash-detail { font-size:18px; }
+.district-tag { width:300px; letter-spacing:1px; }
+.district-tag small { font-size:16px; }
+.deadline span { font-size:18px; }
+.control-table { font-size:20px; line-height:1.1; }
+.modal { border:2px solid #819582; box-shadow:6px 6px 0 #07171d; }
+.overlay:not(.atlas-open) { padding:120px 24px 30px 362px; align-items:start; }
+.briefing { display:block; max-width:900px; }
+.briefing-main, .briefing-side { padding:28px; }
+.briefing-main { overflow:visible; }
+.briefing h1 { font-size:52px; margin:16px 0; }
+.briefing h1 br { display:none; }
+.briefing h1 br::after { content:' '; }
+.briefing .intro { max-width:100%; margin-bottom:20px; }
+.briefing-side { border-left:0; border-top:1px solid #819582; }
+.modal p { line-height:1.2; }
+.presentation-settings { width:324px; top:120px; bottom:24px; max-height:calc(100dvh - 144px); overflow:auto; font:20px/1.2 Vice,monospace; padding:16px; }
+.presentation-settings select { max-width:175px; font:20px Vice,monospace; }
+.presentation-settings button { display:block; width:100%; margin-top:12px; padding:8px; color:#f4e6bb; background:#304b47; border:1px solid #819582; font-size:22px; }
+.presentation-settings button:disabled { opacity:.45; }
+.controller-selected { outline:3px solid #e7bf74; outline-offset:2px; }
+.save-status { font-size:20px; color:#e7bf74; }
+.controls-settings { pointer-events:auto; position:absolute; inset:24px; z-index:30; overflow:auto; background:#16262e; border:3px solid #a5c3b2; padding:24px; font:24px/1.2 Vice,monospace; }
+.controls-settings[hidden] { display:none; }
+.controls-settings button { font:24px Vice,monospace; background:#304b47; color:#f4e6bb; padding:8px 14px; border:1px solid #819582; cursor:pointer; }
+.controls-settings h2 { margin:0; }
+.binding-table > div { display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:16px; align-items:center; border-bottom:1px solid #81958255; padding:8px; }
+.fare-offer { padding:30px; max-width:720px; }
+.fare-offer h1 { font-size:44px; }
+.fare-offer p { font-size:26px; }
+.fare-offer button { margin:16px 0; font-size:26px; }
+.fare-offer small { display:block; }
+.overlay:has(.fare-offer) { padding-left:24px; }
+.atlas-book { font-family:Vice,monospace; }
+.atlas-header h1 { font-family:Vice,monospace; }
+.atlas-information p { font-size:22px; }
+.atlas-margin { width:230px; padding:16px; }
+.atlas-margin p { font-size:22px; }
+.atlas-footer, .atlas-tools { flex-wrap:wrap; }
+.map-credit { font-size:14px; max-width:calc(100vw - 740px); }
+@media(max-width:1050px) {
+ .overlay:not(.atlas-open) { padding-left:340px; padding-right:12px; }
+ .presentation-settings { left:10px; width:314px; }
+ .briefing-main, .briefing-side, .pause, .result { padding:20px; }
+ .briefing h1, .pause h1 { font-size:38px; }
+ .navigation-message { width:50vw; }
+ .control-table > div { grid-template-columns:1fr 1fr 1fr; gap:6px; }
+ .district-tag { width:260px; }
+ .objective { top:126px; }
+ .atlas-margin { display:none; }
+}
+@media(max-width:700px) {
+ .overlay:not(.atlas-open) { padding:115px 12px 50vh; }
+ .presentation-settings { top:auto; bottom:8px; height:36vh; width:calc(100vw - 20px); }
+ .navigation-message { width:calc(100vw - 28px); right:14px; }
+ .objective p { display:none; }
+ .district-tag { max-width:30vw; }
+ .binding-table > div { gap:6px; font-size:20px; }
+}

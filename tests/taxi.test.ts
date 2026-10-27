@@ -24,7 +24,7 @@ test('expanded real district has nine reachable taxi goals and clear pickup area
   }
 });
 test('passengers need deliberate stopped pickup and dropoff; each fare gives a new target',()=>{
-  useDistrict(cerea);const shift=new Mission();
+  useDistrict(cerea);const shift=new Mission({authored:true});
   assert.equal(shift.passenger,'Elena');assert.equal(shift.target.name,'Municipio di Cerea');
   shift.update(1,spawn,true);assert.equal(shift.taxiStage,'pickup');
   assert.equal(shift.serveAtStop(spawn,false),false);
@@ -42,14 +42,14 @@ test('passengers need deliberate stopped pickup and dropoff; each fare gives a n
 });
 test('a faster version of the same ride pays a larger bonus, while slow rides retain their base fare',()=>{
   useDistrict(cerea);
-  const finish=(seconds:number)=>{const shift=new Mission();shift.serveAtStop(spawn,true);shift.update(seconds,spawn,false);shift.serveAtStop(shift.target.bay,true);return shift;};
+  const finish=(seconds:number)=>{const shift=new Mission({authored:true});shift.serveAtStop(spawn,true);shift.update(seconds,spawn,false);shift.serveAtStop(shift.target.bay,true);return shift;};
   const fast=finish(20),slow=finish(500);
   assert.equal(fast.receipts[0].baseCents,slow.receipts[0].baseCents);
   assert.ok(fast.earningsCents>slow.earningsCents);
   assert.equal(slow.receipts[0].bonusCents,0);assert.ok(slow.earningsCents>=400);
 });
 test('the shift runs from 07:00 to 17:00 and ends after twenty active minutes',()=>{
-  useDistrict(cerea);const shift=new Mission();
+  useDistrict(cerea);const shift=new Mission({authored:true});
   assert.equal(shift.clockText,'07:00');assert.equal(shift.duration,1200);
   shift.update(60,spawn,false);assert.equal(shift.clockText,'07:30');
   shift.serveAtStop(spawn,true);shift.update(5000,spawn,false);
@@ -59,7 +59,7 @@ test('the shift runs from 07:00 to 17:00 and ends after twenty active minutes',(
   shift.reset();assert.equal(shift.clockText,'07:00');assert.equal(shift.completedFares,0);assert.equal(shift.earningsCents,0);
 });
 test('a full sequence keeps dispatching without ending the shift or repeating the library objective',()=>{
-  useDistrict(cerea);const shift=new Mission(),targets=new Set<string>();
+  useDistrict(cerea);const shift=new Mission({authored:true}),targets=new Set<string>();
   for(let i=0;i<12;i++){
     targets.add(shift.target.name);assert.equal(shift.serveAtStop(shift.target.bay,true),true);
     targets.add(shift.target.name);shift.update(10,spawn,false);assert.equal(shift.serveAtStop(shift.target.bay,true),true);

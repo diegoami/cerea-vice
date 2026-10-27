@@ -1,7 +1,7 @@
 {
   "name": "cerea-vice",
   "private": true,
-  "version": "0.6.1",
+  "version": "0.8.0-rc.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,8 @@
     "desktop:package": "npm run desktop:setup && npm run build && node desktop/package.mjs",
     "test:desktop": "npm run desktop:setup && npm run build && node --test desktop/smoke.test.mjs",
     "desktop:package:win": "npm run desktop:setup && npm run build && node desktop/package.mjs --platform=win32 --arch=x64",
-    "desktop:win": "npm run desktop:package:win && node desktop/run-windows.mjs"
+    "desktop:win": "npm run desktop:package:win && node desktop/run-windows.mjs",
+    "release:win": "node desktop/release-windows.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"
