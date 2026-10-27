@@ -60,3 +60,17 @@ The route implementation changes in B preserve the old paths, route costs and
 speed-bonus accounting; all stop pairs are compared with exhaustive Dijkstra.
 Rendering-origin shifts affect neither service bays nor atlas knowledge. B adds
 no fares, stops or towns. See [scalability notes](docs/SCALABILITY.md).
+
+## Optional outskirts feasibility journey
+
+The separate **Cerea outskirts prototype** adds a fictional test hamlet to the
+real city subset, with an outbound passenger from Municipio followed by a
+return fare, then the existing requests. It has ten stops and twelve requests.
+The added countryside/street names are labelled fictional; the default real
+Cerea shift is unchanged.
+
+The same fare/bonus formula uses the complete directed detailed route distance,
+even when navigation uses a coarse next-town plan. A loading pause freezes car
+and shift/bonus time. Atlas reading still freezes time; loading, crossing a
+tile/region boundary and serving passengers never relocate its knowledge marker.
+See [the prototype report](docs/TILED_PROTOTYPE.md) for scope and measurements.

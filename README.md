@@ -251,3 +251,28 @@ It supplies no location, destination or navigation information. Run
 `node --import tsx tools/profile-world.mjs B-cpu` for reproducible CPU workloads,
 or the documented Electron profiler for delivered frame intervals. Real Windows
 GPU/controller gameplay checks remain separate manual checks.
+
+## Tiled outskirts prototype
+
+**Cerea outskirts prototype** is a separate briefing choice: real Cerea plus a
+clearly fictional test road and hamlet. It tests offline 250 m render tiles,
+load/unload behaviour, coarse region routing and a longer taxi journey. The
+added countryside is not real-world geography. Cerea Centro remains the default.
+
+From WSL, build and launch that choice with:
+
+```sh
+npm run desktop:win -- cerea-outskirts
+```
+
+The prototype begins with a passenger at Municipio wanting the test hamlet,
+then a return ride. Controls, stopped atlas/information, marker knowledge,
+07:00–17:00 accounting and speed bonuses work as before. If nearby scenery is
+still loading, simulation time pauses. Transient read errors retry automatically;
+stalled reads time out and retry too. Persistent failures suggest restarting
+the application. A recovered load keeps
+your trip and pause state. All data is bundled locally.
+
+See [prototype scope, reproduction, measurements and ten-town limits](docs/TILED_PROTOTYPE.md).
+The experiment streams rendering, while logical collision/atlas data remain
+resident. It is not yet a production multi-town world.

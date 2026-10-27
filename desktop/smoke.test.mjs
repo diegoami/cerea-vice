@@ -483,3 +483,94 @@ test('Cerea remains playable 25 km from origin with optional timings and a stabl
   assert.deepEqual(errors,[]);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('offline outskirts prototype freezes while loading and supports city-to-hamlet taxi, atlas and a hamlet start', {timeout:120000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-outskirts-test-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/THREE|shader/i.test(m.text()))errors.push(m.text());});
+  let release;const gate=new Promise(resolve=>release=resolve);let blocked=true;
+  await page.route('**/tiles/*.json',async route=>{if(blocked)await gate;await route.continue();});
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.locator('#stream-status').waitFor();assert.match(await page.locator('.map-credit').innerText(),/OpenStreetMap/);
+  const clock=await page.locator('#timer').innerText();await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
+  assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
+  blocked=false;release();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Test Hamlet'));
+  await page.evaluate(()=>{window.prototypePad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.prototypePad],configurable:true});window.prototypePad.buttons[8].value=1;});
+  await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Via Venticinque Aprile'));
+  await page.evaluate(()=>{window.prototypePad.buttons[8].value=0;window.prototypePad.buttons[3].value=1;});await page.locator('.atlas-map').waitFor();
+  await page.evaluate(()=>{window.prototypePad.buttons[3].value=0;window.prototypePad.axes[0]=1;});await page.waitForTimeout(250);
+  const readingClock=await page.locator('#timer').innerText();
+  await page.evaluate(()=>{window.prototypePad.axes[0]=0;window.prototypePad.buttons[0].value=1;});await page.waitForFunction(()=>document.querySelector('#atlas-marker-status').textContent.includes('Your estimated position'));
+  await page.evaluate(()=>{window.prototypePad.buttons[0].value=0;window.prototypePad.buttons[8].value=1;});await page.waitForFunction(()=>document.querySelector('#atlas-marker-status').textContent.includes('Last information received'));
+  await page.evaluate(()=>{window.prototypePad.buttons[8].value=0;});assert.equal(await page.locator('#timer').innerText(),readingClock);
+  assert.match(await page.locator('.atlas-map').innerHTML(),/TEST LINK/);assert.match(await page.locator('.atlas-attribution').innerText(),/OpenStreetMap/);
+  const pin=await page.locator('.atlas-pin').getAttribute('transform');await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.screenshot({path:'test-results/C-prototype-city.png'});assert.equal(await page.evaluate(()=>window.tileLabResult===undefined),true,'Normal gameplay has no lab globals');
+  // Separate fixture starts at the terminal, proving its offline assets and return fare.
+  await page.route('**/cerea-outskirts/manifest.json',async route=>{
+   const {readFile}=await import('node:fs/promises');const data=JSON.parse(await readFile('public/maps/cerea-outskirts/manifest.json','utf8'));
+   const bay=data.parkingZones.find(p=>p.id==='test-hamlet');data.spawn={x:bay.x,z:bay.z,heading:0,name:bay.name};data.taxi.fares=[{passenger:'Return tester',pickupId:'test-hamlet',destinationId:'municipio'}];await route.fulfill({json:data});
+  });
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Municipio'));
+  await page.keyboard.press('f');await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Turn around safely'));await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();const terminalPin=await page.locator('.atlas-pin').getAttribute('transform');assert.notEqual(terminalPin,pin);
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.down('w');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>3);await page.keyboard.up('w');
+  await page.keyboard.down('Space');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)===0);await page.keyboard.up('Space');await page.waitForFunction(()=>document.querySelector('#stop-state').textContent.includes('STOP'));
+  await page.screenshot({path:'test-results/C-prototype-hamlet.png'});
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),terminalPin);
+  assert.deepEqual(errors,[]);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
+test('a transient local tile failure retries while paused and recovers without restart or lost progress', {timeout:90000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-tile-retry-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ let release;
+ const gate=new Promise(resolve=>release=resolve);
+ try{
+  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  let attempts=0,signal;const retried=new Promise(resolve=>signal=resolve);
+  await page.route('**/tiles/0_0.json',async route=>{
+   attempts++;if(attempts===1){await route.abort('failed');return;}
+   signal();await gate;await route.continue();
+  });
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.waitForFunction(()=>document.querySelector('#stream-status').textContent.includes('Retrying automatically'));
+  assert.doesNotMatch(await page.locator('#stream-status').innerText(),/Pause and reload/);
+  const clock=await page.locator('#timer').innerText();assert.equal(Number(await page.locator('#speed').innerText()),0);
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  await retried;await page.waitForTimeout(2200);assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(attempts,2);
+  const response=page.waitForResponse(r=>r.url().endsWith('/tiles/0_0.json')&&r.status()===200);release();await (await response).finished();
+  await page.waitForTimeout(500);assert.equal(await page.getByRole('button',{name:'Back to the road'}).isVisible(),true,'Asset recovery must not resume a paused drive');
+  await page.evaluate(()=>{window.retryPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.retryPad],configurable:true});window.retryPad.buttons[9].value=1;});
+  await page.locator('#overlay').waitFor({state:'hidden'});await page.evaluate(()=>{window.retryPad.buttons[9].value=0;});
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  assert.equal(await page.locator('#stream-status').isHidden(),true);assert.equal(attempts,2);assert.equal(await page.locator('#gear').innerText(),'D');
+  await page.screenshot({path:'test-results/C-retry-recovered.png'});assert.deepEqual(errors,[]);
+ }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
+test('a hung local tile request times out into backoff and recovers without advancing the clock', {timeout:90000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-tile-timeout-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ let release;const held=new Promise(resolve=>release=resolve);
+ try{
+  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();let attempts=0;
+  await page.route('**/tiles/0_0.json',async route=>{
+   attempts++;if(attempts===1){await held;try{await route.abort('failed');}catch{/* The client's deadline already cancelled this request. */}return;}
+   await route.continue();
+  });
+  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();const clock=await page.locator('#timer').innerText();
+  await page.waitForFunction(()=>document.querySelector('#stream-status').textContent.includes('Retrying automatically'),{},{timeout:25000});
+  assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  assert.equal(attempts,2,'The still-held first request must be replaced by a successful retry');
+  assert.equal(await page.locator('#stream-status').isHidden(),true);
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position/);
+  assert.deepEqual(errors,[]);
+ }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
+});

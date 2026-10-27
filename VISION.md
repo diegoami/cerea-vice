@@ -98,3 +98,12 @@ The key test is:
 > Can the player get somewhere through observation and directions, recover when lost, and later repeat the journey because they actually remember the place?
 
 That is the core of the vision: learning geography through purposeful journeys, with missions supplying motivation and the road itself supplying the challenge.
+
+## Current scale experiment
+
+A separate feasibility prototype streams visual tiles around the car and connects
+real Cerea to a clearly labelled fictional test hamlet. That connector is test
+content, not real geography; production expansion still needs actual neighbouring
+places and meaningful connections. The experiment preserves observation-based
+navigation and personal atlas knowledge. Scenery loading pauses simulation time
+rather than penalising a journey or supplying navigation assistance.

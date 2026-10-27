@@ -138,3 +138,92 @@ reproduced on the reviewed code and then covered by passing regressions. No
 final automated checks failed or were skipped. Physical controller, real
 Windows gameplay, audio listening and Windows GPU measurements remain manual
 and outstanding; generated screenshots/artifacts remain ignored.
+
+## B accepted; C is separate
+
+The clean B follow-up review covered `dc64ce2a04729da62d891d259354ad6a9728213e`.
+It found no blockers, verified the large-grid fix and repeated identical old/new
+outputs. Small translations of the authored Harbor fixture remain unsupported,
+as documented. The owner then authorized merging PR #4 and continuing; main's
+merge is `ebd93fc93217f0f40654a0e1acc259a65d4819b8`.
+
+C starts from that merge on a new task branch. It adds an opt-in tiled renderer,
+explicitly fictional countryside/hamlet fixture, layered next-region directions
+and reproducible sizing/rendering diagnostics. The original maps and prior
+navigation/input/taxi constraints remain protected. C's loading gate freezes
+simulation time and never moves atlas knowledge. It requires its own exact-head
+independent review; no reviewer is started/chosen and C is not merged.
+See [the C report](TILED_PROTOTYPE.md) for the measured feasibility and limits.
+
+C validation: 74 unit tests, source/test build and all seven required Electron
+scenarios pass. Repeated offline exports are byte-identical (56 JSON files).
+The new Game unit test covers a scenery-load simulation gate without marker
+writes; the prototype desktop scenario covers controller View/Y/A, free atlas
+reading, deliberate estimates corrected by information, and unchanged knowledge
+after driving. A zero-length portal-leg comparison bug found in a hamlet
+screenshot was fixed with unit and actual return-hint regressions. Final serial
+profiles and ten-copy logical sizing are in the C report; real Windows/GPU,
+physical controller and audio checks remain outstanding. C is not merged.
+
+## PR #5 independent review follow-up
+
+Claude Code / Sonnet 5.5 reviewed exact C head
+`5077517cef214896963b368a6962ee11ec978034` against main
+`ebd93fc93217f0f40654a0e1acc259a65d4819b8`. It requested rework for one
+SHOULD item, with one MINOR item and no MUST-FIX. The independent data,
+routing, collision, hint, ownership, export and lab comparisons matched the
+prototype's claims; its normal-play and physical-drive limitations remain.
+
+| Finding | Disposition and evidence |
+| --- | --- |
+| S1 — transient tile failure permanently freezes the session; misleading reload instruction | Confirmed directly on the reviewed code: one failed request remained excluded after another update, leaving one attempt and ready=false. Wanted failed tiles now retry at 0.5/1/2/4 s, then an 8 s cap, without tight loops or retries after close/outside the wanted set. Successful builds clear active failure state while retaining historical diagnostics. Local requests bypass the response cache. The UI says automatic retry and restart if persistent, rather than referring to a nonexistent desktop Reload menu. Unit tests use a deterministic clock; an Electron regression aborts the first tile request, allows recovery while paused, checks frozen time and explicit controller resume without restarting. |
+| M1 — tile IDs do not prove bounds/coverage consistency | Canonical integer IDs now determine all four 250 m bounds. Unsafe coordinates/aliases such as -0_0, duplicate IDs, moved/overlapping bounds, out-of-grid tiles and missing rectangle cells are rejected. Unique canonical cells plus the expected grid count establish non-overlap and complete prototype coverage. New tests reject shifted bounds, overlaps, aliases and removed cells; the committed manifest remains unchanged. |
+
+The successful scene/query algorithms and geometry are unchanged. Historical
+C measurements describe the original reviewed samples; no new speedup is
+claimed. The no-store retry policy can affect local read timing, so any fresh
+load profile is recorded separately rather than silently replacing earlier
+numbers. The review still did not include a physical end-to-end drive of the
+link, physical controller, real Windows gameplay/audio or Windows GPU checks.
+These remain outstanding/manual. C is not merged; no reviewer is selected or
+started, and the pushed fixes need their own exact-head re-review.
+
+Follow-up verification: Node 24.21.0, clean install (0 vulnerabilities), all
+77 unit tests, source/test build and all eight required Electron scenarios pass
+(~161 seconds). The new actual Electron abort/retry case recovers without
+restarting, holds time while paused, retains pause on success and resumes with
+the controller. A fresh serial no-store lab run retains the original geometry
+and disposal counts (69 loads / 51 unloads); timing samples are recorded
+separately in the C report. No final checks failed/skipped, and no generated
+runtime artifacts are tracked. End-to-end driving/Windows/controller/audio/GPU
+manual limitations remain explicit.
+
+## PR #5 re-review: final minor cleanup
+
+The re-review covered `7c03eaeaac4455a7dbb7c8121e1757aec057f6e0` and
+confirmed S1/M1 fixed, with no SHOULD or MUST-FIX. It independently exercised
+repeated failures/backoff, paused recovery and 21 manifest mutations; the prior
+geography/rendering/routing evidence remains applicable. Two minor items were
+then closed rather than carried into the prototype:
+
+| Item | Disposition |
+| --- | --- |
+| M2 — graphics-context loss still says “Reload the page” | Changed to “Restart the application”, which is valid in the desktop shell. The startup-failure message now uses the same wording. District selection's actual window.location.reload() remains intentional; no missing Reload menu is assumed. |
+| M3 — a request that never settles cannot enter retry | Tile fetches now use AbortSignal.timeout(10_000), covering both the request and consumption of its response body. A stalled read rejects into the existing monotonic capped backoff. A new Electron regression holds the first local request indefinitely, verifies frozen clock/speed, then observes a successful replacement request and the unchanged starting atlas marker. |
+
+No map, route/fare, physics, input, geometry, shader or security behaviour was
+changed by this cleanup. No new performance claim is made; earlier measured
+samples remain historical. Physical end-to-end driving, physical controller,
+real Windows gameplay/audio and Windows GPU checks remain outstanding/manual.
+C stays unmerged; no reviewer is started or selected.
+
+Final cleanup validation: clean install (0 vulnerabilities), all 77 unit tests,
+source/test type-check/build and all nine required Xvfb/xfwm4 Electron scenarios
+pass together (~172 s). The new actual Electron case never releases the first
+request until cleanup; its deadline causes a successful replacement request,
+with clock/speed held and the starting atlas marker unchanged. The targeted
+case passed separately too. Diff checks pass; no remaining user-facing reload
+instruction exists in src. No final automated failures/skips. Historical
+performance samples were not rerun: this is a stalled-read deadline and wording
+change, without geometry/query changes or a new speedup claim. Manual/end-to-end
+limitations remain unchanged.

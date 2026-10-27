@@ -1,3 +1,4 @@
+import { StreamingWorld } from "../world/streaming/StreamingWorld";
 import { SettingsPanel, readSettings, renderSize } from "../presentation/Settings";
 import { Sound } from "../presentation/Sound";
 import { BodyMotion } from "../presentation/Motion";
@@ -20,7 +21,7 @@ const {Car}=createCar(context);
 const {directionHint}=createNavigation(context);
 const {Parking}=createParking(context);
 const {Mission}=createMission(context);
-const {World}=createWorld(context);
+const makeWorld=()=>district.streaming?new StreamingWorld(context):new (createWorld(context).World)();
 const {Hud}=createHud(context);
 class Game {
   private readonly timingPanel=context.profile.enabled?document.createElement("pre"):undefined;
@@ -34,7 +35,8 @@ class Game {
     antialias: true,
     powerPreference: "high-performance",
   });
-  private readonly world = new World();
+  private readonly world = makeWorld();
+  private readonly streamStatus=document.createElement("div");
   private readonly car = new Car();
   private readonly cockpit = new CockpitCamera(this.world.frame);
   private readonly interior = new Cockpit(this.world.scene);
@@ -59,6 +61,7 @@ class Game {
       `First-person view of ${district.name}`,
     );
     root.append(this.renderer.domElement);
+    this.streamStatus.id="stream-status";this.streamStatus.hidden=true;this.streamStatus.setAttribute("role","status");root.append(this.streamStatus);
     if(this.timingPanel){this.timingPanel.id="performance-stats";this.timingPanel.setAttribute("aria-label","CPU profiling timings");root.append(this.timingPanel);}
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation());
     this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);});
@@ -76,7 +79,7 @@ class Game {
     });
     window.addEventListener("pointerdown",()=>this.sound.unlock());
     window.addEventListener("keydown",()=>this.sound.unlock());
-    window.addEventListener("pagehide",()=>this.sound.dispose(),{once:true});
+    window.addEventListener("pagehide",()=>{this.sound.dispose();if(this.world instanceof StreamingWorld)this.world.dispose();},{once:true});
     this.resize();
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("blur", () => this.pause());
@@ -87,7 +90,7 @@ class Game {
       e.preventDefault();
       this.pause();
       this.hud.setHint(
-        "Graphics context interrupted. Reload the page to restart the prototype.",
+        "Graphics context interrupted. Restart the application to continue.",
       );
     });
     this.cockpit.update(1, this.car, 0);
@@ -207,7 +210,12 @@ class Game {
         }
       }
     }
-    if (this.screen === "running") {
+    this.world.updateFrame(this.car);
+    const worldReady=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
+    this.streamStatus.hidden=worldReady||this.screen!=="running";
+    this.streamStatus.textContent=this.world instanceof StreamingWorld&&this.world.stream.recovering?'Scenery load interrupted. Retrying automatically… time is paused. Restart the application if it persists.':'Loading scenery… simulation time is paused.';
+    if(this.screen==="running"&&!worldReady)this.accumulator=0;
+    if (this.screen === "running"&&worldReady) {
       if(this.waitForDrivingRelease&&actions.throttle<.1&&actions.brake<.1)this.waitForDrivingRelease=false;
       const driving=this.waitForDrivingRelease?{...actions,throttle:0,brake:0}:actions;
       this.accumulator += dt;
@@ -251,7 +259,7 @@ class Game {
     if(this.settings.resolution==='sharp')this.renderer.render(this.world.scene, this.cockpit.camera);
     else this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
     context.profile.end("render",renderStart);
-    if(this.timingPanel&&time>=this.timingRefresh){this.timingRefresh=time+500;this.timingPanel.textContent=context.profile.text();}
+    if(this.timingPanel&&time>=this.timingRefresh){this.timingRefresh=time+500;this.timingPanel.textContent=context.profile.text()+(this.world instanceof StreamingWorld?`\ntiles: ${this.world.stream.resident.size} resident · ${this.world.stream.stats.loads} loads / ${this.world.stream.stats.unloads} unloads`:"");}
   }
 }
 return {Game};

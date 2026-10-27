@@ -1,3 +1,5 @@
+import { validateStreaming } from "./streaming/validate";
+import { LayeredRouteGraph } from "../navigation/LayeredRouteGraph";
 import { Profiler } from "../diagnostics/Profiler";
 import { RouteGraph } from "../navigation/RouteGraph";
 import { SpatialGrid, rectBounds } from "./SpatialGrid";
@@ -40,6 +42,7 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
     if(stops.size!==taxi.stops.length||taxi.stops.some(stop=>!plainText(stop.name)||!plainText(stop.road)||!plainText(stop.description)||!ids.has(stop.nodeId)||!data.parkingZones.some(bay=>bay.id===stop.bayId)))throw new Error("Invalid taxi stop");
     if(taxi.fares.some(fare=>!plainText(fare.passenger)||!stops.has(fare.pickupId)||!stops.has(fare.destinationId)||fare.pickupId===fare.destinationId))throw new Error("Invalid taxi itinerary");
   }
+  validateStreaming(data);
   for (const feature of data.features) if (!(feature.width>0) || feature.points?.length<2 || feature.points.some((point) => !validPoint(point)) || !["water", "rail"].includes(feature.kind)) throw new Error("Invalid map feature");
 }
 
@@ -70,17 +73,18 @@ export function inRect(point: Point, rect: Rect, margin = 0): boolean {
 export class District {
  readonly district:DistrictDefinition;
  readonly nodes;readonly roads;readonly parkingZones;readonly landmarks;readonly spawn;readonly hotelBay;
+ readonly assetBase?:string;
  readonly profile:Profiler;
- readonly graph:RouteGraph;
+ readonly graph:RouteGraph | LayeredRouteGraph;
  readonly buildings:SpatialGrid<MapBuilding>;
  readonly roadGrid:SpatialGrid<Road>;
  readonly nodeMap:Map<string,RoadNode>;
  readonly adjacency=new Map<string,Road[]>();
- constructor(value:unknown,options:{profile?:boolean}={}){
-  validateDistrict(value);this.district=value;this.profile=new Profiler(options.profile);
+ constructor(value:unknown,options:{profile?:boolean;assetBase?:string}={}){
+  validateDistrict(value);this.district=value;this.profile=new Profiler(options.profile);this.assetBase=options.assetBase;
   this.nodes=value.nodes;this.roads=value.roads;this.parkingZones=value.parkingZones;this.landmarks=value.landmarks;this.spawn=value.spawn;
   this.hotelBay=value.parkingZones.find(zone=>zone.id===value.mission.bayId)!;
-  this.graph=new RouteGraph(this.nodes,this.roads);
+  this.graph=value.streaming?new LayeredRouteGraph(this.nodes,this.roads,value.streaming.regions,value.streaming.portals):new RouteGraph(this.nodes,this.roads);
   this.nodeMap=new Map(this.nodes.map(node=>[node.id,node]));
   for(const node of this.nodes)this.adjacency.set(node.id,[]);
   for(const road of this.roads){this.adjacency.get(road.a)!.push(road);this.adjacency.get(road.b)!.push(road);}

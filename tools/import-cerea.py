@@ -2,9 +2,12 @@
 """Convert the checked-in OSM extract into the small, offline Cerea Centro district.
 No network is needed to rebuild. Coordinates preserve local metre scale and north.
 """
-import json, math, subprocess
+import json, math, subprocess, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
+if '--tiles-only' in sys.argv:
+    subprocess.run(['node','--import','tsx',str(ROOT/'tools/export-tiles.mjs')],check=True)
+    raise SystemExit(0)
 source=json.loads((ROOT/'data/sources/cerea-osm.json').read_text())
 lat0,lon0=45.1943,11.2112
 west,south,east,north=11.2055,45.1888,11.2185,45.1985
@@ -166,3 +169,5 @@ district={'version':1,'id':'cerea','stoppingPolicy':'anywhere','name':'Cerea Cen
 subprocess.run(['node', str(ROOT/'tools/prepare-cerea.mjs')], check=True)
 prepared=json.loads((ROOT/'public/maps/cerea.json').read_text())
 print('Cerea:',len(nodes),'road shape/junction nodes,',len(roads),'segments,',len({r['name'] for r in roads}),'streets,',len(prepared['buildings']),'prepared building masses')
+
+if '--tiles' in sys.argv:subprocess.run(['node','--import','tsx',str(ROOT/'tools/export-tiles.mjs')],check=True)

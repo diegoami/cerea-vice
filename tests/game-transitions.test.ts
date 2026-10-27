@@ -1,3 +1,4 @@
+import {StreamingWorld} from "../src/world/streaming/StreamingWorld";
 import { LocalFrame } from "../src/world/LocalFrame";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,7 +28,7 @@ function harness(){
  const game=Object.create(Game.prototype) as Harness;
  const noop=()=>{};
  Object.assign(game,{
-  screen:'running',car:new Car(),parking:new Parking(),mission:new Mission(),previousTime:1000,accumulator:0,
+  streamStatus:{hidden:true,textContent:''},screen:'running',car:new Car(),parking:new Parking(),mission:new Mission(),previousTime:1000,accumulator:0,
   districtSwitchReady:false,ignorePauseUntil:0,missionRevision:-1,waitForDrivingRelease:false,
   input:{settingsInput:{move:0,confirm:false,keyboardConfirm:false},poll:()=>({...actions}),controllerDisconnected:false,setMouseCaptured:noop},
   retro:{render:noop},renderer:{domElement:{focus:noop},render:noop},world:{frame:new LocalFrame({x:0,z:0}),updateFrame:noop,collisionIndex:[],colliders:[],updateDaylight:noop},
@@ -65,4 +66,14 @@ test('Game holds driving inputs until both atlas triggers are released and gates
  h.step({shiftGear:true});assert.equal(h.game.car.gear,'R');
  h.step({throttle:1});assert.ok(h.game.car.speed<0);
  h.step({shiftGear:true,throttle:1});assert.equal(h.game.car.gear,'R');
+});
+
+
+test('Game freezes physical/taxi time while streamed scenery is unavailable, then resumes without marker writes',()=>{
+ const h=harness();let ready=false;
+ const world=Object.assign(Object.create(StreamingWorld.prototype),{frame:new LocalFrame({x:0,z:0}),updateFrame:()=>{},updateDaylight:()=>{},readyAt:()=>ready,collisionIndex:[],stream:{stats:{failures:0}}});
+ Object.assign(h.game,{world});const before=h.game.mission.elapsed;
+ for(let i=0;i<30;i++)h.step({throttle:1});
+ assert.equal(h.game.mission.elapsed,before);assert.equal(h.game.car.speed,0);assert.equal(h.markers(),0);
+ ready=true;h.step({throttle:1});assert.ok(h.game.mission.elapsed>before);assert.ok(h.game.car.speed>0);assert.equal(h.markers(),0);
 });

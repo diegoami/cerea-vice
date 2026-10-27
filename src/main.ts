@@ -8,13 +8,16 @@ async function start() {
   try {
     app.innerHTML='<div class="fatal"><h1>Opening the district…</h1></div>';
     const context=await loadSelectedDistrict();
+    if(new URLSearchParams(window.location.search).has("tile-lab")){
+      app.replaceChildren();const {runTileLab}=await import("./diagnostics/TileLab");runTileLab(app,context);return;
+    }
     const {Game}=createGame(context);
     document.title = `Cerea Vice ${version} · ${context.district.name}`;
     app.replaceChildren();
     new Game(app);
   } catch (error) {
     console.error(error);
-    app.innerHTML='<div class="fatal"><h1>Unable to start the drive</h1><p>Check that the district files are available and WebGL 2 hardware acceleration is enabled, then reload.</p></div>';
+    app.innerHTML='<div class="fatal"><h1>Unable to start the drive</h1><p>Check that the district files are available and WebGL 2 hardware acceleration is enabled, then restart the application.</p></div>';
   }
 }
 void start();

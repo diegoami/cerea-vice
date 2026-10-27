@@ -7,7 +7,7 @@ const bundle=path.join(root,'release','Cerea Vice-win32-x64');
 const version=JSON.parse(readFileSync(path.join(root,'package.json'),'utf8')).version;
 if(!existsSync(path.join(bundle,'cerea-vice.exe'))) throw new Error('Build the Windows bundle with npm run desktop:package:win first.');
 const requested=process.argv[2]??'cerea';
-if(!['cerea','harbor'].includes(requested))throw new Error('Choose cerea or harbor.');
+if(!['cerea','harbor','cerea-outskirts'].includes(requested))throw new Error('Choose cerea, harbor or cerea-outskirts.');
 const source=process.platform==='win32'?bundle:execFileSync('wslpath',['-w',bundle],{encoding:'utf8'}).trim();
 const literal=(text)=>`'${text.replaceAll("'","''")}'`;
 const script=`$ErrorActionPreference = 'Stop'
