@@ -22,7 +22,7 @@ interface Harness {
  screen:Screen;car:InstanceType<typeof Car>;parking:InstanceType<typeof Parking>;mission:InstanceType<typeof Mission>;waitForDrivingRelease:boolean;
  frame(time:number):void;pause():void;requestInformation():void;
 }
-const idle:Actions={steer:0,throttle:0,brake:0,handbrake:false,glance:0,interact:false,pause:false,reminder:false,atlas:false,back:false,atlasPage:0,atlasMoveX:0,atlasMoveY:0,clearMarker:false,information:false,shiftGear:false,lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false,atlasZoom:0,atlasZoomStep:0,atlasPanX:0,atlasPanY:0};
+const idle:Actions={steer:0,throttle:0,brake:0,handbrake:false,glance:0,interact:false,pause:false,reminder:false,atlas:false,back:false,declineOffer:false,atlasPage:0,atlasMoveX:0,atlasMoveY:0,clearMarker:false,information:false,shiftGear:false,lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false,atlasZoom:0,atlasZoomStep:0,atlasPanX:0,atlasPanY:0};
 function harness(){
  Object.defineProperty(globalThis,'document',{configurable:true,value:{pointerLockElement:null}});
  let actions={...idle},markers=0,estimates=0,clock=1000;

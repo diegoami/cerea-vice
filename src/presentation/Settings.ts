@@ -27,11 +27,11 @@ export class SettingsPanel {
   private index=-1;
   private delay=0;
   private actions:{button:HTMLButtonElement;run:()=>void}[]=[];
-  addAction(label:string,run:()=>void){const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',run);this.element.append(button);this.actions.push({button,run});return button;}
+  addAction(label:string,run:()=>void){const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',()=>{run();if(document.activeElement===button)button.blur();});this.element.append(button);this.actions.push({button,run});return button;}
   constructor(readonly values:PresentationSettings, private changed:()=>void) {
     this.element.className='presentation-settings';
     this.element.setAttribute('aria-label','Presentation settings');
-    this.element.innerHTML=`<strong>PICTURE & SOUND</strong><small>D-pad: select · A: change · Start: drive<br>Keyboard: Tab / arrows edit · Enter / Esc drive</small>
+    this.element.innerHTML=`<strong>PICTURE & SOUND</strong><small>D-pad: select · A: change · Start: drive<br>Keyboard: Tab / arrows edit · Space activates buttons · Enter / Esc / P drive</small>
       <label>Scenery <select data-key="detail"><option value="true">Detailed</option><option value="false">Simple</option></select></label>
       <label>Picture <select data-key="resolution"><option value="sharp">Sharp (read signs)</option><option value="retro">Retro 270p</option><option value="retro-fine">Retro 540p</option></select></label>
       <label>Cockpit motion <select data-key="motion"><option value="true">Subtle</option><option value="false">Off</option></select></label>
@@ -39,9 +39,8 @@ export class SettingsPanel {
       <label>Radio <select data-key="radio"><option value="false">Off</option><option value="true">On</option></select></label>`;
     document.querySelector('#hud')!.append(this.element);
     this.element.addEventListener('keydown',event=>{
-      if(event.target instanceof HTMLButtonElement){event.stopPropagation();return;}
       // Reserve the advertised start/resume controls even after a mouse edit.
-      if(event.code==='Enter'||event.code==='Escape'){
+      if(event.code==='Enter'||event.code==='Escape'||event.code==='KeyP'){
         event.preventDefault();
         (event.target as HTMLElement).blur();
         return; // Let Input receive the key; ordinary form editing stays local.

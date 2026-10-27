@@ -55,14 +55,14 @@ to collect also pays the quoted collection supplement. These are transparent
 initial game-balance assumptions; real controller journeys and return demand
 still need owner playtesting.
 
-Validation on 27 October 2026:
+Validation on 27 October 2026 (updated for the rc.2 review fixes):
 
-- `npm test`: 86/86 checks passed, including dispatch reachability/variation,
+- `npm test`: 90/90 checks passed, including dispatch reachability/variation,
   long collection quotes, saved offer/ride/receipts, corrupt-save rejection,
   passenger presence and remapped input context isolation.
 - TypeScript/Vite production build passed. Vite retains the existing warning
   about a main chunk above 500 kB; it is not a build failure.
-- The prescribed Xvfb/xfwm4 desktop suite passed 10/10 scenarios: offline
+- The prescribed Xvfb/xfwm4 desktop suite passed 11/11 scenarios: offline
   controller driving, atlas knowledge and frozen clocks, fare accept/decline,
   keyboard/L3 capture and conflicts, Electron close/relaunch persistence,
   damaged saves, small-window layout, translated coordinates and tile recovery.
@@ -72,3 +72,12 @@ Validation on 27 October 2026:
 Generated screenshots include `passenger-beside-driver.png`, `cerea-briefing.png`,
 `cerea-settings.png`, and `cerea-atlas.png` in ignored `test-results/`.
 The portable bundle is in ignored `release/Cerea Vice-win32-x64/`.
+
+The independent rc.1 review identified settings-button focus trapping keyboard
+resume, stale collection quotes in dispatch notices, unintended X/Delete fare
+declines, and the stale test count above. Rc.2 reserves Enter/Escape/P for
+keyboard resume, uses Space for settings actions, refreshes and restores quoted
+notices from fare state while retaining payout feedback, and gives B/Backspace
+a dedicated decline action. Regression checks cover each case. The rc.1 review
+covers `e96e5c4bc07dab7f68867fb1504d854fbd0871f9`; substantive fixes need an
+independent recheck. Physical Windows/controller checks remain with the owner.

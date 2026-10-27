@@ -7,6 +7,42 @@ import { _electron } from 'playwright-core';
 async function seedDispatch(page,seed=75){await page.addInitScript(seed=>{Math.random=()=>seed/4294967296;},seed);await page.reload();}
 async function acceptOffer(page){await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});}
 
+test('review regressions: focused settings resume by keyboard and only advertised controls decline offers', {timeout:90000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-review-regressions-'));
+ const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();await seedDispatch(page);
+  await page.getByRole('button',{name:'Start the engine'}).click();await page.locator('[data-fare=accept]').waitFor();
+  const offer=await page.locator('.fare-offer p').first().innerText();
+  await page.evaluate(()=>{window.reviewPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.reviewPad],configurable:true});});
+  const button=async(index,value)=>{await page.evaluate(({index,value})=>window.reviewPad.buttons[index].value=value,{index,value});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));};
+  await button(2,1);await button(2,0);assert.equal(await page.locator('.fare-offer p').first().innerText(),offer,'Handbrake cannot discard the offer');
+  await page.keyboard.press('Delete');await page.evaluate(()=>new Promise(requestAnimationFrame));assert.equal(await page.locator('.fare-offer p').first().innerText(),offer,'Atlas erase cannot discard the offer');
+  await page.keyboard.press('Backspace');await page.waitForFunction(before=>document.querySelector('.fare-offer p').textContent!==before,offer);
+  const next=await page.locator('.fare-offer p').first().innerText();await button(1,1);await button(1,0);assert.notEqual(await page.locator('.fare-offer p').first().innerText(),next,'B explicitly declines');
+  await acceptOffer(page);await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  // Mouse save must return focus to the game rather than retaining an action trap.
+  await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+  for(const name of ['Save shift','Continue saved shift','Change controls'])for(const key of ['Enter','Escape','p']){
+   await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+   await page.getByRole('button',{name,exact:true}).focus();
+   const saved=await page.evaluate(()=>localStorage.getItem('cerea-save-cerea'));
+   await page.keyboard.press(key);await page.locator('#overlay').waitFor({state:'hidden'});
+   assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-save-cerea')),saved,`${key} resumes from ${name} without running that action`);
+   assert.equal(await page.getByRole('dialog',{name:'Change controls'}).isVisible(),false);
+  }
+  // Space retains an accessible keyboard path to the action buttons.
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  const previousSave=await page.evaluate(()=>localStorage.getItem('cerea-save-cerea'));
+  await page.getByRole('button',{name:'Save shift',exact:true}).focus();await page.keyboard.press('Space');
+  await page.waitForFunction(before=>localStorage.getItem('cerea-save-cerea')!==before,previousSave);
+  assert.equal(await page.getByRole('button',{name:'Back to the road'}).isVisible(),true);
+  await page.getByRole('button',{name:'Change controls',exact:true}).focus();await page.keyboard.press('Space');await page.getByRole('dialog',{name:'Change controls'}).waitFor();
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Back to the road'}).waitFor();await page.keyboard.press('Enter');await page.locator('#overlay').waitFor({state:'hidden'});
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
 test('fare choices, remapping and saved passenger/atlas state survive a complete desktop relaunch', {timeout:120000},async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-save-controls-'));
  const launch=()=>_electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});

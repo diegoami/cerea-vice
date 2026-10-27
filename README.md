@@ -67,8 +67,8 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 
 ## Release candidate
 
-The next portable playtest is **0.8.0-rc.1**. See
-[release notes](docs/releases/0.8.0-rc.1.md) for installation, controls, saves and
+The next portable playtest is **0.8.0-rc.2**. See
+[release notes](docs/releases/0.8.0-rc.2.md) for installation, controls, saves and
 remaining playtest checks. Its draft release is prepared from PR #13 rather
 than a merged stable version.
 
@@ -80,7 +80,7 @@ npm run release:win
 ```
 
 This rebuilds the Windows app and writes a portable ZIP, `release-info.json`,
-release notes and `SHA256SUMS.txt` under `release/v0.8.0-rc.1/`. The ZIP has one
+release notes and `SHA256SUMS.txt` under `release/v0.8.0-rc.2/`. The ZIP has one
 versioned root folder and contains the entire offline app. The source commit
 and hashes of all bundled files are recorded. Changed source must be committed
 first; using a different commit for an existing version requires a new version.
@@ -88,7 +88,7 @@ Generated bundles stay out of git. This command prepares local artifacts; the
 GitHub release is created separately as a draft for review.
 
 Verify the downloaded files on WSL/Linux with `sha256sum -c SHA256SUMS.txt`.
-On Windows, `Get-FileHash .\Cerea-Vice-0.8.0-rc.1-win32-x64.zip -Algorithm SHA256`
+On Windows, `Get-FileHash .\Cerea-Vice-0.8.0-rc.2-win32-x64.zip -Algorithm SHA256`
 prints the ZIP hash for comparison with the checksums file. Extract all files
 before opening `cerea-vice.exe`.
 
@@ -268,7 +268,8 @@ the selected setting. **Enter / Escape** always starts/resumes on keyboard,
 even with a select focused; W/S and arrow keys outside the panel do not select
 settings. **A** starts normally before selecting a controller setting. Options
 are saved locally and survive Windows playtest launches. Action buttons such as
-Save and Change controls use Enter to activate the focused button.
+Save and Change controls use Space to activate the focused button.
+Enter, Escape and P resume even when a settings action has focus.
 
 **Simple scenery** hides the extra façades, tiled roof facets and decorative
 props. Detailed scenery uses locally painted shutters, windows, ground-floor

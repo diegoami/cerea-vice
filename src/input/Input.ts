@@ -10,6 +10,7 @@ export interface Actions {
   reminder: boolean;
   atlas: boolean;
   back: boolean;
+  declineOffer: boolean;
   atlasPage: number;
   atlasMoveX: number;
   atlasMoveY: number;
@@ -70,6 +71,8 @@ export class Input {
   private queuedAtlasPage = 0;
   private previousAtlas = false;
   private previousBack = false;
+  private queuedDeclineOffer = false;
+  private previousDeclineOffer = false;
   private previousAtlasPage = 0;
   private previousShiftGear = false;
   private queuedShiftGear = false;
@@ -100,6 +103,7 @@ export class Input {
         if (event.code === "Minus" || event.code === "NumpadSubtract") this.queuedAtlasZoomStep = -1;
         if (matches("atlas",["KeyT"])) this.queuedAtlas = true;
         if (event.code === "Escape" || (this.context==='menu'&&event.code==='Backspace')) this.queuedBack = true;
+        if (this.context==='menu'&&event.code==='Backspace') this.queuedDeclineOffer = true;
         if (event.code === "Delete" || event.code === "Backspace") this.queuedClearMarker = true;
         if (event.code === "KeyQ") this.queuedAtlasPage = -1;
         if (event.code === "KeyE") this.queuedAtlasPage = 1;
@@ -119,6 +123,7 @@ export class Input {
       this.queuedReminder = false;
       this.queuedAtlas = false;
       this.queuedBack = false;
+      this.queuedDeclineOffer = false;
       this.queuedAtlasPage = 0;
       this.queuedClearMarker = false;
       this.queuedInformation = false;
@@ -180,6 +185,7 @@ export class Input {
     const reminder = active('reminder',['Tab','KeyM'],12);
     const atlas = active('atlas',['KeyT'],3);
     const back = down('Escape') || (this.context==='menu'&&down('Backspace')) || button(1) > 0.5;
+    const declineOffer = down('Backspace')||button(1)>.5;
     const atlasPage = Number(down("KeyE") || button(5) > 0.5)
       - Number(down("KeyQ") || button(4) > 0.5);
     const information = active('information',['KeyF'],8);
@@ -199,6 +205,7 @@ export class Input {
       reminder: this.queuedReminder || (reminder && !this.previousReminder),
       atlas: this.queuedAtlas || (atlas && !this.previousAtlas),
       back: this.queuedBack || (back && !this.previousBack),
+      declineOffer: this.context==='menu'&&(this.queuedDeclineOffer || (declineOffer && !this.previousDeclineOffer)),
       atlasPage: this.queuedAtlasPage || (atlasPage !== this.previousAtlasPage ? atlasPage : 0),
       atlasMoveX: keyboardSteer || (Number(button(15) > 0.5) - Number(button(14) > 0.5)) || deadzone(pad?.axes[0] ?? 0),
       atlasMoveY: (Number(down("KeyS", "ArrowDown")) - Number(down("KeyW", "ArrowUp")))
@@ -228,6 +235,8 @@ export class Input {
     this.queuedClearMarker = false;
     this.previousAtlas = atlas;
     this.previousBack = back;
+    this.previousDeclineOffer=declineOffer;
+    this.queuedDeclineOffer=false;
     this.previousAtlasPage = atlasPage;
     this.queuedAtlas = false;
     this.queuedBack = false;

@@ -85,6 +85,33 @@ test('long collection compensation is quoted once, retained after acceptance and
  restored.update(900,restored.target.bay,false);restored.serveAtStop(restored.target.bay,true);
  assert.equal(restored.receipts[0].baseCents,quote);assert.equal(restored.receipts[0].bonusCents,0);
 });
+test('initial, declined and post-dropoff radio notices match the fixed quoted guarantee, including restored rc.1 saves',()=>{
+ const rural=new District(outskirts),{Mission}=createMission(rural),hamlet=rural.parkingZones.find(b=>b.id==='test-hamlet')!;
+ for(const seed of [1,2,3]){
+  const mission=new Mission({seed});
+  const check=()=>assert.ok(mission.notice.includes(mission.offerText),mission.notice);
+  mission.quoteOffer(hamlet);check();
+  mission.declineOffer();mission.quoteOffer(hamlet);check();
+  const value=mission.snapshot();value.notice='Old dispatch: Guaranteed €0.01';
+  const restored=new Mission();restored.restore(value);assert.ok(restored.notice.includes(restored.offerText));assert.doesNotMatch(restored.notice,/€0.01/);
+  mission.acceptOffer();mission.serveAtStop(mission.target.bay,true);mission.serveAtStop(mission.target.bay,true);
+  mission.quoteOffer(hamlet);check();assert.match(mission.notice,/Thank you.*Fare €/,'Quoting the next offer must retain the completed payout');
+ }
+});
+test('only B and Backspace decline in menus; handbrake and atlas erasing remain separate',()=>{
+ const target=new EventTarget();Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+ const buttons=Array.from({length:17},()=>({value:0}));
+ Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[{connected:true,mapping:'standard',axes:[0,0,0,0],buttons}]},configurable:true});
+ const input=new Input(structuredClone(defaultBindings));input.context='menu';
+ const tap=(code:string)=>{for(const type of ['keydown','keyup']){const event=new Event(type);Object.defineProperty(event,'code',{value:code});target.dispatchEvent(event);}};
+ buttons[2].value=1;let actions=input.poll();assert.equal(actions.handbrake,true);assert.equal(actions.declineOffer,false);
+ buttons[2].value=0;input.poll();tap('Delete');actions=input.poll();assert.equal(actions.clearMarker,true);assert.equal(actions.declineOffer,false);
+ buttons[1].value=1;assert.equal(input.poll().declineOffer,true);assert.equal(input.poll().declineOffer,false);buttons[1].value=0;input.poll();
+ tap('Backspace');assert.equal(input.poll().declineOffer,true);assert.equal(input.poll().declineOffer,false);
+ input.context='atlas';buttons[2].value=1;actions=input.poll();assert.equal(actions.clearMarker,true);assert.equal(actions.declineOffer,false);
+ input.context='driving';buttons[1].value=1;input.poll();input.context='menu';assert.equal(input.poll().declineOffer,false,'Holding the gear button as an offer opens is not a new decline');
+ buttons[1].value=0;input.poll();buttons[1].value=1;assert.equal(input.poll().declineOffer,true);
+});
 test('passenger visibility follows boarding/dropoff independently of visual tile reloads or render-origin changes',()=>{
  const mission=new Mission({seed:75}),scene=new THREE.Scene(),presence=new PassengerPresence(context,scene),frame=new LocalFrame(context.spawn);
  const waiting=scene.getObjectByName(`Waiting at ${mission.pickupStop!.id}`)!;

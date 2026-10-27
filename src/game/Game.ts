@@ -244,7 +244,7 @@ class Game {
     }
     if(this.screen==='offer'){
       if(actions.pause)this.pause();
-      else if(actions.back||actions.clearMarker)this.chooseOffer(false);
+      else if(actions.declineOffer)this.chooseOffer(false);
       else if(actions.interact)this.chooseOffer(true);
     } else if (this.screen === "atlas") {
       if (actions.atlas || actions.back || actions.pause) this.activate();

@@ -80,8 +80,10 @@ class Mission {
       this.approachDistance=Math.min(...starts.map(id=>shortestRoute(id,stop.nodeId).cost+Math.hypot(near.point.x-context.nodeById(id).x,near.point.z-context.nodeById(id).z)+near.distance));
       if(!Number.isFinite(this.approachDistance))this.approachDistance=0;
     }
-    this.offerQuoted=true;this.revision++;
+    this.offerQuoted=true;this.notice=this.quotedOfferNotice();this.revision++;
   }
+  private receiptNotice(receipt:FareReceipt){return `${receipt.passenger}: “Thank you!” Fare €${(receipt.totalCents/100).toFixed(2)} (base €${(receipt.baseCents/100).toFixed(2)} + speed bonus €${(receipt.bonusCents/100).toFixed(2)}).`;}
+  private quotedOfferNotice(){const receipt=this.receipts.at(-1);return `${receipt?this.receiptNotice(receipt)+' ':''}${this.clockText} · Taxi dispatch: ${this.objective}`;}
   acceptOffer(){if(!this.offerPending||this.finished)return false;this.offerPending=false;this.notice=`Fare accepted. ${this.objective}`;this.revision++;return true;}
   declineOffer(){if(!this.offerPending||this.finished)return false;this.fareIndex++;this.dispatch();this.notice=`New offer: ${this.offerText}`;this.revision++;return true;}
   private stop(id:string):TaxiStop {return this.taxi!.stops.find(stop=>stop.id===id)!;}
@@ -134,7 +136,7 @@ class Mission {
       this.receipts.push({passenger:fare.passenger,pickup:pickup.name,destination:destination.name,distanceMetres:this.rideDistance,seconds:this.elapsed,baseCents,bonusCents,totalCents});
       this.earningsCents+=totalCents;this.bonusEarnedCents+=bonusCents;
       this.fareIndex++;this.taxiStage='pickup';this.elapsed=0;this.dispatch();
-      this.notice=`${fare.passenger}: “Thank you!” Fare €${(totalCents/100).toFixed(2)} (base €${(baseCents/100).toFixed(2)} + speed bonus €${(bonusCents/100).toFixed(2)}). Dispatch: ${this.objective}`;
+      this.notice=`${this.receiptNotice(this.receipts[this.receipts.length-1])} Dispatch: ${this.objective}`;
     }
     this.revision++;return true;
   }
@@ -168,7 +170,9 @@ class Mission {
     if(value.earningsCents!==value.receipts.reduce((n,r)=>n+r.totalCents,0)||value.bonusEarnedCents!==value.receipts.reduce((n,r)=>n+r.bonusCents,0))throw new Error('Invalid saved earnings');
     const {elapsed,totalElapsed,state,taxiStage,fareIndex,earningsCents,bonusEarnedCents,receipts,directionRequests,offerPending,offerQuoted,approachDistance,currentFare,randomState,notice}=value;
     Object.assign(this,structuredClone({elapsed,totalElapsed,state,taxiStage,fareIndex,earningsCents,bonusEarnedCents,receipts,directionRequests,offerPending,offerQuoted,approachDistance,currentFare,randomState,notice}));
-    this.rideDistance=distance;this.rideBudget=Math.max(100,90+distance/4.5);this.revision++;
+    this.rideDistance=distance;this.rideBudget=Math.max(100,90+distance/4.5);
+    if(this.offerPending&&this.offerQuoted)this.notice=this.quotedOfferNotice();
+    this.revision++;
   }
   update(dt:number,position:Point,stopped:boolean){
     if(this.finished)return;
