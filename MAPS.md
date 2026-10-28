@@ -75,9 +75,11 @@ Simple and Detailed building meshes share the original collision polygons.
 
 Decorative trees, lamps, parked cars and people are placed deterministically
 beside selected roads, outside carriageways/buildings/bays, with space reserved
-for signs and street-plate sightlines. Taxi stops have clothed waiting people managed separately from static scenery.
-Boarding hides the figure at that pickup and places a matching passenger in the
-adjacent seat; dropoff clears the seat. This state survives tile eviction and save/load. They add no collision
+for signs and street-plate sightlines. Taxi stops have no waiting people. After stopped service at an accepted pickup,
+one passenger, managed separately from static scenery, walks from a nearby
+doorway or off-street spot (found from building footprints) to the taxi and
+takes the adjacent seat; dropoff clears the seat and the passenger walks away.
+This state survives tile eviction, origin rebasing and save/load. They add no collision
 or stopping rules. No JSON schema or importer changes are required for this
 presentation pass. Harbor retains its legacy scenery. See
 [presentation measurements and limits](docs/PRESENTATION.md).

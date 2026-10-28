@@ -2,7 +2,7 @@
 
 [Game vision](VISION.md) defines the direction and scope. [Loadable districts](MAPS.md) describes the map format, sources and the new real-place pilot.
 
-**Cerea Centro** now offers a [taxi shift](TAXI.md): work from 07:00 to 17:00, collect passengers and follow their requests to nine real places across an expanded neighbourhood with 51 named streets. Completed rides pay a base fare plus a speed bonus. The accelerated day takes about 20 active minutes; the atlas and pause screens stop the clock. Start at the Municipio and read a dispatch offer with a randomized pickup and destination. Accept or decline before collecting the passenger. The library is now just one of several places to learn.
+**Cerea Centro** now offers a [taxi shift](TAXI.md): work from 07:00 to 17:00, collect passengers and follow their requests to nine real places across an expanded neighbourhood with 51 named streets. Completed rides pay a base fare plus a speed bonus. The accelerated day takes about 20 active minutes; the atlas and pause screens stop the clock. Start at the Municipio free to drive. When you want work, stop and request fares to compare a list of randomized pickups, destinations and guaranteed payments, accept one, then collect the passenger, who walks from a nearby doorway into the seat beside you. The library is now just one of several places to learn.
 
 **Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline. Small street-name plates identify lateral streets at crossings and repeat along longer stretches; larger arrow boards are reserved for major thoroughfares.
 
@@ -67,10 +67,11 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 
 ## Release candidate
 
-The next portable playtest is **0.8.0-rc.3**. See
-[release notes](docs/releases/0.8.0-rc.3.md) for installation, controls, saves and
-remaining playtest checks. Its draft release is prepared from PR #13 rather
-than a merged stable version.
+The next portable playtest is **0.9.0-rc.1**. See
+[release notes](docs/releases/0.9.0-rc.1.md) for installation, controls, saves and
+remaining playtest checks. Its draft release is prepared from the
+`task/free-driving-fare-board` pull request rather than a merged stable version.
+The previous candidate's notes remain in [0.8.0-rc.3](docs/releases/0.8.0-rc.3.md).
 
 From a clean, committed checkout in WSL/Linux with Node 22.12+, Python 3 and
 `npm ci` completed:
@@ -80,7 +81,7 @@ npm run release:win
 ```
 
 This rebuilds the Windows app and writes a portable ZIP, `release-info.json`,
-release notes and `SHA256SUMS.txt` under `release/v0.8.0-rc.3/`. The ZIP has one
+release notes and `SHA256SUMS.txt` under `release/v0.9.0-rc.1/`. The ZIP has one
 versioned root folder and contains the entire offline app. The source commit
 and hashes of all bundled files are recorded. Changed source must be committed
 first; using a different commit for an existing version requires a new version.
@@ -88,27 +89,33 @@ Generated bundles stay out of git. This command prepares local artifacts; the
 GitHub release is created separately as a draft for review.
 
 Verify the downloaded files on WSL/Linux with `sha256sum -c SHA256SUMS.txt`.
-On Windows, `Get-FileHash .\Cerea-Vice-0.8.0-rc.3-win32-x64.zip -Algorithm SHA256`
+On Windows, `Get-FileHash .\Cerea-Vice-0.9.0-rc.1-win32-x64.zip -Algorithm SHA256`
 prints the ZIP hash for comparison with the checksums file. Extract all files
 before opening `cerea-vice.exe`.
 
 ## Saves and dispatch
 
-Dispatch offers a pickup, destination and guaranteed payment while you are fully
-stopped. **A / Enter** accepts; **B / Backspace** declines and requests another
-fare without a penalty. Reading an offer pauses time. **Start / Escape** opens
-the pause menu, including **Save shift** and **Continue saved shift**.
+You drive freely until you ask for work; dispatch never offers a fare by
+itself. At a full stop, press **Request fares** (**D-pad down / O** by default)
+to read a list of up to four fares, each with pickup, destination and complete
+guaranteed payment. Up / down selects, **A / Enter** accepts, **B / Backspace**
+closes the list without accepting, and **Y / N** asks for a new list without a
+penalty. Reading the list pauses time. A closed list is kept, unchanged, until
+you accept a fare or ask for a new one. **Start / Escape** opens the pause menu,
+including **Save shift** and **Continue saved shift**.
 
 There is one manual save per district. Continue restores the car, gear, clocks,
-earnings, ride/offer, passenger and your atlas knowledge, and leaves the game
-paused. It does not replace your atlas estimate with the car's real position.
+earnings, free driving or the accepted ride, the fare list, a passenger still
+walking to the taxi, and your atlas knowledge, and leaves the game paused.
+0.8 saves still load (a pending offer becomes a one-fare list). Continue does not replace your atlas estimate with the car's real position.
 A new shift keeps the saved shift until you explicitly save again. Browser saves
 stay in that browser's local site storage; Windows saves survive closing the
 app, removing the temporary bundle and launching a new build. A changed map
 may make an old save incompatible; failures are reported without replacing it.
 
 Choose **Change controls** from the briefing or pause menu to remap driving
-keys and controller buttons, including **L3 for forward/reverse**. Select a
+keys and controller buttons, including **L3 for forward/reverse** and
+**Request fares**. Select a
 binding, press a new key/button, and resolve any reported conflict. Escape
 cancels capture; Start cancels controller capture. Restore defaults is always
 available with the fixed menu controls. Sticks retain steering/look axes. The
@@ -130,6 +137,9 @@ Driving defaults are shown below; use **Change controls** to customize them.
 | Look forward                       | Right stick press (R3) | C                            |
 | Glance left / right                | LB / RB               | Q / E                        |
 | Confirm / passenger pickup / dropoff / retry            | A / Cross (south face button) | Enter                   |
+| Request fares / show the fare list (while stopped) | D-pad down by default | O by default            |
+| Fare list: choose / accept               | D-pad / left stick, A / Cross | Up / down or W / S, Enter |
+| Fare list: new list / close              | Y / Triangle, B / Circle | N, Backspace              |
 | Open / close atlas (while stopped) | Y / Triangle          | T                            |
 | Atlas zoom (atlas only)             | RT / LT               | Mouse wheel / + / −          |
 | Pan atlas                          | Right stick           | Drag map / I J K L           |
@@ -153,7 +163,7 @@ The compass continues to show the car’s heading while you look around. LB / RB
 
 ## Taxi mode
 
-Stop in the current pickup or dropoff area and press **A / Cross / Enter**. Dispatch continues with new customers after every paid ride. The HUD shows passenger, destination, street, shift clock, earnings and the active speed bonus. See [TAXI.md](TAXI.md) for the scoring rules and destination list.
+Stop anywhere and press **Request fares** to choose a ride from the fare list. Then stop in the pickup area and press **A / Cross / Enter**; the passenger walks to the taxi and sits beside you, and the taxi is held for those few seconds. At the destination, the same control completes the fare and you return to free driving. The shift clock runs while you drive freely. The HUD shows passenger, destination, street, shift clock, earnings and the active speed bonus. See [TAXI.md](TAXI.md) for the scoring rules and destination list.
 
 ## How to play Harbor District
 

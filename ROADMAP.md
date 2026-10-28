@@ -16,6 +16,10 @@ on `feat/playtest-improvements` and owner playtesting still required:
   #8 randomized dispatch, #11 accept/decline offers, #12 worthwhile long fares,
   and #9 persistent save/resume.
 
+- 0.9 — Free driving and fare board: the follow-ups to #11 (on-demand fare
+  list instead of automatic offers) and #7 (passengers walk from the kerb and
+  board instead of permanently waiting figures), on `task/free-driving-fare-board`.
+
 These are the immediate release checkpoints within the longer roadmap below.
 See [behavior and validation](docs/PLAYTEST_IMPROVEMENTS.md).
 

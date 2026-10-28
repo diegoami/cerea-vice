@@ -25,7 +25,8 @@ The prototype starts with a traveller at Municipio wanting Test Hamlet, then
 a return customer wanting Municipio, followed by the existing city fares.
 There are ten stops. The existing 07:00–17:00 clock, fare formula, speed bonus,
 deliberate boarding/dropoff and stopped information rules are unchanged. New
-scenery and waiting figures are permanent; nothing appears only at a goal.
+scenery is permanent. Since 0.9 there are no waiting figures; an accepted
+passenger appears only beside the stopped taxi while walking to or from it.
 
 Run from WSL with the Windows client:
 
