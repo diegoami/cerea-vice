@@ -417,6 +417,9 @@ h1 em {
   font-weight: 500;
   margin: 14px 0;
 }
+.briefing-side > .eyebrow + p {
+  margin-top: 14px;
+}
 .briefing-side > p,
 .briefing-tip p {
   font-size: 22px;
