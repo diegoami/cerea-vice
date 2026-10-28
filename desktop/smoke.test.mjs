@@ -11,6 +11,34 @@ const settled=page=>page.waitForFunction(()=>/STOP/.test(document.querySelector(
 async function requestFares(page,key='o'){await settled(page);await page.keyboard.press(key);await page.locator('.fare-board').waitFor();await frames(page);}
 async function takeFare(page,index=0){await requestFares(page);await page.locator('[data-fare-offer]').nth(index).click();await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});}
 const listed=page=>page.locator('[data-fare-offer]').allInnerTexts();
+/** Supported window sizes, from the desktop minimum to full HD. */
+const windowSizes=[[960,640],[1280,900],[1440,900],[1920,1080]];
+/** Visible HUD text that leaves the window or is cut off inside its own box. The compass strip scrolls by design;
+ * screen-reader-only text (a 1 px clipped box, such as the picture-mode announcement) is hidden by design. */
+const clippedText=page=>page.evaluate(()=>{
+  const bad=[];
+  for(const el of document.querySelectorAll('#hud *')){
+    if(el.closest('[hidden],svg,.compass-window'))continue;
+    if(![...el.childNodes].some(n=>n.nodeType===3&&n.textContent.trim()))continue;
+    const style=getComputedStyle(el),r=el.getBoundingClientRect();
+    if(style.display==='none'||style.visibility==='hidden'||!r.width||!r.height)continue;
+    if(r.width<=1&&r.height<=1&&style.overflow==='hidden')continue;
+    const name=`${el.tagName.toLowerCase()}${el.id?'#'+el.id:''}${el.className&&typeof el.className==='string'?'.'+el.className.trim().split(/\s+/).join('.'):''} “${el.textContent.trim().slice(0,40)}”`;
+    if(r.left<-1||r.right>innerWidth+1)bad.push(`${name} leaves the window`);
+    if(style.overflowX!=='visible'&&el.scrollWidth>el.clientWidth+1)bad.push(`${name} is clipped`);
+  }
+  return bad;
+});
+/** Resize through every supported window size, asserting no clipped text, with screenshots at both ends. */
+async function checkTextFit(app,page,label){
+  for(const [width,height] of windowSizes){
+    await app.evaluate(({BrowserWindow},{width,height})=>BrowserWindow.getAllWindows()[0].setContentSize(width,height),{width,height});
+    await page.waitForFunction(({width,height})=>innerWidth===width&&innerHeight===height,{width,height});await frames(page);
+    assert.deepEqual(await clippedText(page),[],`${label} text fits at ${width}x${height}`);
+    if(width===960||width===1920)await page.screenshot({path:`test-results/text-fit-${label}-${width}x${height}.png`});
+  }
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1440,900));
+}
 
 test('startup during held scenery loading withholds prices until the complete collection quote is ready', {timeout:90000},async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-startup-quote-'));
@@ -369,14 +397,14 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
     await seedDispatch(page);
     await page.getByRole('button',{name:'Cerea Centro',exact:true,pressed:true}).waitFor();
-    await page.getByRole('heading',{name:'Drive a taxi in Cerea.'}).waitFor();
+    await page.getByRole('heading',{name:/Taxi shift/}).waitFor();
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
     assert.equal(await page.locator('[data-key=resolution]').inputValue(),'retro-fine');
     await page.getByRole('button',{name:'Start the engine'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
-    assert.equal(await page.locator('.car-badge').innerText(),'CEREA / 1986');
+    assert.equal(await page.locator('.car-badge').count(),0,'No decorative badge in the HUD');
     assert.match(await page.locator('#objective-stage').innerText(),/FREE DRIVING/);assert.equal(await page.locator('.fare-board').count(),0);
     await page.keyboard.press('Enter');await page.waitForFunction(()=>/No passenger booked.*O to see available fares/.test(document.querySelector('#hint').textContent));
     assert.match(await page.locator('#prompt').innerText(),/O\s*Request fares/);
@@ -388,7 +416,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     assert.match(await page.locator('#timer').innerText(),/^07:/);
     await page.keyboard.press('Enter');
     await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
-    assert.match(await page.locator('#hint').innerText(),/Elena has seen the taxi/);
+    assert.match(await page.locator('#hint').innerText(),/Elena is getting in/);
     await page.waitForTimeout(900);
     await page.evaluate(()=>{window.arrivalPad={connected:true,mapping:'standard',axes:[0,0,1,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.arrivalPad],configurable:true});});
     await page.waitForTimeout(750);await page.screenshot({path:'test-results/passenger-arriving.png'});
@@ -518,9 +546,42 @@ test('taxi shift ends at 17:00 with an earnings summary and can restart', {timeo
     await page.getByRole('heading',{name:'You earned €0.00.'}).waitFor();
     assert.equal(await page.locator('#timer').innerText(),'17:00');
     await page.screenshot({path:'test-results/taxi-shift-results.png'});
+    await checkTextFit(electronApp,page,'shift-results');
     await page.getByRole('button',{name:'Start another shift'}).click();
     await page.waitForFunction(()=>document.querySelector('#overlay').hidden);
   }finally{await electronApp.close();await rm(profile,{recursive:true,force:true});}
+});
+
+test('shortened text fits every window size and picture mode, with accented street names', {timeout:180000}, async()=>{
+  const profile=await mkdtemp(path.join(tmpdir(),'cerea-text-fit-test-'));
+  const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+  try{
+    const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await seedDispatch(page);await mkdir('test-results',{recursive:true});
+    await page.getByRole('button',{name:'Start the engine'}).waitFor();
+    for(const mode of ['retro-fine','sharp','retro']){
+      await page.locator('[data-key=resolution]').selectOption(mode);
+      await checkTextFit(app,page,`briefing-${mode}`);
+    }
+    await page.getByRole('button',{name:'Start the engine'}).click();
+    await requestFares(page);
+    await checkTextFit(app,page,'fare-list');
+    await page.keyboard.press('Backspace');await page.locator('#overlay').waitFor({state:'hidden'});
+    // A long passenger request with accented Italian names in the radio panel (the objective line is redrawn every frame).
+    await page.evaluate(()=>{document.querySelector('#hint').textContent='Elena boarded: “Please take me to San Zeno in Santa Maria Assunta, Via Fabrizio de Andrè.”';});
+    await checkTextFit(app,page,'hud-notice');
+    await settled(page);await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+    await checkTextFit(app,page,'atlas-map');
+    await page.keyboard.press('e');await page.locator('.atlas-index').waitFor();
+    await checkTextFit(app,page,'atlas-index');
+    await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+    await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+    for(const mode of ['retro-fine','sharp','retro']){
+      await page.locator('[data-key=resolution]').selectOption(mode);
+      await checkTextFit(app,page,`pause-${mode}`);
+    }
+    assert.deepEqual(errors,[]);
+  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
 
 test('presentation modes preserve sharp UI, mirrors and controller settings without resuming', {timeout:90000}, async()=>{
