@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --import tsx --test tests/*.test.ts desktop/assets.test.mjs",
+    "test": "node --import tsx --test tests/*.test.ts desktop/assets.test.mjs desktop/music.test.mjs",
     "desktop:setup": "install-electron",
     "desktop": "npm run desktop:setup && npm run build && electron .",
     "desktop:package": "npm run desktop:setup && npm run build && node desktop/package.mjs",

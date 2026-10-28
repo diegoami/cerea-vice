@@ -282,16 +282,52 @@ test('Request fares follows its remapped key/button, only while driving, and nev
  assert.equal(bindingConflict(defaultBindings,'shiftGear',13),'requestFares');
  let stored=JSON.stringify(bindings);Object.defineProperty(globalThis,'localStorage',{value:{getItem:()=>stored},configurable:true});
  assert.deepEqual(readBindings(),bindings);
- const old=structuredClone(defaultBindings) as Partial<typeof defaultBindings>;delete old.requestFares;old.shiftGear={keys:['KeyO'],button:10};stored=JSON.stringify(old);
+ const old=structuredClone(defaultBindings) as Partial<typeof defaultBindings>;delete old.requestFares;delete old.radioNext;old.shiftGear={keys:['KeyO'],button:10};stored=JSON.stringify(old);
  const migrated=readBindings();assert.deepEqual(migrated.shiftGear,{keys:['KeyO'],button:10},'0.8 choices survive');
  assert.deepEqual(migrated.requestFares,{keys:['KeyH'],button:13},'Request fares gets a free key');
  bindings.requestFares.button=7;stored=JSON.stringify(bindings);assert.deepEqual(readBindings(),defaultBindings,'Stored conflicts fall back to defaults');
  bindings.requestFares.button=9;stored=JSON.stringify(bindings);assert.deepEqual(readBindings(),defaultBindings,'Start stays reserved');
  // Regression: a 0.8 profile already using O, H, V, X, B and N must keep every choice.
- const busy=structuredClone(defaultBindings) as Partial<typeof defaultBindings>;delete busy.requestFares;
+ const busy=structuredClone(defaultBindings) as Partial<typeof defaultBindings>;delete busy.requestFares;delete busy.radioNext;
  busy.shiftGear!.keys=['KeyO'];busy.atlas!.keys=['KeyH'];busy.information!.keys=['KeyV'];busy.resetLook!.keys=['KeyX'];busy.glanceLeft!.keys=['KeyB'];busy.glanceRight!.keys=['KeyN'];
  stored=JSON.stringify(busy);const kept=readBindings();
  for(const action of ['shiftGear','atlas','information','resetLook','glanceLeft','glanceRight'] as const)assert.deepEqual(kept[action],busy[action],`${action} survives the upgrade`);
  assert.deepEqual(kept.requestFares,{keys:['KeyC'],button:13},'Request fares takes the next free key');
+ assert.deepEqual(kept.radioNext,{keys:['KeyE'],button:15},'The radio then takes the following free key');
  assert.notDeepEqual(kept,defaultBindings);
+});
+test('0.9 profiles with many custom controls gain the radio control without losing any choice',()=>{
+ let stored='';Object.defineProperty(globalThis,'localStorage',{value:{getItem:()=>stored},configurable:true});
+ // Every letter the radio might prefer is taken, as is its D-pad right default.
+ const custom=structuredClone(defaultBindings) as Partial<typeof defaultBindings>;delete custom.radioNext;
+ Object.assign(custom,{steerLeft:{keys:['KeyJ'],button:null},steerRight:{keys:['KeyL'],button:null},throttle:{keys:['KeyI'],button:7},brake:{keys:['KeyK'],button:6},
+  handbrake:{keys:['KeyV'],button:2},shiftGear:{keys:['KeyH'],button:15},interact:{keys:['KeyX'],button:0},atlas:{keys:['KeyB'],button:3},information:{keys:['KeyN'],button:8},
+  requestFares:{keys:['KeyC'],button:13},reminder:{keys:['KeyD','KeyE'],button:12},resetLook:{keys:['KeyF'],button:11},glanceLeft:{keys:['KeyG'],button:4},glanceRight:{keys:['KeyU'],button:5}});
+ stored=JSON.stringify(custom);const kept=readBindings();
+ for(const action of Object.keys(custom) as (keyof typeof custom)[])assert.deepEqual(kept[action],custom[action],`${action} survives the upgrade`);
+ assert.deepEqual(kept.radioNext,{keys:['KeyM'],button:14},'A free key and button are chosen');
+ assert.equal(bindingConflict(kept,'radioNext','KeyM'),undefined);assert.equal(bindingConflict(kept,'radioNext',14),undefined);
+ // A 0.8 profile gains both later actions with distinct free choices.
+ const old=structuredClone(custom);delete old.requestFares;stored=JSON.stringify(old);const both=readBindings();
+ assert.deepEqual(both.requestFares,{keys:['KeyO'],button:13});assert.deepEqual(both.radioNext,{keys:['KeyC'],button:14},'C is free once Request fares has O');
+ // Saved radio remaps round-trip; a conflicting one still falls back to defaults rather than guessing.
+ const remapped={...kept,radioNext:{keys:['Digit1'],button:10}};stored=JSON.stringify(remapped);assert.deepEqual(readBindings(),remapped);
+ stored=JSON.stringify({...kept,radioNext:{keys:['KeyM'],button:13}});assert.deepEqual(readBindings(),defaultBindings);
+ stored='[]';assert.deepEqual(readBindings(),defaultBindings);
+});
+test('the radio control is a driving-only edge that never leaks into the atlas or menus',()=>{
+ const target=new EventTarget();Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+ const buttons=Array.from({length:17},()=>({value:0}));
+ Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[{connected:true,mapping:'standard',axes:[0,0,0,0],buttons}]},configurable:true});
+ const tap=(code:string)=>{for(const type of ['keydown','keyup']){const e=new Event(type);Object.defineProperty(e,'code',{value:code});target.dispatchEvent(e);}};
+ const input=new Input(structuredClone(defaultBindings));
+ assert.equal(bindingLabel(defaultBindings,'radioNext'),'V');assert.equal(bindingLabel(defaultBindings,'radioNext',true),'D-pad right');
+ tap('KeyV');assert.equal(input.poll().radioNext,true);assert.equal(input.poll().radioNext,false);
+ buttons[15].value=1;assert.equal(input.poll().radioNext,true);assert.equal(input.poll().radioNext,false,'Holding does not repeat');
+ input.context='atlas';buttons[15].value=0;input.poll();buttons[15].value=1;const atlas=input.poll();
+ assert.equal(atlas.radioNext,false);assert.equal(atlas.atlasMoveX,1,'D-pad right still moves the atlas crosshair');
+ buttons[15].value=0;input.poll();tap('KeyV');assert.equal(input.poll().radioNext,false);
+ input.context='menu';tap('KeyV');buttons[15].value=1;assert.equal(input.poll().radioNext,false);
+ input.context='driving';assert.equal(input.poll().radioNext,false,'A press held from a menu is not a new edge');buttons[15].value=0;input.poll();
+ assert.equal(bindingConflict(defaultBindings,'requestFares',15),'radioNext');
 });

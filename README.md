@@ -151,6 +151,8 @@ Driving defaults are shown below; use **Change controls** to customize them.
 | Erase atlas marker                 | X / Square            | Delete / Backspace           |
 | Close atlas                        | B / Circle            | Escape                       |
 | Repeat mission and time remaining  | D-pad up              | Tab or M                     |
+| Radio: next track (music folder, driving) | D-pad right by default | V by default          |
+| Volume, mute, radio on/off, source, music level, choose folder, previous/next track | Picture & Sound (briefing or pause) | Picture & Sound |
 | Pause / resume                     | Start / Options                 | Escape or P                  |
 
 Connect a controller and press a button so the browser exposes it. The game selects the first connected controller with the browser's `standard` mapping; equivalent PlayStation face buttons work through that mapping. A 16% stick deadzone suppresses drift. Keyboard remains available while a controller is connected. Embedded previews may block the browser Gamepad API; the game falls back to keyboard controls instead of failing to render. Open the preview in a new browser tab to use a controller if the embedded view restricts it. There are no touch controls.
@@ -233,7 +235,7 @@ tests/
 
 `createGame(context)` binds the systems to an explicit District instance; the car consumes only `Actions`, with no keyboard or controller knowledge. Navigation and mission logic use plain positions, not Three.js objects. World data defines the roads used for both geometry and routing. Indexed nearest-road queries and directed heap Dijkstra route via the nearest road projection to the selected destination, then describes the next junction and compass direction. Cerea routes honour imported one-way tags; the original Harbor wording is preserved for that district. Heading is included and a safe turnaround is suggested when facing away. No raw coordinates are displayed to the player.
 
-The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type declarations, and `tsx` (for tests) are development tools. Text signs are generated on local canvases; no network assets, external fonts, realistic textures, or asset pipeline are used. Default rendering uses 540p with nearest-neighbour upscale and light dithering. Sharp uses native/HiDPI resolution capped at 1920 internal horizontal pixels, antialiasing and filtered sign textures for small street-name plates. Flat materials, simple lighting and distance fog retain the economical retro presentation.
+The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type declarations, and `tsx` (for tests) are development tools. Text signs are generated on local canvases; no network assets, external fonts, realistic textures, or asset pipeline are used. Default rendering uses 540p with nearest-neighbour upscale and light dithering. Sharp uses native/HiDPI resolution capped at 1920 internal horizontal pixels, antialiasing and filtered sign textures for small street-name plates; the opt-in High mode lifts that cap to 3840×2160 (see [docs/COLOUR_AND_RESOLUTION.md](docs/COLOUR_AND_RESOLUTION.md)). Flat materials, simple lighting and distance fog retain the economical retro presentation.
 
 ## Phase 1 assumptions and limits
 
@@ -265,9 +267,14 @@ of another model family runs `/review-pr`; setup alone does not start a review.
 
 The briefing and pause screens have **Picture & Sound** controls. The default
 is **Detailed scenery / Retro 540p**, chosen for the richer appearance and lower
-measured software-rendering cost. **Sharp (read signs)** restores display
-resolution for small street plates; **Retro 270p** gives a coarser picture.
-Both retro modes use nearest-neighbour scaling and a light ordered dither.
+measured software-rendering cost. **Picture** offers, from lightest to most
+demanding, **Retro 270p**, **Retro 540p**, **Sharp** (display resolution up to
+1920 px wide, for reading small street plates) and **High (to 4K)** (every
+display/HiDPI pixel up to 3840×2160, for capable graphics cards). A line under
+the choice explains it and shows the picture size actually drawn for the
+current window, e.g. `Drawing 960×540 for a 1280×720 window`. High is never
+chosen automatically; pick Sharp or Retro again if driving stutters. Both
+retro modes use nearest-neighbour scaling and a light ordered dither.
 HUD text and the atlas stay at display resolution in every mode. Side mirrors
 retain their 320×192 views at 10 Hz before the selected picture treatment.
 
@@ -283,19 +290,33 @@ Enter, Escape and P resume even when a settings action has focus.
 
 **Simple scenery** hides the extra façades, tiled roof facets and decorative
 props. Detailed scenery uses locally painted shutters, windows, ground-floor
-shop doors, warm neighbourhood colours, trees, lamps and parked cars. These
+shop doors, ochre, cream, terracotta and grey-stucco neighbourhood colours,
+trees, lamps and parked cars. These
 are visual scenery, without new collisions or traffic. Waiting figures appear
 at every Cerea stop and do not identify the current fare. Harbor keeps its
 handcrafted scenery; picture, sound and motion options work there too.
 
-The engine hum follows speed and selected gear. A quiet steering-linked tick
-suggests an indicator; it supplies no navigation advice and does not introduce
-a new turn-signal control. The optional radio is a quiet synthesized musical
-loop. **Volume → Mute** silences everything; sound fades out in the atlas,
-pause and other inactive screens. Browsers may require a click or key press to
-unlock audio. **Cockpit motion → Off** disables the subtle interior roll/pitch
+The synthesized engine follows speed, throttle and the selected gear; braking,
+road rumble and reverse have their own sounds, and selecting forward/reverse
+clunks. A quiet steering-linked tick suggests an indicator; it supplies no
+navigation advice and does not introduce a new turn-signal control. **Volume**
+defaults to 75%; changing it plays a short check tone. **Volume → Mute**
+silences everything; sound and music fade out in the atlas, pause and other
+inactive screens. The dashboard always shows the sound level, mute or a blocked
+audio device, and the radio. Browsers may require a click or key press to
+unlock audio; the desktop app does not, including a controller-only start.
+
+The optional **Radio** (off by default) plays a built-in synthesized tune or, in
+the desktop app, **your own music folder**: choose it with **Choose music
+folder…**. The choice is remembered across relaunches; MP3, OGG/Opus, WAV, FLAC,
+M4A/AAC and WebM files play, entirely offline. **Music level** is separate from
+Volume, and music ducks slightly while you accelerate. Previous/next track are on
+the settings screen; next track is also bound while driving (**V / D-pad right**
+by default, remappable). See [sound and radio](docs/AUDIO.md) for the design,
+defaults, folder security model and a listening checklist.
+**Cockpit motion → Off** disables the subtle interior roll/pitch
 and wheel vibration; physics, camera heading and compass are unaffected.
-All textures and sound are generated locally; see [presentation notes](docs/PRESENTATION.md).
+All textures and built-in sound are generated locally; see [presentation notes](docs/PRESENTATION.md). No music is bundled.
 
 ## Scalability diagnostics
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 const profile=await mkdtemp(path.join(tmpdir(),'cerea-profile-'));
 let app;
 try {
- app=await _electron.launch({args:[path.resolve('.'),'--profile',...(process.env.CEREA_DISTRICT?['--district='+process.env.CEREA_DISTRICT]:[]),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ app=await _electron.launch({args:[path.resolve('.'),'--profile',...(process.env.CEREA_SCALE?['--force-device-scale-factor='+process.env.CEREA_SCALE]:[]),...(process.env.CEREA_DISTRICT?['--district='+process.env.CEREA_DISTRICT]:[]),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  const page=await app.firstWindow();
  await page.addInitScript(seed=>{Math.random=()=>seed/4294967296;},process.env.CEREA_DISTRICT==='cerea-outskirts'?141:75);await page.reload();
  await page.getByRole('button',{name:'Start the engine'}).waitFor();
@@ -13,10 +13,9 @@ try {
  if(process.env.CEREA_DETAIL)await page.locator('[data-key=detail]').selectOption(process.env.CEREA_DETAIL);
  await page.getByRole('button',{name:'Start the engine'}).click();
  await page.waitForFunction(()=>document.querySelector('#stop-state')?.textContent==='P · LEGAL STOP');
- if(process.env.CEREA_DISTRICT!=='harbor')await page.locator('[data-fare=accept]').click();
+ // Since 0.9 a shift starts in free driving; there is no opening fare to accept.
  await page.waitForTimeout(2000);
  await page.keyboard.press('f'); // Stopped request exercises nearest-road/route profiling without exposing a live location.
- await page.keyboard.press('Enter'); // Start the first fare, exercising route accounting.
  await page.waitForTimeout(300);
  const result=await page.evaluate(async()=>{
   const samples=[];let last=performance.now();
@@ -24,7 +23,7 @@ try {
   samples.sort((a,b)=>a-b);
   const gl=document.querySelector('canvas').getContext('webgl2');
   const extension=gl?.getExtension('WEBGL_debug_renderer_info');
-  return {cpuTimings:document.querySelector('#performance-stats')?.textContent??'profiling not available',picture:document.querySelector('[data-key=resolution]')?.value??'legacy sharp',detail:document.querySelector('[data-key=detail]')?.value??'legacy',buffer:[gl?.drawingBufferWidth,gl?.drawingBufferHeight],gpu:extension?gl.getParameter(extension.UNMASKED_RENDERER_WEBGL):'unavailable',medianMs:samples[60],p95Ms:samples[114],samples:120,viewport:[innerWidth,innerHeight],renderer:gl?.getParameter(gl.RENDERER),userAgent:navigator.userAgent};
+  return {cpuTimings:document.querySelector('#performance-stats')?.textContent??'profiling not available',picture:document.querySelector('[data-key=resolution]')?.value??'legacy sharp',detail:document.querySelector('[data-key=detail]')?.value??'legacy',buffer:[gl?.drawingBufferWidth,gl?.drawingBufferHeight],gpu:extension?gl.getParameter(extension.UNMASKED_RENDERER_WEBGL):'unavailable',medianMs:samples[60],p95Ms:samples[114],samples:120,viewport:[innerWidth,innerHeight],pixelRatio:devicePixelRatio,renderer:gl?.getParameter(gl.RENDERER),userAgent:navigator.userAgent};
  });
  await mkdir('test-results',{recursive:true});
  const label=process.argv[2]??'profile';

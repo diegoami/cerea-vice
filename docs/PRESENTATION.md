@@ -33,7 +33,8 @@ profile uses defaults. The simulator remains paused while options are changed.
 - Cockpit motion: bounded interior-only roll/pitch (under one degree) and
   small wheel vibration, with an exact Off setting. The road camera, compass,
   car position, handling and gear selection are unaffected.
-- Sound: master volume including mute; radio independently off by default.
+- Sound (superseded by [AUDIO.md](AUDIO.md): new engine, 75% default volume,
+  music level and a local music folder): master volume including mute; radio independently off by default.
   An idle/engine triangle oscillator follows speed and gear. A brief square
   tick follows steering rather than supplying turn advice. A sine-note loop
   is the quiet radio bed. Atlas, pause, briefing and results fade the master
@@ -42,7 +43,10 @@ profile uses defaults. The simulator remains paused while options are changed.
 
 ## Geography, signs and scenery
 
-Four warm façade palettes repeat by 65 m local neighbourhood. Canvas textures
+Four warm façade palettes repeat by 65 m local neighbourhood (since 0.10:
+ochre, cream, terracotta and grey stucco; see
+[COLOUR_AND_RESOLUTION.md](COLOUR_AND_RESOLUTION.md), which also supersedes the
+picture-mode list below with the opt-in High mode). Canvas textures
 supply shutters, windows, doors and a small shop frontage; doors remain at
 street level. Roofs are low triangular tile facets confined to the triangulated
 clipped footprints, including holes. This intentionally stylised roof treatment

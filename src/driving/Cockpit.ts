@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Car } from './Car';
 import {createPerson} from '../world/People';
+import {cockpit as colours} from '../world/palette';
 
 export const MIRROR_MOUNTS = [[-1.13,-1.30,.50,-.35,.24],[1.45,-1.85,-.85,.35,.34]] as const;
 
@@ -21,11 +22,11 @@ export class Cockpit {
     const cabin=this.interior;
     cabin.name='1986 car interior';
     scene.add(cabin);
-    const vinyl=new THREE.MeshLambertMaterial({color:0x222b2c});
-    const trim=new THREE.MeshLambertMaterial({color:0x5d655d});
-    const cloth=new THREE.MeshLambertMaterial({color:0x6b6655});
-    const rubber=new THREE.MeshLambertMaterial({color:0x101718});
-    const chrome=new THREE.MeshLambertMaterial({color:0xaab2a8});
+    const vinyl=new THREE.MeshLambertMaterial({color:colours.vinyl});
+    const trim=new THREE.MeshLambertMaterial({color:colours.trim});
+    const cloth=new THREE.MeshLambertMaterial({color:colours.cloth});
+    const rubber=new THREE.MeshLambertMaterial({color:colours.rubber});
+    const chrome=new THREE.MeshLambertMaterial({color:colours.chrome});
     const box=(parent:THREE.Object3D,x:number,y:number,z:number,w:number,h:number,d:number,material:THREE.Material)=>{
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);
       mesh.position.set(x,y,z);parent.add(mesh);return mesh;
