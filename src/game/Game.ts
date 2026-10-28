@@ -13,16 +13,16 @@ import { createNavigation } from "../navigation/Navigation";
 import { createParking } from "../navigation/Parking";
 import { createMission } from "../mission/Mission";
 import { createWorld } from "../world/World";
-import { createHud, type Screen } from "../ui/Hud";
+import { createHud, type FareChoice, type Screen } from "../ui/Hud";
 import { District } from "../world/district";
 import {PassengerPresence} from '../world/People';
 import {ControlsPanel} from '../input/ControlsPanel';
 import {bindingLabel} from '../input/Bindings';
-import {decodeSave,mapSignature,saveKey,type SaveData} from './Save';
+import {decodeSave,mapSignature,saveKey,SAVE_VERSION,type SaveData} from './Save';
 export function createGame(context:District){
 const {district}=context;
 const {Car}=createCar(context);
-const {directionHint}=createNavigation(context);
+const {directionHint,locationHint}=createNavigation(context);
 const {Parking}=createParking(context);
 const {Mission}=createMission(context);
 const makeWorld=()=>district.streaming?new StreamingWorld(context):new (createWorld(context).World)();
@@ -40,7 +40,7 @@ class Game {
     powerPreference: "high-performance",
   });
   private readonly world = makeWorld();
-  private readonly people = new PassengerPresence(context,this.world.scene);
+  private readonly people = new PassengerPresence(context,this.world.scene,this.world.collisionIndex);
   private readonly streamStatus=document.createElement("div");
   private readonly car = new Car();
   private readonly cockpit = new CockpitCamera(this.world.frame);
@@ -60,6 +60,11 @@ class Game {
   private ignorePauseUntil = 0;
   private missionRevision = -1;
   private waitForDrivingRelease = false;
+  /** Fare list: selected identity, and whether its opening presses have been released. */
+  private fareSelection = -1;
+  private fareBoardReady = false;
+  private fareMoveDelay = 0;
+  private fareMoveDirection = 0;
 
   constructor(root: HTMLElement) {
     this.renderer.setPixelRatio(1);
@@ -72,7 +77,7 @@ class Game {
     root.append(this.renderer.domElement);
     this.streamStatus.id="stream-status";this.streamStatus.hidden=true;this.streamStatus.setAttribute("role","status");root.append(this.streamStatus);
     if(this.timingPanel){this.timingPanel.id="performance-stats";this.timingPanel.setAttribute("aria-label","CPU profiling timings");root.append(this.timingPanel);}
-    this.hud = new Hud(root, () => this.activate(), () => this.requestInformation(),accept=>this.chooseOffer(accept));
+    this.hud = new Hud(root, () => this.activate(), () => this.requestInformation(),(choice,id)=>this.chooseFare(choice,id));
     this.hud.setBindings(this.input.bindings);
     this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);});
     this.controlsPanel=new ControlsPanel(this.input.bindings,()=>this.hud.setBindings(this.input.bindings));
@@ -124,7 +129,7 @@ class Game {
   }
 
   private pause() {
-    if (this.screen === "running" || this.screen === "atlas" || this.screen==='offer') {
+    if (this.screen === "running" || this.screen === "atlas" || this.screen==='fares') {
       this.screen = "paused";
       this.accumulator = 0;
       this.releaseMouseLook();
@@ -146,10 +151,8 @@ class Game {
       this.mission.reset();
       if(this.mission.taxiMode){
         try{
-          const key=`cerea-last-opening-${district.id}`;
-          const pair=()=>`${this.mission.pickupStop!.id}/${this.mission.destinationStop!.id}`;
-          if(localStorage.getItem(key)===pair())this.mission.declineOffer();
-          localStorage.setItem(key,pair());
+          const [pickupId,destinationId]=(localStorage.getItem(`cerea-last-opening-${district.id}`)??'').split('/');
+          if(pickupId&&destinationId)this.mission.avoidOpening({passenger:'',pickupId,destinationId});
         }catch{/* Dispatch still works without persistent browser storage. */}
       }
       this.hud.resetAtlasNotes();
@@ -167,18 +170,59 @@ class Game {
     this.renderer.domElement.focus({ preventScroll: true });
   }
 
-  private chooseOffer(accept:boolean){
-    if(this.screen!=='offer')return;
-    if(accept){this.mission.acceptOffer();this.screen='running';this.waitForDrivingRelease=true;}
-    else {this.mission.declineOffer();this.mission.quoteOffer(this.car);}
-    this.hud.setBindings(this.input.bindings);this.accumulator=0;
+  /** Deliberate stopped request: shows the waiting list, or issues one. Never automatic. */
+  private requestFares(worldReady:boolean){
+    const key=bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller');
+    if(!this.mission.taxiMode||this.mission.finished)return;
+    if(this.mission.hasRide){this.hud.setHint(`You already have a fare: ${this.mission.objective}`);return;}
+    if(!this.parking.stopped||this.car.speed!==0){this.hud.setHint(`Come to a complete stop before requesting fares. Hold the handbrake, then press ${key}.`);return;}
+    if(!worldReady){this.hud.setHint(`Scenery is still loading. Request fares (${key}) once it is ready.`);return;}
+    if(!this.mission.requestFares(this.car))return;
+    if(this.mission.fareBoard[0]?.id===0)try{const first=this.mission.fareBoard[0];localStorage.setItem(`cerea-last-opening-${district.id}`,`${first.pickupId}/${first.destinationId}`);}catch{/* Optional variety only. */}
+    this.openFareBoard();
+  }
+
+  private openFareBoard(){
+    this.screen='fares';this.fareSelection=this.mission.fareBoard[0]?.id??-1;this.fareBoardReady=false;this.fareMoveDelay=0;this.fareMoveDirection=0;
+    this.accumulator=0;this.releaseMouseLook();this.hud.setFareSelection(this.fareSelection);this.hud.refresh();
+  }
+
+  private closeFareBoard(message:string){
+    this.screen='running';this.waitForDrivingRelease=true;this.accumulator=0;this.hud.setHint(message);
+    this.renderer.domElement.focus({preventScroll:true});
+  }
+
+  private chooseFare(choice:FareChoice,id=this.fareSelection){
+    if(this.screen!=='fares')return;
+    const key=bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller');
+    if(choice==='select'){if(this.mission.fareBoard.some(o=>o.id===id)){this.fareSelection=id;this.hud.setFareSelection(id);}return;}
+    if(choice==='refresh'){this.mission.refreshFares(this.car);this.fareSelection=this.mission.fareBoard[0]?.id??-1;this.hud.setFareSelection(this.fareSelection);this.hud.refresh();return;}
+    if(choice==='close'){this.closeFareBoard(`Fare list closed; nothing accepted. It stays available while you drive: stop and press ${key} to read it again.`);return;}
+    if(this.mission.acceptFare(id))this.closeFareBoard(this.mission.notice);
+  }
+
+  private updateFareBoard(dt:number,actions:ReturnType<Input['poll']>){
+    // Presses carried over from driving must be released before the list responds.
+    if(!this.fareBoardReady){if(!this.input.menuHeld)this.fareBoardReady=true;if(actions.pause)this.pause();return;}
+    if(actions.pause){this.pause();return;}
+    if(actions.declineOffer){this.chooseFare('close');return;}
+    if(actions.refreshFares){this.chooseFare('refresh');return;}
+    if(actions.interact){this.chooseFare('accept');return;}
+    this.fareMoveDelay=Math.max(0,this.fareMoveDelay-dt);
+    const move=Math.abs(actions.atlasMoveY)>.5?Math.sign(actions.atlasMoveY):0;
+    if(move!==this.fareMoveDirection)this.fareMoveDelay=0;
+    this.fareMoveDirection=move;
+    if(move&&this.fareMoveDelay===0){
+      const ids=this.mission.fareBoard.map(o=>o.id),index=ids.indexOf(this.fareSelection);
+      this.chooseFare('select',ids[Math.max(0,Math.min(ids.length-1,index+move))]);this.fareMoveDelay=.25;
+    }
   }
 
   private save(){
     if(!this.hasStarted||this.mission.finished)return;
     try{
       const {x,z,heading,speed,gear,steering,collisions}=this.car;
-      const value:SaveData={version:1,district:district.id,map:mapSignature(context),savedAt:new Date().toISOString(),
+      const value:SaveData={version:SAVE_VERSION,district:district.id,map:mapSignature(context),savedAt:new Date().toISOString(),
         car:{x,z,heading,speed,gear,steering,collisions},unsafeStops:this.parking.unsafeStops,mission:this.mission.snapshot(),atlas:this.hud.saveAtlas()};
       decodeSave(context,JSON.stringify(value));
       localStorage.setItem(saveKey(context),JSON.stringify(value));
@@ -203,7 +247,8 @@ class Game {
   private requestInformation() {
     if (this.screen !== "running" && this.screen !== "atlas") return;
     if (this.mission.recordDirectionRequest(this.parking.stopped, this.parking.legal)) {
-      const message = directionHint(this.car, this.car.heading, this.mission.target);
+      const target=this.mission.target;
+      const message = target ? directionHint(this.car, this.car.heading, target) : `${locationHint(this.car, this.car.heading)} No fare booked: stop and request fares when you want a destination.`;
       this.hud.setHint(message);
       this.hud.confirmAtlasPosition(this.car, this.parking.zone);
       this.hud.setAtlasInformation(message);
@@ -224,7 +269,7 @@ class Game {
     if(this.settingsPanel.update(!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
     this.saveButton.disabled=!this.hasStarted||this.mission.finished;
     if(this.screen==='running'&&this.waitForDrivingRelease&&this.input.drivingReleased===false){
-      actions.interact=false;actions.information=false;actions.atlas=false;actions.reminder=false;actions.shiftGear=false;actions.glance=0;actions.resetLook=false;
+      actions.interact=false;actions.information=false;actions.atlas=false;actions.reminder=false;actions.requestFares=false;actions.shiftGear=false;actions.glance=0;actions.resetLook=false;
     }
     if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
@@ -238,14 +283,14 @@ class Game {
       this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
     }
     if (this.screen === "running" && !this.input.controllerDisconnected && !this.waitForDrivingRelease && actions.shiftGear) {
-      if (this.parking.stopped && actions.throttle < .1 && this.car.shiftGear())
+      if (this.mission.boarding>0) this.hud.setHint(`${this.mission.passenger} is getting in. Wait until they are seated before moving.`);
+      else if (this.parking.stopped && actions.throttle < .1 && this.car.shiftGear())
         this.hud.setHint(`${this.car.gear === "R" ? "Reverse" : "Forward"} selected. ${bindingLabel(this.input.bindings,'throttle',this.input.device==='Controller')} accelerates; ${bindingLabel(this.input.bindings,'brake',this.input.device==='Controller')} brakes.`);
       else this.hud.setHint(`Stop fully and release the accelerator before switching forward / reverse (${bindingLabel(this.input.bindings,'shiftGear',this.input.device==='Controller')}).`);
     }
-    if(this.screen==='offer'){
-      if(actions.pause)this.pause();
-      else if(actions.declineOffer)this.chooseOffer(false);
-      else if(actions.interact)this.chooseOffer(true);
+    const readyForFares=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
+    if(this.screen==='fares'){
+      if(!this.input.controllerDisconnected)this.updateFareBoard(dt,actions);
     } else if (this.screen === "atlas") {
       if (actions.atlas || actions.back || actions.pause) this.activate();
       else {
@@ -264,10 +309,14 @@ class Game {
       if (actions.interact) {
         if(this.screen !== "running")this.activate();
         else if(this.mission.taxiMode) {
-          if(!this.mission.serveAtStop(this.car,this.parking.stopped))this.hud.setHint(`Stop in ${this.mission.target.bay.name} at ${this.mission.target.name}, then press ${bindingLabel(this.input.bindings,'interact',this.input.device==='Controller')} to ${this.mission.taxiStage === "pickup" ? "collect" : "drop off"} ${this.mission.passenger}.`);
+          const target=this.mission.target;
+          if(this.mission.boarding>0)this.hud.setHint(`${this.mission.passenger} is getting in. Stay stopped.`);
+          else if(!target)this.hud.setHint(`No passenger booked. Stop and press ${bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller')} to see available fares.`);
+          else if(!this.mission.serveAtStop(this.car,this.parking.stopped))this.hud.setHint(`Stop in ${target.bay.name} at ${target.name}, then press ${bindingLabel(this.input.bindings,'interact',this.input.device==='Controller')} to ${this.mission.taxiStage === "pickup" ? "collect" : "drop off"} ${this.mission.passenger}.`);
         }
       }
       if (actions.information) this.requestInformation();
+      if (actions.requestFares && this.screen === "running") this.requestFares(readyForFares);
       if (actions.reminder && this.screen === "running") {
         this.hud.remindMission(this.mission);
       }
@@ -288,7 +337,8 @@ class Game {
     if(this.screen==="running"&&!worldReady)this.accumulator=0;
     if (this.screen === "running"&&worldReady) {
       if(this.waitForDrivingRelease&&actions.throttle<.1&&actions.brake<.1&&(this.input.drivingReleased??true))this.waitForDrivingRelease=false;
-      const driving=this.waitForDrivingRelease?{...actions,throttle:0,brake:0,steer:0,handbrake:false}:actions;
+      // The taxi stays put while a passenger walks to it and gets in.
+      const driving=this.waitForDrivingRelease||this.mission.boarding>0?{...actions,throttle:0,brake:0,steer:0,handbrake:false}:actions;
       this.accumulator += dt;
       // Fixed 60 Hz simulation keeps handling consistent across render rates.
       while (this.accumulator >= 1 / 60) {
@@ -308,7 +358,6 @@ class Game {
       this.world.updateFrame(this.car);
       this.cockpit.update(dt, this.car, actions.glance, actions);
     }
-    if(this.screen==='running'&&this.mission.offerPending&&this.parking.stopped){this.mission.quoteOffer(this.car);this.screen='offer';this.accumulator=0;this.releaseMouseLook();}
     if(this.mission.revision!==this.missionRevision) {
       this.missionRevision=this.mission.revision;
       if(this.mission.taxiMode)this.hud.setTaxiMessage(this.mission.notice);
@@ -326,7 +375,7 @@ class Game {
     this.sound.update(dt,this.screen==='running',this.car.speed,this.car.gear,this.car.steering,this.settings);
     if(this.screen==='running')this.motion.update(dt,this.car.speed,this.car.steering,this.settings.motion);
     this.people.update(this.mission,this.world.frame,this.car);
-    this.interior.setPassenger(this.mission.unfinishedPassenger?this.mission.pickupStop!.id:'');
+    this.interior.setPassenger(this.mission.seatedIdentity);
     this.interior.update({...this.car,...this.world.frame.toLocal(this.car)},this.motion.roll,this.motion.pitch,this.motion.wobble);
     const renderStart=context.profile.start();
     this.interior.renderMirrors(this.renderer,this.world.scene,dt);

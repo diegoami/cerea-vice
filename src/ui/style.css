@@ -957,12 +957,19 @@ h1 { letter-spacing:0; line-height:1.05; }
 .controls-settings button { font:24px Vice,monospace; background:#304b47; color:#f4e6bb; padding:8px 14px; border:1px solid #819582; cursor:pointer; }
 .controls-settings h2 { margin:0; }
 .binding-table > div { display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:16px; align-items:center; border-bottom:1px solid #81958255; padding:8px; }
-.fare-offer { padding:30px; max-width:720px; }
-.fare-offer h1 { font-size:44px; }
-.fare-offer p { font-size:26px; }
-.fare-offer button { margin:16px 0; font-size:26px; }
-.fare-offer small { display:block; }
-.overlay:has(.fare-offer) { padding-left:24px; }
+.fare-board { padding:26px; max-width:860px; max-height:calc(100dvh - 150px); overflow:auto; }
+.fare-board h1 { font-size:42px; margin:10px 0; }
+.fare-board p { font-size:22px; }
+.fare-list { display:grid; gap:8px; margin:12px 0; }
+.fare-list button { display:grid; grid-template-columns:1fr; gap:2px; text-align:left; padding:10px 14px; font:22px/1.15 Vice,monospace; color:#f4e6bb; background:#203a3a; border:1px solid #819582; cursor:pointer; }
+.fare-list button b { font-size:24px; color:#e7bf74; }
+.fare-list button strong { font-size:22px; color:#cfe3cf; }
+.fare-list button:hover { background:#2c4a47; }
+.fare-list button[aria-pressed="true"] { background:#35574f; }
+.fare-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.fare-actions button { margin:6px 0; font-size:22px; }
+.fare-board small { display:block; font-size:18px; }
+.overlay:has(.fare-board) { padding-left:24px; }
 .atlas-book { font-family:Vice,monospace; }
 .atlas-header h1 { font-family:Vice,monospace; }
 .atlas-information p { font-size:22px; }

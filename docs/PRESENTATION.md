@@ -56,9 +56,10 @@ Roadside tree/lamp/car/person candidates are deterministic, do not depend on
 passengers or objectives, and are rejected near paving, buildings, bays and
 signs/plate sightlines. These are static, non-colliding props, including the trees and lamps. Parked
 cars sit on the verge rather than simulated kerbside parking; they are scenery
-and can be driven through. Every Cerea bay
-gets the same waiting figure; none appears or disappears when the active goal
-changes. Passenger service remains a deliberate stopped action in the named
+and can be driven through. Since 0.9, taxi stops
+show no waiting figures at all; the only taxi passenger outside the car is the
+accepted one walking to or from a stopped taxi (see [TAXI.md](../TAXI.md)), so no
+figure marks a goal from a distance. Passenger service remains a deliberate stopped action in the named
 bay. Harbor retains its handcrafted scenery.
 
 There is no new current-location or goal overlay. Small signs become less

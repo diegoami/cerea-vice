@@ -90,3 +90,85 @@ the startup interval and the eventual €72.22 collection-inclusive quote; clock
 quote timing, fare calculation and payout rules are unchanged. The rc.2 recheck
 covered `687231ad1b3b299d3732b7711c88de639ea3e9d9` and explicitly recorded an
 owner-approved same-session continuation by the non-OpenAI reviewer.
+
+## 0.9 follow-up: free driving, fare list and boarding walks
+
+The 0.8.0-rc.3 Windows playtest asked for fares on demand rather than an
+automatic offer, and for passengers who arrive instead of standing at every
+stop. These follow-ups to #11 and #7 supersede the single-offer modal and the
+permanent waiting figures. Rules for players are in [TAXI.md](../TAXI.md).
+
+Decisions taken in this pass:
+
+- **Clock.** Free driving uses the normal shift clock. A separate untimed mode
+  would let players learn the map without spending the working day, but it
+  would make positioning before a request free; the conservative choice keeps
+  one clock. Pause, the atlas and the fare list freeze it as before.
+- **Request.** *Request fares* is a driving binding (default O / D-pad down),
+  shown in help, the dashboard prompt and hints with the active binding, and
+  editable in Change controls with conflict reporting, persistence and Restore
+  defaults. D-pad left/right/down became bindable for this; Start stays
+  reserved. 0.8 profiles keep their bindings and receive the first free key of
+  O, H, V, X, B, N. A request is refused while moving, while scenery loads, after
+  17:00, and while a ride is accepted (no overlapping assignments).
+- **List.** Four distinct reachable fares, never the same passenger twice and
+  avoiding the last accepted pair, from the existing seeded generator: the first
+  fare of each list is the 0.8 single-offer draw for the same random state.
+  Every entry is quoted, with the existing formula and collection supplement,
+  from the stopped position where the list is issued, so no unquoted price is
+  shown (rc.3's withholding rule now applies to migrated 0.8 offers). Authored
+  test fixtures list the next authored fares in order.
+- **Refresh.** A list is issued only by a request when none is waiting, and
+  replaced only by the explicit *New list* (Y / N) command. Accepting removes the
+  whole list. Closing (B / Backspace), reopening, pausing (Start / Escape, which
+  resumes to the road), saving and loading keep identities and quotes; a closed
+  list never reopens by itself. The list uses fixed menu controls like the atlas
+  and ignores its inputs until everything held from driving is released.
+- **Boarding.** Stopped service at the accepted pickup commits the ride and
+  starts a 5.5-second sequence: the passenger appears at a doorway (the first
+  building face along a line away from the road through the bay) or, without
+  one, at open unpaved ground about four metres past the bay, walks to the
+  passenger door, around the bonnet or boot when they start on the driver's side,
+  and lowers into the seat. The taxi is held, gear changes wait, and the
+  speed-bonus clock starts when they are seated, so payouts are unchanged.
+  Dropoff pays at once, clears the seat and plays a 4-second walk away.
+- **Synchronisation.** Mission timers, not render time, drive both walks, so
+  pause, atlas and scenery loading freeze them. One figure exists per walking
+  passenger, outside tile batches, positioned through the render origin each
+  frame. Saves store boarding progress (and require a stationary taxi); loading
+  resumes the same walk, and the seat shows the passenger only when it ends.
+  The departure walk is not saved. Restart, shift end and loading clear stale
+  figures. Decorative people are untouched.
+- **Saves.** Version 2 adds the list, its serial, the last accepted pair and
+  boarding progress. Version 1 saves migrate: a pending offer becomes a one-fare
+  list (unquoted offers are quoted at the next stopped request), an accepted ride
+  stays accepted. Validation rejects duplicate or future fare identities,
+  oversized lists, a list alongside an accepted ride, and boarding without a
+  ride, before touching the live game.
+
+Open questions for owner playtesting: whether free driving should be untimed,
+the number of listed fares, the boarding walk length (fast for the 14 m bays,
+up to about 3 m/s), D-pad down / O comfort, and the walk's readability from the
+driver's seat. Walks avoid buildings, water and the taxi body, not decorative
+props. No physical controller or Windows close/relaunch gameplay check was run
+in this pass.
+
+Validation on 28 October 2026 for 0.9.0-rc.1 (Node 24, WSL):
+
+- `npm test`: 99/99 checks passed, including no automatic offers, stable
+  request/close/reopen and save/load of the list, accept versus close/new-list
+  payouts, remapped Request fares with conflicts and 0.8 profile migration (including
+  profiles that already use O and the other candidate keys),
+  context isolation of held inputs, the boarding walk through rebasing, reload
+  and save/resume, clear arrival paths at every Cerea and outskirts stop (also from off-centre
+  parking positions, going round whichever end of the taxi is clear), 0.8
+  save migration and an unchanged atlas marker.
+- TypeScript/Vite production build passed, with the existing >500 kB chunk
+  warning.
+- The prescribed Xvfb/xfwm4 desktop suite passed 12/12 scenarios, now covering
+  the fare list by keyboard, mouse and simulated controller, a remapped request
+  key, saving and loading during a boarding walk, and Electron relaunch.
+  `passenger-arriving.png` and `cerea-fare-board.png` are written to ignored
+  `test-results/`.
+- Not run: Windows packaging/launch, a physical controller, and a Windows
+  close/relaunch gameplay check; these remain owner checks.

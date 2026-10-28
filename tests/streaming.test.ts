@@ -50,7 +50,7 @@ test('layered routes preserve flat-graph path/cost for every city and test-hamle
  assert.ok(layered.detailedGraphsResident<=2);
  const city=data.taxi!.stops.find(s=>s.id==='municipio')!,next=layered.nextLeg(city.nodeId,'test-square','cerea');
  assert.equal(next.path.at(-1),'1399692873');assert.match(next.onward,/Test Hamlet/);assert.ok(!next.path.includes('test-square'));
- const {Mission}=createMission(context),mission=new Mission({authored:true});assert.equal(mission.serveAtStop(data.spawn,true),true);
+ const {Mission}=createMission(context),mission=new Mission({authored:true});mission.requestFares(data.spawn);mission.acceptFare(mission.fareBoard[0].id);assert.equal(mission.serveAtStop(data.spawn,true),true);
  assert.equal(mission.routeDistance,flat.search(city.nodeId,'test-square').cost);assert.ok(mission.baseFareCents>400);
  const hint=createNavigation(context).directionHint(data.spawn,data.spawn.heading,mission.target);assert.doesNotMatch(hint,/NaN|undefined|25000/);
 });
@@ -87,7 +87,9 @@ test('directions compare local endpoint costs even when one endpoint is already 
  const fromPortal=graph.nextLeg(portal,target.nodeId,'test-hamlet'),fromSquare=graph.nextLeg('test-square',target.nodeId,'test-hamlet');
  assert.equal(fromPortal.cost,0,'Skipping a zero-length first leg must not replace its comparison cost with the long country leg');
  assert.ok(fromSquare.cost>0);assert.equal(fromPortal.path[0],portal);
- const {Mission}=createMission(context),mission=new Mission({authored:true});mission.serveAtStop(mission.target.bay,true);mission.serveAtStop(mission.target.bay,true);
+ const {Mission}=createMission(context),mission=new Mission({authored:true});
+ const take=()=>{mission.requestFares(context.spawn);mission.acceptFare(mission.fareBoard[0].id);};
+ take();mission.serveAtStop(mission.target!.bay,true);mission.update(6,mission.target!.bay,true);mission.serveAtStop(mission.target!.bay,true);take();
  const bay=data.parkingZones.find(b=>b.id==='test-hamlet')!;assert.ok(mission.serveAtStop(bay,true));
  assert.match(createNavigation(context).directionHint(bay,0,mission.target),/Turn around safely.*south.*Cerea Centro/);
 });

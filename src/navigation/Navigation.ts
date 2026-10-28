@@ -16,6 +16,12 @@ function shortestRoute(start: string, target = district.mission.nodeId): {cost:n
 }
 const edgeBetween=(a:string,b:string):Road=>roads.find((road)=>(road.a===a&&road.b===b)||(road.b===a&&road.a===b))!;
 const cardinal=(from:Point,to:Point)=> Math.abs(to.x-from.x)>Math.abs(to.z-from.z)?(to.x>from.x?"east":"west"):(to.z>from.z?"south":"north");
+/** Where you are, without a destination: used while free driving. */
+function locationHint(point: Point, heading: number): string {
+  if (district.id === "harbor") return harborHint(point,heading);
+  const nearest=nearestRoad(point);
+  return `${nearest.distance>12?"Near":"On"} ${nearest.edge.name}, ${areaAt(point)}, facing ${compass(heading)}.`;
+}
 function directionHint(point: Point, heading: number, target: NavigationTarget = {name:district.mission.name,nodeId:district.mission.nodeId,bay:hotelBay}): string {
   if (district.id === "harbor") return harborHint(point,heading);
   const nearest=nearestRoad(point);
@@ -43,5 +49,5 @@ function directionHint(point: Point, heading: number, target: NavigationTarget =
   const instruction=Math.abs(delta)<0.35?"continue":delta>0?"turn right":"turn left";
   return `${intro} ${away?"Turn around safely, then continue":"Continue"} ${cardinal(nearest.point,junction)} to ${junction.label}; ${instruction} onto ${edgeBetween(junction.id,next.id).name}.`;
 }
-return {bearing,compass,nearestRoad,shortestRoute,directionHint};
+return {bearing,compass,nearestRoad,shortestRoute,directionHint,locationHint};
 }
