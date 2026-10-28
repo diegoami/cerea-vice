@@ -49,6 +49,9 @@ class Hud {
   private hint: HTMLElement;
   private hintLabel: HTMLElement;
   private bindings:Bindings=defaultBindings;
+  private soundText='';
+  /** Sound level, mute or a blocked audio device, and the radio; shown on every screen. */
+  setSound({text,warn}:{text:string;warn:boolean}){if(text===this.soundText)return;this.soundText=text;const element=document.querySelector<HTMLElement>('#sound-state');if(element){element.textContent=text;element.classList.toggle('unsafe',warn);}}
   setBindings(bindings:Bindings){this.bindings=bindings;this.currentScreen=undefined;}
   saveAtlas(){return this.atlasNotes.snapshot();}
   restoreAtlas(value:AtlasSnapshot){this.atlasNotes.restore(value);this.atlasInformation='';this.atlasView.reset();this.currentScreen=undefined;}
@@ -71,7 +74,7 @@ class Hud {
       <div class="interaction" id="prompt"></div>
       <footer class="dashboard">
         <div class="dashboard-left"><div class="speed-line"><strong id="speed">00</strong><span>KM/H<br><b id="gear">D</b></span></div><div class="stop-state" id="stop-state">SETTLING</div></div>
-        <div class="dashboard-right"><strong class="car-badge">CEREA / 1986</strong><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div></div>
+        <div class="dashboard-right"><strong class="car-badge">CEREA / 1986</strong><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div><div class="dash-detail sound-state" id="sound-state" role="status"></div></div>
       </footer>
       ${district.attribution.includes("OpenStreetMap") ? `<div class="map-credit">${district.attribution} · openstreetmap.org/copyright</div>` : ""}
       <div id="overlay" class="overlay"></div>
@@ -374,6 +377,8 @@ class Hud {
       <div><span>Atlas (while stopped)</span><b>${label('atlas',true)}</b><b>${label('atlas')}</b></div>
       ${mission.taxiMode ? `<div><span>Request fares (while stopped)</span><b>${label('requestFares',true)}</b><b>${label('requestFares')}</b></div>` : ""}
       <div><span>Mission reminder</span><b>${label('reminder',true)}</b><b>${label('reminder')}</b></div>
+      <div><span>Radio: next track (music folder)</span><b>${label('radioNext',true)}</b><b>${label('radioNext')}</b></div>
+      <div><span>Volume, mute and radio</span><b>Picture &amp; Sound panel</b><b>Picture &amp; Sound panel</b></div>
       <div><span>Pause</span><b>Start</b><b>Esc / P</b></div>
     </div>`;
     if (screen === "briefing") {

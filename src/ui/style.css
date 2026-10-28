@@ -997,3 +997,6 @@ h1 { letter-spacing:0; line-height:1.05; }
  .district-tag { max-width:30vw; }
  .binding-table > div { gap:6px; font-size:20px; }
 }
+/* Sound level, mute or blocked audio, and the radio, on the dashboard. */
+.dash-detail.sound-state { margin-top:4px; font-size:12px; letter-spacing:.5px; text-align:right; justify-content:flex-end; }
+.dash-detail.sound-state.unsafe { color:#edaa7c; }

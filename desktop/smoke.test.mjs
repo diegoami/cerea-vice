@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { _electron } from 'playwright-core';
@@ -195,6 +195,8 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     await button(9,1); // Start button can begin the drive without a keyboard.
     await button(9,0);
     await page.waitForFunction(() => document.querySelector('#overlay').hidden);
+    // No click or key yet: the desktop shell still lets the engine sound start.
+    await page.waitForFunction(() => /^SOUND 75% · RADIO OFF$/.test(document.querySelector('#sound-state').textContent));
     await page.waitForFunction(() => document.querySelector('#stop-state').textContent === 'P · LEGAL STOP');
     assert.equal(await page.locator('#gear').innerText(),'D');
     await button(1,1);
@@ -820,4 +822,83 @@ test('a hung local tile request times out into backoff and recovers without adva
   await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position/);
   assert.deepEqual(errors,[]);
  }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
+/** A tiny generated tone, written at test time only; no music is stored in the repository. */
+function toneWav(seconds=1,rate=8000){
+ const samples=Math.round(seconds*rate),data=Buffer.alloc(44+samples*2);
+ data.write('RIFF',0);data.writeUInt32LE(36+samples*2,4);data.write('WAVEfmt ',8);data.writeUInt32LE(16,16);data.writeUInt16LE(1,20);data.writeUInt16LE(1,22);
+ data.writeUInt32LE(rate,24);data.writeUInt32LE(rate*2,28);data.writeUInt16LE(2,32);data.writeUInt16LE(16,34);data.write('data',36);data.writeUInt32LE(samples*2,40);
+ for(let i=0;i<samples;i++)data.writeInt16LE(Math.round(Math.sin(i/rate*2*Math.PI*440)*3000),44+i*2);
+ return data;
+}
+test('the radio plays a chosen local folder, skips a broken track, survives a relaunch and explains a missing folder', {timeout:120000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-radio-profile-'));
+ const music=await mkdtemp(path.join(tmpdir(),'cerea-radio-music-'));
+ const folder=path.basename(music);
+ await writeFile(path.join(music,'01 Tone.wav'),toneWav());
+ await writeFile(path.join(music,'02 Broken.mp3'),Buffer.from('this is not audio'));
+ await writeFile(path.join(music,'notes.txt'),'ignored');
+ const launch=()=>_electron.launch({args:[path.resolve('.'),'--district=harbor',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ // Record the radio's media element without changing how it plays.
+ const watch=page=>page.evaluate(()=>{const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){window.radioPlayer=this;return play.call(this);};});
+ const status=page=>page.locator('.radio-status').innerText();
+ let app=await launch();const errors=[];
+ try{
+  let page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.deepEqual(await page.evaluate(()=>Object.keys(window.cereaMusic).sort()),['chooseFolder','library'],'Only the two radio calls cross the bridge');
+  assert.equal(await page.evaluate(()=>typeof process+typeof require),'undefinedundefined');
+  assert.equal(await page.locator('#sound-state').innerText(),'SOUND 75% · RADIO OFF');
+  assert.match(await status(page),/No music folder chosen/);
+  assert.match(await page.locator('.control-table').innerText(),/Radio: next track \(music folder\)\s+D-pad right\s+V/);
+  // The native dialog is the only way to pick a folder; stand in for the player's choice.
+  await app.evaluate(({dialog},dir)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[dir]});},music);
+  await page.getByRole('button',{name:'Choose music folder…'}).click();
+  await page.locator('.radio-status').filter({hasText:'2 tracks, 1 other file ignored'}).waitFor();
+  assert.equal(await page.locator('[data-key=radio]').inputValue(),'true');assert.equal(await page.locator('[data-key=radioSource]').inputValue(),'folder');
+  // Regression: cancelling the dialog must not rescan and strand the ids the player already holds.
+  await app.evaluate(({dialog})=>{dialog.showOpenDialog=async()=>({canceled:true,filePaths:[]});});
+  await page.getByRole('button',{name:'Choose music folder…'}).click();
+  await page.locator('.radio-status').filter({hasText:'Kept'}).waitFor();
+  // Ids are the only handle: a path or traversal request is refused.
+  const refused=await page.evaluate(async()=>Promise.all(['cerea-music://track/../../etc/passwd','cerea-music://track/00000000-0000-4000-8000-000000000000','cerea-music://file/etc/passwd'].map(src=>new Promise(resolve=>{const a=new Audio();a.onerror=()=>resolve(true);a.oncanplay=()=>resolve(false);a.src=src;}))));
+  assert.deepEqual(refused,[true,true,true]);
+  await watch(page);
+  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.waitForFunction(()=>window.radioPlayer&&!window.radioPlayer.paused&&window.radioPlayer.currentTime>0);
+  assert.match(await page.evaluate(()=>window.radioPlayer.src),/^cerea-music:\/\/track\/[0-9a-f-]{36}$/);
+  assert.match(await page.locator('#sound-state').innerText(),/^SOUND 75% · RADIO 1\/2 01 Tone$/);
+  const clock=await page.locator('#timer').innerText();
+  await page.keyboard.press('v'); // Next track: the broken file is skipped with a message, back to the tone.
+  await page.locator('.radio-status').filter({hasText:'Skipped “02 Broken”'}).waitFor({state:'attached'});
+  await page.waitForFunction(()=>/RADIO 1\/2 01 Tone/.test(document.querySelector('#sound-state').textContent)&&!window.radioPlayer.paused);
+  assert.doesNotMatch(await page.locator('#hint').innerText(),/Tone|Broken|Radio/,'Track changes never replace a road message');
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  await page.waitForFunction(()=>window.radioPlayer.paused);
+  const paused=await page.locator('#timer').innerText();await page.waitForTimeout(600);
+  assert.equal(await page.locator('#timer').innerText(),paused,'Pause still freezes the clock');
+  await page.locator('[data-key=volume]').selectOption('0');
+  await page.getByRole('button',{name:'Back to the road'}).click();await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(()=>window.radioPlayer.paused),true,'Mute silences the music too');
+  assert.match(await page.locator('#sound-state').innerText(),/^SOUND MUTED/);
+  await page.keyboard.press('p');await page.locator('[data-key=volume]').selectOption('0.5');
+  await app.close();
+  // Relaunch: the folder choice and sound settings return from the profile.
+  app=await launch();page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
+  await page.locator('.radio-status').filter({hasText:'2 tracks'}).waitFor();
+  assert.equal(await page.locator('[data-key=volume]').inputValue(),'0.5');assert.equal(await page.locator('[data-key=radioSource]').inputValue(),'folder');
+  assert.match(await page.locator('#sound-state').innerText(),/^SOUND 50% · RADIO 1\/2 01 Tone$/);
+  await app.close();
+  // An unavailable folder (moved or unplugged) is explained, and the built-in tune stands in.
+  await rm(music,{recursive:true,force:true});
+  app=await launch();page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
+  await page.locator('.radio-status').filter({hasText:'is not available'}).waitFor();
+  assert.match(await status(page),new RegExp(`“${folder}” is not available`));
+  assert.match(await page.locator('#sound-state').innerText(),/RADIO TUNE$/);
+  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  assert.equal(await page.locator('.fatal').count(),0);
+  assert.deepEqual(errors,[]);
+ }catch(error){const page=await app.firstWindow();await page.screenshot({path:'test-results/radio-failure.png'});console.log(await page.locator('body').innerText());throw error;}
+ finally{await app.close().catch(()=>{});await rm(profile,{recursive:true,force:true});await rm(music,{recursive:true,force:true});}
 });
