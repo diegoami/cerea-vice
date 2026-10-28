@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { _electron } from 'playwright-core';
 async function seedDispatch(page,seed=75){await page.addInitScript(seed=>{Math.random=()=>seed/4294967296;},seed);await page.reload();}
-async function acceptOffer(page){await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});}
+const frames=page=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+const settled=page=>page.waitForFunction(()=>/STOP/.test(document.querySelector('#stop-state').textContent));
+/** Stop, deliberately request the fare list, and wait past its first frame, which ignores carried-over presses. */
+async function requestFares(page,key='o'){await settled(page);await page.keyboard.press(key);await page.locator('.fare-board').waitFor();await frames(page);}
+async function takeFare(page,index=0){await requestFares(page);await page.locator('[data-fare-offer]').nth(index).click();await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});}
+const listed=page=>page.locator('[data-fare-offer]').allInnerTexts();
 
 test('startup during held scenery loading withholds prices until the complete collection quote is ready', {timeout:90000},async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-startup-quote-'));
@@ -15,11 +20,15 @@ test('startup during held scenery loading withholds prices until the complete co
   const page=await app.firstWindow();await page.getByRole('button',{name:'Start the engine'}).waitFor();
   await page.route('**/tiles/*.json',async route=>{if(blocked)await gate;await route.continue();});
   await seedDispatch(page,683129967);await page.getByRole('button',{name:'Start the engine'}).click();await page.locator('#stream-status').waitFor();
-  assert.doesNotMatch(await page.locator('#hint').innerText(),/Guaranteed|€/);assert.match(await page.locator('#hint').innerText(),/Stop to receive a fare quote/);
+  assert.doesNotMatch(await page.locator('#hint').innerText(),/Guaranteed|€/);assert.match(await page.locator('#hint').innerText(),/Free driving/);
   assert.doesNotMatch(await page.locator('#objective-description').innerText(),/Guaranteed|€/);
+  await page.keyboard.press('o');await frames(page);assert.equal(await page.locator('.fare-board').isVisible(),false,'No list while scenery loads');
   const clock=await page.locator('#timer').innerText();await page.waitForTimeout(900);assert.equal(await page.locator('#timer').innerText(),clock);
-  blocked=false;release();await page.locator('[data-fare=accept]').waitFor();
-  const quote=await page.locator('.fare-offer p').first().innerText();assert.match(quote,/Guaranteed €72.22/);assert.ok((await page.locator('#hint').innerText()).includes(quote));
+  blocked=false;release();await page.locator('#stream-status').waitFor({state:'hidden'});await page.waitForTimeout(1500);
+  assert.equal(await page.locator('.fare-board').isVisible(),false,'Free driving never opens fares by itself');
+  await requestFares(page);
+  const quote=await page.locator('[data-fare-offer]').first().innerText();assert.match(quote,/Guaranteed €72.22/);assert.match(quote,/collection/);
+  assert.doesNotMatch(await page.locator('#hint').innerText(),/Guaranteed/,'The radio never repeats a price');
  }finally{blocked=false;release();await app.close();await rm(profile,{recursive:true,force:true});}
 });
 
@@ -28,15 +37,26 @@ test('review regressions: focused settings resume by keyboard and only advertise
  const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
   const page=await app.firstWindow();await seedDispatch(page);
-  await page.getByRole('button',{name:'Start the engine'}).click();await page.locator('[data-fare=accept]').waitFor();
-  const offer=await page.locator('.fare-offer p').first().innerText();
+  await page.getByRole('button',{name:'Start the engine'}).click();await requestFares(page);
+  const offers=await listed(page);assert.equal(offers.length,4);
   await page.evaluate(()=>{window.reviewPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.reviewPad],configurable:true});});
-  const button=async(index,value)=>{await page.evaluate(({index,value})=>window.reviewPad.buttons[index].value=value,{index,value});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));};
-  await button(2,1);await button(2,0);assert.equal(await page.locator('.fare-offer p').first().innerText(),offer,'Handbrake cannot discard the offer');
-  await page.keyboard.press('Delete');await page.evaluate(()=>new Promise(requestAnimationFrame));assert.equal(await page.locator('.fare-offer p').first().innerText(),offer,'Atlas erase cannot discard the offer');
-  await page.keyboard.press('Backspace');await page.waitForFunction(before=>document.querySelector('.fare-offer p').textContent!==before,offer);
-  const next=await page.locator('.fare-offer p').first().innerText();await button(1,1);await button(1,0);assert.notEqual(await page.locator('.fare-offer p').first().innerText(),next,'B explicitly declines');
-  await acceptOffer(page);await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  const button=async(index,value)=>{await page.evaluate(({index,value})=>window.reviewPad.buttons[index].value=value,{index,value});await frames(page);};
+  await button(2,1);await button(2,0);assert.deepEqual(await listed(page),offers,'Handbrake cannot discard the list');
+  await page.keyboard.press('Delete');await frames(page);assert.deepEqual(await listed(page),offers,'Atlas erase cannot discard the list');
+  await page.keyboard.press('Backspace');await page.locator('#overlay').waitFor({state:'hidden'});
+  assert.match(await page.locator('#hint').innerText(),/nothing accepted/);assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned · 0 fares/);
+  await page.waitForTimeout(600);assert.equal(await page.locator('.fare-board').isVisible(),false,'A closed list does not reopen');
+  await requestFares(page);assert.deepEqual(await listed(page),offers,'Reopening shows the same fares and quotes');
+  await button(1,1);await button(1,0);await button(1,1);await button(1,0);await page.locator('#overlay').waitFor({state:'hidden'});assert.equal(await page.locator('#gear').innerText(),'D','B closes the list without shifting');
+  await button(13,1);await page.locator('.fare-board').waitFor();assert.deepEqual(await listed(page),offers,'D-pad down shows the list');
+  await button(0,1);await button(0,0);assert.equal(await page.locator('.fare-board').isVisible(),true,'A held from the request cannot accept');
+  await button(13,0);await button(13,1);await button(13,0);
+  await page.waitForFunction(()=>document.querySelector('[data-fare-offer][aria-pressed="true"]')?.dataset.fareOffer==='1');
+  await button(3,1);await button(3,0);await page.waitForFunction(before=>document.querySelector('[data-fare-offer]').innerText!==before,offers[0]);
+  const replaced=await listed(page);assert.notDeepEqual(replaced,offers,'Y explicitly asks for a new list');
+  await button(13,1);await button(13,0);await button(0,1);await button(0,0);await page.locator('#overlay').waitFor({state:'hidden'});
+  assert.match(await page.locator('#objective-title').innerText(),new RegExp(`Collect ${replaced[1].split('\n')[0]}`));
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
   // Mouse save must return focus to the game rather than retaining an action trap.
   await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
   await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
@@ -74,20 +94,36 @@ test('fare choices, remapping and saved passenger/atlas state survive a complete
   const padButton=async(index,value)=>{await page.evaluate(({index,value})=>window.savePad.buttons[index].value=value,{index,value});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));};
   await page.locator('[data-control=shiftGear][data-device=pad]').click();await padButton(10,1);await padButton(10,0);
   await page.locator('[data-control=shiftGear][data-device=pad]').filter({hasText:'L3'}).waitFor();
+  const faresKey=page.locator('[data-control=requestFares][data-device=key]');
+  await faresKey.click();await page.keyboard.press('f');await page.getByRole('status').filter({hasText:/assigned to Information/}).waitFor();
+  await page.keyboard.press('h');await page.locator('[data-control=requestFares][data-device=key]').filter({hasText:'H'}).waitFor();
   await page.getByRole('button',{name:'Back',exact:true}).click();
+  assert.match(await page.locator('.control-table').innerText(),/Request fares \(while stopped\)\s+D-pad down\s+H\b/);
   await page.getByRole('button',{name:'Start the engine'}).click();
-  await page.locator('[data-fare=accept]').waitFor();const offerClock=await page.locator('#timer').innerText();
-  const original=await page.locator('.fare-offer p').first().innerText();await page.waitForTimeout(900);assert.equal(await page.locator('#timer').innerText(),offerClock);
-  await padButton(1,1);await padButton(1,0);assert.notEqual(await page.locator('.fare-offer p').first().innerText(),original,'B declines without changing the gear or earning');
-  assert.equal(await page.locator('#gear').innerText(),'D');assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
+  await settled(page);await page.keyboard.press('o');await frames(page);assert.equal(await page.locator('.fare-board').isVisible(),false,'The replaced default key does nothing');
+  assert.match(await page.locator('#prompt').innerText(),/D-pad down\s*Request fares|H\s*Request fares/);
+  await requestFares(page,'h');const offerClock=await page.locator('#timer').innerText();
+  const original=await listed(page);await page.waitForTimeout(900);assert.equal(await page.locator('#timer').innerText(),offerClock);
+  await padButton(1,1);await padButton(1,0);await page.locator('#overlay').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#gear').innerText(),'D','B closes the list without changing the gear or earning');assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
+  await requestFares(page,'h');
   await page.keyboard.press('Escape');await page.getByRole('button',{name:'Save shift',exact:true}).click();
   await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
-  const pending=await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-cerea')));assert.equal(pending.mission.offerPending,true);
+  const pending=await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-cerea')));
+  assert.equal(pending.version,2);assert.equal(pending.mission.currentFare,null);assert.equal(pending.mission.fareBoard.length,4);
   // Return to the known Municipio fixture through the actual stored snapshot, keeping validation active.
-  await page.evaluate(original=>{const s=JSON.parse(localStorage.getItem('cerea-save-cerea'));s.mission.currentFare={passenger:'Elena',pickupId:'municipio',destinationId:'post'};s.mission.offerPending=true;s.mission.offerQuoted=false;s.mission.approachDistance=0;s.mission.notice=original;localStorage.setItem('cerea-save-cerea',JSON.stringify(s));},original);
+  await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('cerea-save-cerea'));Object.assign(s.mission.fareBoard[0],{passenger:'Elena',pickupId:'municipio',destinationId:'post',quoted:true,approachDistance:0});localStorage.setItem('cerea-save-cerea',JSON.stringify(s));});
   await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.getByRole('button',{name:'Back to the road'}).click();
-  await acceptOffer(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
-  await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-stage').textContent.includes('PASSENGER ABOARD'));
+  await requestFares(page,'h');const restored=await listed(page);assert.match(restored[0],/Elena/);assert.deepEqual(restored.slice(1),original.slice(1),'Loading keeps the saved list rather than rerolling it');
+  await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-stage').textContent.includes('PASSENGER BOARDING'));
+  // Save while Elena walks over: loading resumes the same walk and seats her once.
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
+  const walking=await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-cerea')).mission);assert.ok(walking.boarding>0&&walking.boarding<4.5);assert.equal(walking.taxiStage,'dropoff');
+  await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
+  assert.match(await page.locator('#objective-stage').innerText(),/PASSENGER BOARDING/);await page.getByRole('button',{name:'Back to the road'}).click();
+  await page.waitForFunction(()=>document.querySelector('#objective-stage').textContent.includes('PASSENGER ABOARD'));assert.match(await page.locator('#hint').innerText(),/Elena boarded/);
   await padButton(10,1);await padButton(10,0);await page.waitForFunction(()=>document.querySelector('#gear').textContent==='R');
   await padButton(1,1);await padButton(1,0);assert.equal(await page.locator('#gear').innerText(),'R','B is free after selecting L3');
   await page.evaluate(()=>window.savePad.axes[2]=1);await page.waitForTimeout(750);
@@ -339,13 +375,22 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
     assert.equal(await page.locator('.car-badge').innerText(),'CEREA / 1986');
-    await acceptOffer(page);
+    assert.match(await page.locator('#objective-stage').innerText(),/FREE DRIVING/);assert.equal(await page.locator('.fare-board').count(),0);
+    await page.keyboard.press('Enter');await page.waitForFunction(()=>/No passenger booked.*O to see available fares/.test(document.querySelector('#hint').textContent));
+    assert.match(await page.locator('#prompt').innerText(),/O\s*Request fares/);
+    await requestFares(page);
+    await page.screenshot({path:'test-results/cerea-fare-board.png'});
+    await page.locator('[data-fare-offer]').first().click();await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});
     assert.match(await page.locator('#objective-title').innerText(),/Collect Elena/);
     assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
     assert.match(await page.locator('#timer').innerText(),/^07:/);
     await page.keyboard.press('Enter');
     await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
-    assert.match(await page.locator('#hint').innerText(),/Elena boarded/);
+    assert.match(await page.locator('#hint').innerText(),/Elena has seen the taxi/);
+    await page.evaluate(()=>{window.arrivalPad={connected:true,mapping:'standard',axes:[0,0,1,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.arrivalPad],configurable:true});});
+    await page.waitForTimeout(1600);await page.screenshot({path:'test-results/passenger-arriving.png'});
+    await page.evaluate(()=>{window.arrivalPad.axes[2]=0;});
+    await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Elena boarded'));
     assert.match(await page.locator('#taxi-status').innerText(),/speed bonus/);
     const beforeLook=await page.locator('#viewport').screenshot({style:'#hud { visibility:hidden !important; }'});
     const carHeading=await page.locator('#heading').innerText();
@@ -466,7 +511,7 @@ test('taxi shift ends at 17:00 with an earnings summary and can restart', {timeo
     });
     await page.reload();
     await page.getByRole('button',{name:'Start the engine'}).click();
-    await acceptOffer(page);
+    // Free driving uses the shift clock; no fare is needed for the day to end.
     await page.getByRole('heading',{name:'You earned €0.00.'}).waitFor();
     assert.equal(await page.locator('#timer').innerText(),'17:00');
     await page.screenshot({path:'test-results/taxi-shift-results.png'});
@@ -486,7 +531,6 @@ test('presentation modes preserve sharp UI, mirrors and controller settings with
   await page.locator('[data-key=volume]').selectOption('0');
   await page.locator('[data-key=motion]').selectOption('false');
   await page.getByRole('button',{name:'Start the engine'}).click();
-  await acceptOffer(page);
   await page.waitForFunction(()=>document.querySelector('#viewport').height===270);
   await page.locator('.presentation-settings').waitFor({state:'hidden'});
   await page.waitForTimeout(400);
@@ -582,7 +626,7 @@ test('Cerea remains playable 25 km from origin with optional timings and a stabl
    shift(data);await route.fulfill({json:data});
   });
   await seedDispatch(page);await page.getByRole('button',{name:'Start the engine'}).click();
-  await acceptOffer(page);
+  await takeFare(page);
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
   await page.keyboard.press('f');await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Via Venticinque Aprile'));
@@ -611,7 +655,7 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
   await page.locator('#stream-status').waitFor();assert.match(await page.locator('.map-credit').innerText(),/OpenStreetMap/);
   const clock=await page.locator('#timer').innerText();await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
   assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
-  blocked=false;release();await acceptOffer(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  blocked=false;release();await takeFare(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Test Hamlet'));
   await page.evaluate(()=>{window.prototypePad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.prototypePad],configurable:true});window.prototypePad.buttons[8].value=1;});
   await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Via Venticinque Aprile'));
@@ -629,7 +673,7 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
    const {readFile}=await import('node:fs/promises');const data=JSON.parse(await readFile('public/maps/cerea-outskirts/manifest.json','utf8'));
    const bay=data.parkingZones.find(p=>p.id==='test-hamlet');data.spawn={x:bay.x,z:bay.z,heading:0,name:bay.name};data.taxi.fares=[{passenger:'Return tester',pickupId:'test-hamlet',destinationId:'municipio'}];await route.fulfill({json:data});
   });
-  await seedDispatch(page,1771);await page.getByRole('button',{name:'Start the engine'}).click();await acceptOffer(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await seedDispatch(page,1771);await page.getByRole('button',{name:'Start the engine'}).click();await takeFare(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Municipio'));
   await page.keyboard.press('f');await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Turn around safely'));await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();const terminalPin=await page.locator('.atlas-pin').getAttribute('transform');assert.notEqual(terminalPin,pin);
   await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.down('w');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>3);await page.keyboard.up('w');
@@ -664,7 +708,7 @@ test('a transient local tile failure retries while paused and recovers without r
   await page.evaluate(()=>{window.retryPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.retryPad],configurable:true});window.retryPad.buttons[9].value=1;});
   await page.locator('#overlay').waitFor({state:'hidden'});await page.evaluate(()=>{window.retryPad.buttons[9].value=0;});
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
-  await acceptOffer(page);
+  await takeFare(page);
   assert.equal(await page.locator('#stream-status').isHidden(),true);assert.equal(attempts,2);assert.equal(await page.locator('#gear').innerText(),'D');
   await page.screenshot({path:'test-results/C-retry-recovered.png'});assert.deepEqual(errors,[]);
  }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
@@ -686,7 +730,7 @@ test('a hung local tile request times out into backoff and recovers without adva
   assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   assert.equal(attempts,2,'The still-held first request must be replaced by a successful retry');
-  await acceptOffer(page);
+  await takeFare(page);
   assert.equal(await page.locator('#stream-status').isHidden(),true);
   await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position/);
   assert.deepEqual(errors,[]);
