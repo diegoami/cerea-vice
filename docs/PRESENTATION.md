@@ -42,7 +42,10 @@ profile uses defaults. The simulator remains paused while options are changed.
 
 ## Geography, signs and scenery
 
-Four warm façade palettes repeat by 65 m local neighbourhood. Canvas textures
+Four warm façade palettes repeat by 65 m local neighbourhood (since 0.10:
+ochre, cream, terracotta and grey stucco; see
+[COLOUR_AND_RESOLUTION.md](COLOUR_AND_RESOLUTION.md), which also supersedes the
+picture-mode list below with the opt-in High mode). Canvas textures
 supply shutters, windows, doors and a small shop frontage; doors remain at
 street level. Roofs are low triangular tile facets confined to the triangulated
 clipped footprints, including holes. This intentionally stylised roof treatment
