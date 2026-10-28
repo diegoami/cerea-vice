@@ -5,3 +5,4 @@ dist/
 test-results/
 release/
 .desktop-stage/
+.claude/worktrees/

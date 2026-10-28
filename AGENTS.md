@@ -39,15 +39,31 @@ replace physical controller testing. Keep `dist/`, `release/`, `node_modules/`,
 `.desktop-stage/` and `test-results/` out of git. OSM extracts and derived maps
 are intentionally tracked with provenance in `data/README.md`.
 
-## Changes and independent review
+## Changes and reviews
 
 Make changes on a task branch. Commit and push when authorized, and hand over
 an open PR. The owner decides when to merge; do not merge as part of a review.
-For an independent PR review, follow `.claude/skills/review-pr/SKILL.md` and
-`docs/EXTERNAL_REVIEW.md`. The implementer prepares the handoff; the reviewer
-uses a fresh session of another model family and a detached worktree at the
-exact PR head. Do not silently select a model or start a reviewer when the user
-has only requested review setup. `/review-pr` in OpenCode invokes the reviewer.
+
+**Choosing models: the user decides** (the owner, 2026-10-28). This project
+rule replaces the global quota-service rules. Do not pick, start or chain an
+implementer or reviewer model on your own; ask when a model is needed.
+
+**Reviews are run by hand** (the owner, 2026-10-28, as in malpaco). Never start
+a reviewer or a re-review yourself, and do not pair a reviewer with each task.
+
+- **Per PR: optional.** Say when a PR deserves a review (input or controls,
+  saves, the desktop shell or its security boundary, map data or game rules,
+  a release candidate) and give the owner a ready prompt naming the PR and its
+  head SHA (`.claude/skills/review-pr/SKILL.md`). The owner runs any model on
+  the PR head with `docs/review-pr.md` as the brief; `/review-pr` in OpenCode
+  does this. The reviewer posts one review on the PR. One round: fix real
+  defects in what the PR delivers; everything else becomes a follow-up issue.
+  Blocking means a player or developer would hit it through normal use.
+- **Per milestone: the big review** of everything since the previous release
+  tag, before tagging (`docs/milestone-review.md`). PRs merged without a review
+  are listed there.
+- Merge needs the owner's go-ahead, passing checks and, when a review ran, its
+  findings answered.
 
 The initial whole-project PR targets `review/empty-baseline` and is a review
 vehicle, not a normal change to `main`. It intentionally includes every project
