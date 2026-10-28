@@ -1,6 +1,7 @@
 import { StreamingWorld } from "../world/streaming/StreamingWorld";
 import { SettingsPanel, readSettings, renderSize } from "../presentation/Settings";
-import { Sound } from "../presentation/Sound";
+import { Sound, musicGain } from "../presentation/Sound";
+import { Radio } from "../presentation/Radio";
 import { BodyMotion } from "../presentation/Motion";
 import { Retro } from "../presentation/Retro";
 import { availableDistricts, selectDistrict } from "../world/load";
@@ -31,6 +32,7 @@ class Game {
   private readonly timingPanel=context.profile.enabled?document.createElement("pre"):undefined;
   private timingRefresh=0;
   private readonly sound = new Sound();
+  private readonly radio = new Radio();
   private readonly motion = new BodyMotion();
   private readonly settings = readSettings();
   private settingsPanel!: SettingsPanel;
@@ -79,8 +81,18 @@ class Game {
     if(this.timingPanel){this.timingPanel.id="performance-stats";this.timingPanel.setAttribute("aria-label","CPU profiling timings");root.append(this.timingPanel);}
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation(),(choice,id)=>this.chooseFare(choice,id));
     this.hud.setBindings(this.input.bindings);
-    this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);});
+    let heardVolume=this.settings.volume;
+    this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);
+      // Changing the volume plays a short check tone, even on the paused screens.
+      if(this.settings.volume!==heardVolume){heardVolume=this.settings.volume;this.sound.preview(heardVolume);}});
     this.controlsPanel=new ControlsPanel(this.input.bindings,()=>this.hud.setBindings(this.input.bindings));
+    // Radio actions sit with the sound options; choosing a folder is a deliberate native dialog.
+    this.settingsPanel.addAction('Choose music folder…',()=>{if(!this.radio.available){this.radio.onChange();return;}void this.radio.choose().then(()=>{if(this.radio.playable)this.settingsPanel.apply({radio:true,radioSource:'folder'});});});
+    this.settingsPanel.addAction('Previous track',()=>this.radio.previous());
+    const radioStatus=document.createElement('p');radioStatus.setAttribute('role','status');radioStatus.className='save-status radio-status';
+    this.settingsPanel.addAction('Next track',()=>this.radio.next()).after(radioStatus);
+    this.radio.onChange=()=>{radioStatus.textContent=this.radio.message;};this.radio.onChange();
+    void this.radio.load();
     this.settingsPanel.addAction('Change controls',()=>this.controlsPanel.open());
     this.saveButton=this.settingsPanel.addAction('Save shift',()=>this.save());
     this.settingsPanel.addAction('Continue saved shift',()=>this.load());
@@ -244,6 +256,14 @@ class Game {
     }catch{this.saveStatus.textContent='Could not load this save: it is unavailable, damaged or belongs to an older map. Your current shift and stored save have been kept.';}
   }
 
+  /** Dashboard sound state: level or mute, whether the platform is blocking audio, and the radio. */
+  private soundStatus(folderRadio:boolean){
+    const state=this.sound.state,volume=this.settings.volume;
+    const sound=state==='unavailable'?'SOUND UNAVAILABLE':volume===0?'SOUND MUTED':state==='waiting'?'SOUND BLOCKED · CLICK OR PRESS A KEY':`SOUND ${Math.round(volume*100)}%`;
+    const radio=!this.settings.radio?'RADIO OFF':folderRadio&&this.radio.playable?`RADIO ${this.radio.summary}`:'RADIO TUNE';
+    return {text:`${sound} · ${radio}`,warn:state==='waiting'||state==='unavailable'};
+  }
+
   private requestInformation() {
     if (this.screen !== "running" && this.screen !== "atlas") return;
     if (this.mission.recordDirectionRequest(this.parking.stopped, this.parking.legal)) {
@@ -269,7 +289,7 @@ class Game {
     if(this.settingsPanel.update(!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
     this.saveButton.disabled=!this.hasStarted||this.mission.finished;
     if(this.screen==='running'&&this.waitForDrivingRelease&&this.input.drivingReleased===false){
-      actions.interact=false;actions.information=false;actions.atlas=false;actions.reminder=false;actions.requestFares=false;actions.shiftGear=false;actions.glance=0;actions.resetLook=false;
+      actions.interact=false;actions.information=false;actions.atlas=false;actions.reminder=false;actions.requestFares=false;actions.radioNext=false;actions.shiftGear=false;actions.glance=0;actions.resetLook=false;
     }
     if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
@@ -317,6 +337,8 @@ class Game {
       }
       if (actions.information) this.requestInformation();
       if (actions.requestFares && this.screen === "running") this.requestFares(readyForFares);
+      // Track changes show on the dashboard only, so they never replace an information message.
+      if (actions.radioNext && this.screen === "running" && this.settings.radio && this.settings.radioSource==='folder') this.radio.next();
       if (actions.reminder && this.screen === "running") {
         this.hud.remindMission(this.mission);
       }
@@ -372,7 +394,12 @@ class Game {
       this.input.gamepadBlocked,
       this.input.controllerStatus,
     );
-    this.sound.update(dt,this.screen==='running',this.car.speed,this.car.gear,this.car.steering,this.settings);
+    const running=this.screen==='running',held=!running||this.waitForDrivingRelease||this.mission.boarding>0;
+    const pedals=held?{throttle:0,brake:0,handbrake:false}:actions;
+    const folderRadio=this.settings.radio&&this.settings.radioSource==='folder';
+    this.sound.update(dt,running,this.car,pedals,this.settings,folderRadio&&!this.radio.playable);
+    this.radio.update(running&&folderRadio,musicGain(this.settings,pedals.throttle));
+    this.hud.setSound(this.soundStatus(folderRadio));
     if(this.screen==='running')this.motion.update(dt,this.car.speed,this.car.steering,this.settings.motion);
     this.people.update(this.mission,this.world.frame,this.car);
     this.interior.setPassenger(this.mission.seatedIdentity);
