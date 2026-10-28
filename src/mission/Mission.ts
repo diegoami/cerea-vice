@@ -160,8 +160,8 @@ class Mission {
     if(!fare||this.boardSerial||this.receipts.length||!this.taxi||!this.taxi.stops.some(s=>s.id===fare.pickupId)||!this.taxi.stops.some(s=>s.id===fare.destinationId))return;
     this.previousFare={passenger:'',pickupId:fare.pickupId,destinationId:fare.destinationId};
   }
-  private receiptNotice(receipt:FareReceipt){return `${receipt.passenger}: “Thank you!” Fare €${(receipt.totalCents/100).toFixed(2)} (base €${(receipt.baseCents/100).toFixed(2)} + speed bonus €${(receipt.bonusCents/100).toFixed(2)}).`;}
-  private freeNotice(){const receipt=this.receipts.at(-1);return `${receipt?this.receiptNotice(receipt)+' ':''}${this.clockText} · Free driving. Stop and request fares when you want a passenger.`;}
+  private receiptNotice(receipt:FareReceipt){return `${receipt.passenger}: fare €${(receipt.totalCents/100).toFixed(2)} (base €${(receipt.baseCents/100).toFixed(2)} + speed bonus €${(receipt.bonusCents/100).toFixed(2)}).`;}
+  private freeNotice(){const receipt=this.receipts.at(-1);return `${receipt?this.receiptNotice(receipt)+' ':''}Free driving. Stop and request fares.`;}
   private stop(id:string):TaxiStop {return this.taxi!.stops.find(stop=>stop.id===id)!;}
   /** The current goal; none while free driving. */
   get target():NavigationTarget|undefined {
@@ -173,9 +173,9 @@ class Mission {
   get objective(){
     if(!this.taxi)return district.mission.objective;
     const target=this.target;
-    if(!target){const n=this.fareBoard.length;return n?`Free driving. ${n} fare${n===1?' is':'s are'} listed; stop and request fares to read ${n===1?'it':'them'} again.`:'Free driving. Stop and request fares to see available rides.';}
-    if(this.boarding>0)return `${this.passenger} is walking to the taxi. Stay stopped while they get in.`;
-    return `${this.taxiStage==='pickup'?`Collect ${this.passenger} at`:`Take ${this.passenger} to`} ${target.name}, ${target.road}. Stop in ${target.bay.name} and confirm passenger service.`;
+    if(!target){const n=this.fareBoard.length;return n?`Free driving. ${n} fare${n===1?' is':'s are'} listed; stop and request fares to read ${n===1?'it':'them'} again.`:'Free driving. Stop and request fares.';}
+    if(this.boarding>0)return `${this.passenger} is getting in. Stay stopped.`;
+    return `${this.taxiStage==='pickup'?`Collect ${this.passenger} at`:`Take ${this.passenger} to`} ${target.name}, ${target.road}. Stop in ${target.bay.name}.`;
   }
   get clockHours(){return this.taxi?Math.min(this.taxi.endHour,this.taxi.startHour+this.totalElapsed*this.taxi.clockRate/3600):7;}
   private clockAt(hour:number){const minutes=Math.min(24*60-1,Math.floor(hour*60+1e-6));return `${Math.floor(minutes/60).toString().padStart(2,'0')}:${(minutes%60).toString().padStart(2,'0')}`;}
@@ -209,7 +209,7 @@ class Mission {
       // Service commits the ride; the bonus clock starts once the passenger is seated.
       this.rideDistance=route.cost;this.rideBudget=Math.max(100,90+route.cost/4.5);
       this.taxiStage='dropoff';this.elapsed=0;this.boarding=BOARDING_SECONDS;
-      this.notice=`${this.passenger} has seen the taxi and is coming over. Stay stopped while they get in.`;
+      this.notice=`${this.passenger} is getting in. Stay stopped.`;
     } else {
       const baseCents=this.baseFareCents,bonusCents=this.potentialBonusCents;
       const totalCents=baseCents+bonusCents;
@@ -221,7 +221,7 @@ class Mission {
     }
     this.revision++;return true;
   }
-  private boardedNotice(){const destination=this.destinationStop!;return `${this.passenger} boarded: “Please take me to ${destination.name}, ${destination.road}.” A guaranteed fare plus up to €${(this.taxi!.maxBonusCents/100).toFixed(2)} speed bonus is available. Stop there and confirm passenger service.`;}
+  private boardedNotice(){const destination=this.destinationStop!;return `${this.passenger} boarded: “Please take me to ${destination.name}, ${destination.road}.”`;}
   snapshot():MissionSnapshot {
     return structuredClone({elapsed:this.elapsed,totalElapsed:this.totalElapsed,state:this.state,taxiStage:this.taxiStage,fareIndex:this.fareIndex,
       earningsCents:this.earningsCents,bonusEarnedCents:this.bonusEarnedCents,receipts:this.receipts,directionRequests:this.directionRequests,
@@ -275,7 +275,7 @@ class Mission {
     }
     this.elapsed+=active-walking;
     if(this.taxi){
-      if(this.remaining<=1e-7){this.totalElapsed=this.shiftSeconds;this.boarding=0;this.departure=null;this.state='shift-complete';this.notice=`${this.clockText} · Taxi shift complete.`;this.revision++;}
+      if(this.remaining<=1e-7){this.totalElapsed=this.shiftSeconds;this.boarding=0;this.departure=null;this.state='shift-complete';this.notice='Taxi shift complete.';this.revision++;}
       return;
     }
     if(this.elapsed>this.duration)this.state='overdue';

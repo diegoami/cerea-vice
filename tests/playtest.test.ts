@@ -136,7 +136,7 @@ test('radio notices never carry a stale price; the post-dropoff notice keeps the
   mission.requestFares(hamlet);assert.doesNotMatch(mission.notice,/Guaranteed/);
   for(const offer of mission.fareBoard)assert.match(mission.offerText(offer),new RegExp(`Guaranteed €${(mission.offerGuaranteeCents(offer)/100).toFixed(2)}`));
   mission.acceptFare(mission.fareBoard[0].id);mission.serveAtStop(mission.target!.bay,true);mission.update(BOARDING_SECONDS,mission.target!.bay,true);mission.serveAtStop(mission.target!.bay,true);
-  assert.match(mission.notice,/Thank you.*Fare €/);assert.match(mission.notice,/Free driving/);assert.doesNotMatch(mission.notice,/Guaranteed/);
+  assert.match(mission.notice,/: fare €/);assert.match(mission.notice,/Free driving/);assert.doesNotMatch(mission.notice,/Guaranteed/);
   assert.equal(mission.fareBoard.length,0);
  }
 });

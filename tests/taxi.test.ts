@@ -47,7 +47,7 @@ test('passengers need deliberate stopped pickup and dropoff; each fare gives a n
   assert.equal(shift.serveAtStop(shift.target!.bay,true),true);
   assert.equal(shift.completedFares,1);assert.ok(shift.earningsCents>400);
   assert.equal(shift.target,undefined,'Dropoff returns to free driving');assert.equal(shift.fareBoard.length,0,'No automatic offer after dropoff');
-  assert.match(shift.notice,/Fare €/);assert.match(shift.notice,/Free driving/);
+  assert.match(shift.notice,/: fare €/);assert.match(shift.notice,/Free driving/);
   take(shift);
   assert.equal(shift.taxiStage,'pickup');assert.equal(shift.passenger,'Marco');assert.equal(shift.target!.name,'Cinema Principe');
 });

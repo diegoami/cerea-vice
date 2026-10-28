@@ -386,7 +386,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     assert.match(await page.locator('#timer').innerText(),/^07:/);
     await page.keyboard.press('Enter');
     await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
-    assert.match(await page.locator('#hint').innerText(),/Elena has seen the taxi/);
+    assert.match(await page.locator('#hint').innerText(),/Elena is getting in/);
     await page.waitForTimeout(900);
     await page.evaluate(()=>{window.arrivalPad={connected:true,mapping:'standard',axes:[0,0,1,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.arrivalPad],configurable:true});});
     await page.waitForTimeout(750);await page.screenshot({path:'test-results/passenger-arriving.png'});
