@@ -175,7 +175,7 @@ class Game {
     const key=bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller');
     if(!this.mission.taxiMode||this.mission.finished)return;
     if(this.mission.hasRide){this.hud.setHint(`You already have a fare: ${this.mission.objective}`);return;}
-    if(!this.parking.stopped||this.car.speed!==0){this.hud.setHint(`Come to a complete stop before requesting fares. Hold the handbrake, then press ${key}.`);return;}
+    if(!this.parking.stopped||this.car.speed!==0){this.hud.setHint(`Come to a complete stop before requesting fares, then press ${key}.`);return;}
     if(!worldReady){this.hud.setHint(`Scenery is still loading. Request fares (${key}) once it is ready.`);return;}
     if(!this.mission.requestFares(this.car))return;
     if(this.mission.fareBoard[0]?.id===0)try{const first=this.mission.fareBoard[0];localStorage.setItem(`cerea-last-opening-${district.id}`,`${first.pickupId}/${first.destinationId}`);}catch{/* Optional variety only. */}
@@ -194,10 +194,9 @@ class Game {
 
   private chooseFare(choice:FareChoice,id=this.fareSelection){
     if(this.screen!=='fares')return;
-    const key=bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller');
     if(choice==='select'){if(this.mission.fareBoard.some(o=>o.id===id)){this.fareSelection=id;this.hud.setFareSelection(id);}return;}
     if(choice==='refresh'){this.mission.refreshFares(this.car);this.fareSelection=this.mission.fareBoard[0]?.id??-1;this.hud.setFareSelection(this.fareSelection);this.hud.refresh();return;}
-    if(choice==='close'){this.closeFareBoard(`Fare list closed; nothing accepted. It stays available while you drive: stop and press ${key} to read it again.`);return;}
+    if(choice==='close'){this.closeFareBoard('Fare list closed; nothing accepted.');return;}
     if(this.mission.acceptFare(id))this.closeFareBoard(this.mission.notice);
   }
 
@@ -226,7 +225,7 @@ class Game {
         car:{x,z,heading,speed,gear,steering,collisions},unsafeStops:this.parking.unsafeStops,mission:this.mission.snapshot(),atlas:this.hud.saveAtlas()};
       decodeSave(context,JSON.stringify(value));
       localStorage.setItem(saveKey(context),JSON.stringify(value));
-      this.saveStatus.textContent=`Saved ${this.mission.clockText}. Continue saved shift restores this district. Starting a new shift keeps the save until you explicitly save again.`;
+      this.saveStatus.textContent=`Saved ${this.mission.clockText}. A new shift keeps this save until you save again.`;
     }catch{this.saveStatus.textContent='Save failed. Storage is unavailable or full; the previous save has been kept.';}
   }
 
@@ -240,7 +239,7 @@ class Game {
       this.hud.restoreAtlas(value.atlas);this.world.updateFrame(this.car);
       this.cockpit.reset();this.motion.reset();this.cockpit.update(1,this.car,0);
       this.hasStarted=true;this.screen='paused';this.accumulator=0;this.waitForDrivingRelease=true;this.releaseMouseLook();
-      this.saveStatus.textContent=`Loaded ${this.mission.clockText}. Paused; resume when ready.`;
+      this.saveStatus.textContent=`Loaded ${this.mission.clockText}. Paused.`;
     }catch{this.saveStatus.textContent='Could not load this save: it is unavailable, damaged or belongs to an older map. Your current shift and stored save have been kept.';}
   }
 
@@ -248,11 +247,11 @@ class Game {
     if (this.screen !== "running" && this.screen !== "atlas") return;
     if (this.mission.recordDirectionRequest(this.parking.stopped, this.parking.legal)) {
       const target=this.mission.target;
-      const message = target ? directionHint(this.car, this.car.heading, target) : `${locationHint(this.car, this.car.heading)} No fare booked: stop and request fares when you want a destination.`;
+      const message = target ? directionHint(this.car, this.car.heading, target) : `${locationHint(this.car, this.car.heading)} No fare booked.`;
       this.hud.setHint(message);
       this.hud.confirmAtlasPosition(this.car, this.parking.zone);
       this.hud.setAtlasInformation(message);
-    } else this.hud.setHint("Come to a complete stop first. Hold the handbrake, then ask again.");
+    } else this.hud.setHint("Come to a complete stop first, then ask again.");
   }
 
   private frame(time: number) {
@@ -283,7 +282,7 @@ class Game {
       this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
     }
     if (this.screen === "running" && !this.input.controllerDisconnected && !this.waitForDrivingRelease && actions.shiftGear) {
-      if (this.mission.boarding>0) this.hud.setHint(`${this.mission.passenger} is getting in. Wait until they are seated before moving.`);
+      if (this.mission.boarding>0) this.hud.setHint(`${this.mission.passenger} is getting in. Stay stopped.`);
       else if (this.parking.stopped && actions.throttle < .1 && this.car.shiftGear())
         this.hud.setHint(`${this.car.gear === "R" ? "Reverse" : "Forward"} selected. ${bindingLabel(this.input.bindings,'throttle',this.input.device==='Controller')} accelerates; ${bindingLabel(this.input.bindings,'brake',this.input.device==='Controller')} brakes.`);
       else this.hud.setHint(`Stop fully and release the accelerator before switching forward / reverse (${bindingLabel(this.input.bindings,'shiftGear',this.input.device==='Controller')}).`);
@@ -326,7 +325,7 @@ class Game {
           this.accumulator = 0;
           this.releaseMouseLook();
         } else {
-          this.hud.setHint(`Come to a complete stop before opening the atlas. Hold the handbrake, then press ${bindingLabel(this.input.bindings,'atlas',this.input.device==='Controller')}.`);
+          this.hud.setHint(`Come to a complete stop before opening the atlas, then press ${bindingLabel(this.input.bindings,'atlas',this.input.device==='Controller')}.`);
         }
       }
     }

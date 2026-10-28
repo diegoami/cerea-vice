@@ -172,7 +172,7 @@ export class Input {
     this.controllerDisconnected = this.hadController && !pad;
     this.hadController = Boolean(pad);
     this.controllerStatus = pad
-      ? "Controller connected · Left stick: steer · RT: accelerate · A / Cross: confirm · View / Select: information."
+      ? "Controller connected."
       : this.gamepadBlocked
         ? "Controller access restricted. Open in a new browser tab or use the desktop app."
         : pads.some((p) => p?.connected)
