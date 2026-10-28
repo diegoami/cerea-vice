@@ -70,7 +70,7 @@ export function clearPath(solid:Solid,points:Point[]){
 }
 /**
  * A doorway or other off-street spot beside a stop: walk away from the road
- * until a building face (stand just outside it) or five metres of open ground.
+ * until a building face (stand just outside it) or four metres of open ground.
  */
 export function kerbOrigin(context:District,solid:Solid,stopId:string,car:CarPose):Point{
   const stop=context.district.taxi!.stops.find(s=>s.id===stopId)!,bay=context.parkingZones.find(b=>b.id===stop.bayId)!;
@@ -88,7 +88,7 @@ export function kerbOrigin(context:District,solid:Solid,stopId:string,car:CarPos
       // Stop at open ground rather than crossing onto another street.
       if(t>start+1&&context.isPaved(p))break;
       if(!context.isPaved(p))last=p;
-      if(last&&t>=start+5)return last;
+      if(last&&t>=start+4)return last;
     }
     if(last&&clearPath(solid,[last,door]))return last;
   }

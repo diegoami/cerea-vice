@@ -17,7 +17,7 @@ type Shift=InstanceType<typeof Mission>;
 /** Request the list and accept its first entry, as a player would from a full stop. */
 function take(shift:Shift,position=spawn){assert.equal(shift.requestFares(position),true);assert.equal(shift.acceptFare(shift.fareBoard[0].id),true);}
 /** Service, then let the passenger walk over and sit down. */
-function board(shift:Shift){assert.equal(shift.serveAtStop(shift.target!.bay,true),true);shift.update(4.5,shift.target!.bay,true);assert.equal(shift.boarding,0);}
+function board(shift:Shift){assert.equal(shift.serveAtStop(shift.target!.bay,true),true);shift.update(5.5,shift.target!.bay,true);assert.equal(shift.boarding,0);}
 test('expanded real district has nine reachable taxi goals and clear pickup areas',()=>{
   useDistrict(cerea);
   assert.ok(new Set(roads.map(road=>road.name)).size>=45);
@@ -39,7 +39,7 @@ test('passengers need deliberate stopped pickup and dropoff; each fare gives a n
   assert.equal(shift.serveAtStop(spawn,true),true);
   assert.equal(shift.taxiStage,'dropoff');assert.equal(shift.target!.name,'Ufficio Postale di Cerea');assert.equal(shift.earningsCents,0);
   assert.equal(shift.seatedIdentity,'','The seat stays empty while the passenger walks over');
-  shift.update(4.5,spawn,true);assert.notEqual(shift.seatedIdentity,'');
+  shift.update(5.5,spawn,true);assert.notEqual(shift.seatedIdentity,'');
   assert.equal(shift.serveAtStop(spawn,true),false);
   assert.match(directionHint(shift.target!.bay,0,shift.target),/Ufficio Postale di Cerea is beside you/);
   shift.update(30,shift.target!.bay,true);

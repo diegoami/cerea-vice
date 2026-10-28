@@ -17,8 +17,8 @@ export interface LegacyMissionSnapshot extends Omit<MissionSnapshot,'previousFar
 /** Fares shown together on one dispatch list. */
 export const FARE_BOARD_SIZE=4;
 /** Seconds for a passenger to walk from the kerb and sit down, and to walk away after dropoff. */
-export const BOARDING_SECONDS=4.5;
-export const DEPARTURE_SECONDS=3.5;
+export const BOARDING_SECONDS=5.5;
+export const DEPARTURE_SECONDS=4;
 /** Long journeys retain worthwhile guaranteed pay even after the speed bonus expires. */
 export function guaranteedFare(base:number,perKm:number,distance:number){
  return base+Math.round(distance/1000*perKm+Math.max(0,distance-1000)*2.5);

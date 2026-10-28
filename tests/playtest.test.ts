@@ -186,7 +186,7 @@ test('no figure waits at stops; an accepted, stopped pickup walks one passenger 
  assert.ok(Math.hypot(world().x-before.x,world().z-before.z)<1e-6);
  const restored=new Mission();restored.restore(mission.snapshot());const reloaded=new THREE.Scene();new PassengerPresence(context,reloaded).update(restored,frame,car);
  assert.equal(reloaded.children.filter(o=>o.name.startsWith('Passenger')).length,1);
- mission.update(2,bay,true);update(car);assert.equal(mission.boarding,0);assert.equal(people().length,0,'Seated passengers leave no outside figure');
+ mission.update(3,bay,true);update(car);assert.equal(mission.boarding,0);assert.equal(people().length,0,'Seated passengers leave no outside figure');
  assert.equal(mission.seatedIdentity,mission.passengerIdentity);
  const seated=createPerson(mission.passengerIdentity,true),bounds=new THREE.Box3().setFromObject(seated);assert.ok(bounds.max.y-bounds.min.y>.9);
  // Dropoff: the seat clears and the passenger walks away, then is gone; loading drops the walk.

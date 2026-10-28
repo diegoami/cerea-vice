@@ -120,7 +120,7 @@ test('fare choices, remapping and saved passenger/atlas state survive a complete
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-stage').textContent.includes('PASSENGER BOARDING'));
   // Save while Elena walks over: loading resumes the same walk and seats her once.
   await page.keyboard.press('p');await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
-  const walking=await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-cerea')).mission);assert.ok(walking.boarding>0&&walking.boarding<4.5);assert.equal(walking.taxiStage,'dropoff');
+  const walking=await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-cerea')).mission);assert.ok(walking.boarding>0&&walking.boarding<5.5);assert.equal(walking.taxiStage,'dropoff');
   await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
   assert.match(await page.locator('#objective-stage').innerText(),/PASSENGER BOARDING/);await page.getByRole('button',{name:'Back to the road'}).click();
   await page.waitForFunction(()=>document.querySelector('#objective-stage').textContent.includes('PASSENGER ABOARD'));assert.match(await page.locator('#hint').innerText(),/Elena boarded/);
@@ -387,8 +387,9 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await page.keyboard.press('Enter');
     await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
     assert.match(await page.locator('#hint').innerText(),/Elena has seen the taxi/);
+    await page.waitForTimeout(900);
     await page.evaluate(()=>{window.arrivalPad={connected:true,mapping:'standard',axes:[0,0,1,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.arrivalPad],configurable:true});});
-    await page.waitForTimeout(1600);await page.screenshot({path:'test-results/passenger-arriving.png'});
+    await page.waitForTimeout(750);await page.screenshot({path:'test-results/passenger-arriving.png'});
     await page.evaluate(()=>{window.arrivalPad.axes[2]=0;});
     await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Elena boarded'));
     assert.match(await page.locator('#taxi-status').innerText(),/speed bonus/);

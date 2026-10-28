@@ -89,7 +89,7 @@ test('directions compare local endpoint costs even when one endpoint is already 
  assert.ok(fromSquare.cost>0);assert.equal(fromPortal.path[0],portal);
  const {Mission}=createMission(context),mission=new Mission({authored:true});
  const take=()=>{mission.requestFares(context.spawn);mission.acceptFare(mission.fareBoard[0].id);};
- take();mission.serveAtStop(mission.target!.bay,true);mission.update(5,mission.target!.bay,true);mission.serveAtStop(mission.target!.bay,true);take();
+ take();mission.serveAtStop(mission.target!.bay,true);mission.update(6,mission.target!.bay,true);mission.serveAtStop(mission.target!.bay,true);take();
  const bay=data.parkingZones.find(b=>b.id==='test-hamlet')!;assert.ok(mission.serveAtStop(bay,true));
  assert.match(createNavigation(context).directionHint(bay,0,mission.target),/Turn around safely.*south.*Cerea Centro/);
 });

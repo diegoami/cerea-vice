@@ -124,5 +124,5 @@ test('Game holds the taxi while the passenger walks over, then releases it',()=>
  const bay=h.game.mission.target!.bay;Object.assign(h.game.car,{x:bay.x,z:bay.z});for(let i=0;i<10;i++)h.step();
  h.step({interact:true});assert.ok(h.game.mission.boarding>0);
  for(let i=0;i<20;i++)h.step({throttle:1,shiftGear:true});assert.equal(h.game.car.speed,0);assert.equal(h.game.car.gear,'D');
- for(let i=0;i<40;i++)h.step();assert.equal(h.game.mission.boarding,0);h.step({throttle:1});h.step({throttle:1});assert.ok(h.game.car.speed>0);
+ for(let i=0;i<60;i++)h.step();assert.equal(h.game.mission.boarding,0);h.step({throttle:1});h.step({throttle:1});assert.ok(h.game.car.speed>0);
 });
