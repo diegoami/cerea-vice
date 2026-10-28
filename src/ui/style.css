@@ -297,12 +297,6 @@ kbd {
   text-align: right;
   align-self: center;
 }
-.dashboard-right > strong {
-  display: block;
-  font: 28px "Vice", monospace;
-  font-weight: 400;
-  margin-top: 8px;
-}
 .dash-detail {
   display: flex;
   justify-content: flex-end;
@@ -513,10 +507,6 @@ h1 em {
   margin-top: 8px;
   color: #9eb0a5;
 }
-.result-footnote {
-  font-size: 20px !important;
-  margin-bottom: 24px;
-}
 .fatal {
   padding: 50px;
   max-width: 700px;
@@ -626,12 +616,6 @@ h1 em {
   }
   .dashboard-right {
     width: 160px;
-  }
-  .dashboard-right > strong {
-    font-size: 22px;
-  }
-  .dashboard-right .eyebrow {
-    font-size: 14px;
   }
   .dash-detail {
     font-size: 14px;
@@ -852,7 +836,6 @@ h1 em {
 .atlas-tools > span { min-width:180px;flex:1; }
 .atlas-information-sidebar { padding:0 0 12px;background:transparent; }
 .atlas-information-sidebar p { font-size:20px;line-height:1.6; }
-.atlas-introduction[hidden] { display:none; }
 @media(max-width:760px) {
   .atlas-book.has-information .atlas-content { flex-direction:column; }
   .atlas-book.has-information .atlas-sheet { min-height:200px; }
@@ -880,8 +863,6 @@ h1 em {
 .speed-line > span { font-size: 14px; }
 .stop-state { font-size: 14px; letter-spacing: .5px; }
 .dashboard-right { width: auto; }
-.dashboard-right > .eyebrow { display: none; }
-.dashboard-right > strong { font-size: 22px; margin: 0; }
 .dash-detail { margin-top: 4px; font-size: 14px; flex-direction: row; }
 .interaction { bottom: 73px; }
 .navigation-message { left: auto; right: 22px; bottom: 107px; transform: none; width: min(450px, 44vw); padding: 10px 14px; }
