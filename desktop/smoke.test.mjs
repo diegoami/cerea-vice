@@ -367,14 +367,14 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
     await seedDispatch(page);
     await page.getByRole('button',{name:'Cerea Centro',exact:true,pressed:true}).waitFor();
-    await page.getByRole('heading',{name:'Drive a taxi in Cerea.'}).waitFor();
+    await page.getByRole('heading',{name:/Taxi shift/}).waitFor();
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
     assert.equal(await page.locator('[data-key=resolution]').inputValue(),'retro-fine');
     await page.getByRole('button',{name:'Start the engine'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
-    assert.equal(await page.locator('.car-badge').innerText(),'CEREA / 1986');
+    assert.equal(await page.locator('.car-badge').count(),0,'No decorative badge in the HUD');
     assert.match(await page.locator('#objective-stage').innerText(),/FREE DRIVING/);assert.equal(await page.locator('.fare-board').count(),0);
     await page.keyboard.press('Enter');await page.waitForFunction(()=>/No passenger booked.*O to see available fares/.test(document.querySelector('#hint').textContent));
     assert.match(await page.locator('#prompt').innerText(),/O\s*Request fares/);

@@ -216,11 +216,6 @@ button:focus-visible {
   gap: 8px;
   align-items: center;
 }
-.hint-header > span:last-child {
-  margin-left: auto;
-  color: #91a09e;
-  font-size: 14px;
-}
 .navigation-message p {
   font: 22px/1.6 "Vice", monospace;
   margin: 8px 0 0;
@@ -648,9 +643,6 @@ h1 em {
   }
   .navigation-message p {
     font-size: 20px;
-  }
-  .hint-header > span:last-child {
-    display: none;
   }
   .interaction {
     bottom: 150px;
