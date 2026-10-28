@@ -4,8 +4,13 @@ export interface PresentationSettings {
   motion: boolean;
   volume: number;
   radio: boolean;
+  /** Radio music level, separate from the master volume; vehicle sound stays at volume. */
+  music: number;
+  radioSource: 'builtin' | 'folder';
 }
-export const defaults: PresentationSettings = {detail:true,resolution:'retro-fine',motion:true,volume:0.25,radio:false};
+export const defaults: PresentationSettings = {detail:true,resolution:'retro-fine',motion:true,volume:0.75,radio:false,music:0.5,radioSource:'builtin'};
+/** Saved levels snap to the offered steps, so old 0.25 / 0.5 / 1 choices are kept as they were. */
+const level=(value:unknown,fallback:number)=>typeof value==='number'&&Number.isFinite(value)?[0,.25,.5,.75,1].reduce((a,b)=>Math.abs(b-value)<Math.abs(a-value)?b:a):fallback;
 export function readSettings(storage: Pick<Storage,'getItem'> | (()=>Pick<Storage,'getItem'>) = ()=>localStorage): PresentationSettings {
   try {
     const source=typeof storage==='function'?storage():storage;
@@ -13,8 +18,10 @@ export function readSettings(storage: Pick<Storage,'getItem'> | (()=>Pick<Storag
     return {detail:typeof value.detail==='boolean'?value.detail:defaults.detail,
       resolution:['sharp','retro','retro-fine'].includes(value.resolution)?value.resolution:defaults.resolution,
       motion:typeof value.motion==='boolean'?value.motion:defaults.motion,
-      volume:typeof value.volume==='number'&&Number.isFinite(value.volume)?Math.max(0,Math.min(1,value.volume)):defaults.volume,
-      radio:typeof value.radio==='boolean'?value.radio:defaults.radio};
+      volume:level(value.volume,defaults.volume),
+      radio:typeof value.radio==='boolean'?value.radio:defaults.radio,
+      music:level(value.music,defaults.music),
+      radioSource:['builtin','folder'].includes(value.radioSource)?value.radioSource:defaults.radioSource};
   } catch {return {...defaults};}
 }
 export function renderSize(width:number,height:number,mode:PresentationSettings['resolution'],pixelRatio=1) {
@@ -35,8 +42,10 @@ export class SettingsPanel {
       <label>Scenery <select data-key="detail"><option value="true">Detailed</option><option value="false">Simple</option></select></label>
       <label>Picture <select data-key="resolution"><option value="sharp">Sharp (read signs)</option><option value="retro">Retro 270p</option><option value="retro-fine">Retro 540p</option></select></label>
       <label>Cockpit motion <select data-key="motion"><option value="true">Subtle</option><option value="false">Off</option></select></label>
-      <label>Volume <select data-key="volume"><option value="0">Mute</option><option value="0.25">Quiet</option><option value="0.5">Medium</option><option value="1">Full</option></select></label>
-      <label>Radio <select data-key="radio"><option value="false">Off</option><option value="true">On</option></select></label>`;
+      <label>Volume <select data-key="volume"><option value="0">Mute (silent)</option><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option></select></label>
+      <label>Radio <select data-key="radio"><option value="false">Off</option><option value="true">On</option></select></label>
+      <label>Radio source <select data-key="radioSource"><option value="builtin">Built-in tune</option><option value="folder">My music folder</option></select></label>
+      <label>Music level <select data-key="music"><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option></select></label>`;
     document.querySelector('#hud')!.append(this.element);
     this.element.addEventListener('keydown',event=>{
       // Reserve the advertised start/resume controls even after a mouse edit.
@@ -50,10 +59,12 @@ export class SettingsPanel {
     this.element.addEventListener('change',()=>this.commit());
     for(const select of this.selects)select.value=String(values[select.dataset.key as keyof PresentationSettings]);
   }
+  /** Apply a change made outside the form (e.g. after choosing a music folder), then save it. */
+  apply(changes:Partial<PresentationSettings>){Object.assign(this.values,changes);for(const select of this.selects)select.value=String(this.values[select.dataset.key as keyof PresentationSettings]);this.commit();}
   private get selects(){return [...this.element.querySelectorAll('select')];}
   private commit(){
     for(const select of this.selects){const key=select.dataset.key as keyof PresentationSettings;
-      Object.assign(this.values,{[key]:key==='volume'?Number(select.value):key==='resolution'?select.value:select.value==='true'});}
+      Object.assign(this.values,{[key]:key==='volume'||key==='music'?Number(select.value):key==='resolution'||key==='radioSource'?select.value:select.value==='true'});}
     try{localStorage.setItem('cerea-presentation',JSON.stringify(this.values));}catch{/* Settings still apply in memory. */}
     this.changed();
   }
