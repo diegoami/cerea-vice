@@ -16,6 +16,8 @@ export interface Actions {
   atlasMoveY: number;
   clearMarker: boolean;
   information: boolean;
+  requestFares: boolean;
+  refreshFares: boolean;
   shiftGear: boolean;
   lookX: number;
   lookY: number;
@@ -49,6 +51,8 @@ export class Input {
   context:'driving'|'atlas'|'menu'='driving';
   currentPad:Gamepad|undefined;
   drivingReleased=true;
+  /** Fixed fare-board controls still held from the context that opened it. */
+  menuHeld=false;
   // Presentation menu input must retain its source; keyboard Enter always drives.
   settingsInput={move:0,confirm:false,keyboardConfirm:false};
   private previousSettingsConfirm=false;
@@ -78,6 +82,10 @@ export class Input {
   private queuedShiftGear = false;
   private previousInformation = false;
   private queuedInformation = false;
+  private previousRequestFares = false;
+  private queuedRequestFares = false;
+  private previousRefreshFares = false;
+  private queuedRefreshFares = false;
   private previousClearMarker = false;
   private queuedClearMarker = false;
   device = "Keyboard";
@@ -97,6 +105,8 @@ export class Input {
         if (event.code === "Escape" || event.code === "KeyP")
           this.queuedPause = true;
         if (matches("information",["KeyF"])) this.queuedInformation = true;
+        if (this.context==='driving'&&this.bindings.requestFares.keys.includes(event.code)) this.queuedRequestFares = true;
+        if (this.context==='menu'&&event.code==='KeyN') this.queuedRefreshFares = true;
         if (matches("shiftGear",["KeyR"])) this.queuedShiftGear = true;
         if (matches("resetLook",["KeyC","Home"])) this.queuedResetLook = true;
         if (event.code === "Equal" || event.code === "NumpadAdd") this.queuedAtlasZoomStep = 1;
@@ -127,6 +137,8 @@ export class Input {
       this.queuedAtlasPage = 0;
       this.queuedClearMarker = false;
       this.queuedInformation = false;
+      this.queuedRequestFares = false;
+      this.queuedRefreshFares = false;
       this.queuedResetLook = false;
       this.queuedShiftGear = false;
       this.queuedAtlasZoomStep = 0;
@@ -189,6 +201,10 @@ export class Input {
     const atlasPage = Number(down("KeyE") || button(5) > 0.5)
       - Number(down("KeyQ") || button(4) > 0.5);
     const information = active('information',['KeyF'],8);
+    // Raw states ignore context, so a press held while a screen changes is never a new edge.
+    const requestFares = boundDown('requestFares')||boundButton('requestFares')>.5;
+    const refreshFares = down('KeyN')||button(3)>.5;
+    this.menuHeld=down('Enter','Backspace','KeyN','ArrowUp','ArrowDown','KeyW','KeyS')||[0,1,3,12,13].some(i=>button(i)>.5)||Math.abs(pad?.axes[1]??0)>.5;
     const shiftGear = active('shiftGear',['KeyR'],1);
     const resetLook = active('resetLook',['KeyC','Home'],11);
     const clearMarker = down("Delete", "Backspace") || button(2) > 0.5;
@@ -212,6 +228,8 @@ export class Input {
         || (Number(button(13) > 0.5) - Number(button(12) > 0.5)) || deadzone(pad?.axes[1] ?? 0),
       clearMarker: this.queuedClearMarker || (clearMarker && !this.previousClearMarker),
       information: this.queuedInformation || (information && !this.previousInformation),
+      requestFares: this.context==='driving'&&(this.queuedRequestFares || (requestFares && !this.previousRequestFares)),
+      refreshFares: this.context==='menu'&&(this.queuedRefreshFares || (refreshFares && !this.previousRefreshFares)),
       shiftGear: this.queuedShiftGear || (shiftGear && !this.previousShiftGear),
       lookX: deadzone(pad?.axes[2] ?? 0),
       lookY: deadzone(pad?.axes[3] ?? 0),
@@ -231,6 +249,10 @@ export class Input {
     this.queuedShiftGear=false;
     this.previousInformation = information;
     this.queuedInformation = false;
+    this.previousRequestFares = requestFares;
+    this.queuedRequestFares = false;
+    this.previousRefreshFares = refreshFares;
+    this.queuedRefreshFares = false;
     this.previousClearMarker = clearMarker;
     this.queuedClearMarker = false;
     this.previousAtlas = atlas;

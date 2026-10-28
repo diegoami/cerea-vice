@@ -1,4 +1,4 @@
-import {actionLabels,bindingConflict,bindingLabel,buttonNames,controlActions,defaultBindings,keyName,validKey,type Bindings,type ControlAction} from './Bindings';
+import {actionLabels,bindingConflict,bindingLabel,buttonNames,controlActions,defaultBindings,keyName,validButton,validKey,type Bindings,type ControlAction} from './Bindings';
 
 export class ControlsPanel {
  private element=document.createElement('section');
@@ -48,7 +48,7 @@ export class ControlsPanel {
    if(!this.visible)return;
    const pressed=this.heldButtons;
    if(!this.ready){if(!pressed.some(Boolean))this.ready=true;return;}
-   if(this.capture){if(pressed[9]){this.capture=undefined;this.ready=false;this.render();}else if(this.capture.controller){const index=pressed.findIndex(Boolean);if(index>=0&&index<=12){this.assign(index);this.ready=false;}}return;}
+   if(this.capture){if(pressed[9]){this.capture=undefined;this.ready=false;this.render();}else if(this.capture.controller){const index=pressed.findIndex(Boolean);if(validButton(index)){this.assign(index);this.ready=false;}}return;}
    this.delay=Math.max(0,this.delay-dt);
    if(pressed[1]){this.close();return;}
    if(pressed[0]){this.activate();this.ready=false;return;}
