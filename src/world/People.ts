@@ -80,7 +80,7 @@ export function kerbOrigin(context:District,solid:Solid,stopId:string,car:CarPos
   dx/=length;dz/=length;
   const start=Math.max(bay.width,bay.depth)/2,fallbacks:Point[]=[];
   // The whole walk counts, including any detour round the bonnet or boot.
-  const walkable=(p:Point)=>clearPath(solid,walkToDoor(car,p,solid));
+  const walkable=(p:Point)=>{const route=walkToDoor(car,p,solid);return !crossesTaxi(car,route)&&clearPath(solid,route);};
   for(const turn of [0,.45,-.45,.9,-.9,1.5,-1.5]){
     const ux=dx*Math.cos(turn)-dz*Math.sin(turn),uz=dx*Math.sin(turn)+dz*Math.cos(turn);
     let last:Point|undefined;
@@ -98,23 +98,31 @@ export function kerbOrigin(context:District,solid:Solid,stopId:string,car:CarPos
   for(const reach of [2.5,1.8,3.5]){const p=carPoint(car,DOOR.x+reach,DOOR.z);if(!blocked(solid,p)&&walkable(p))return p;}
   return fallbacks[0]??carPoint(car,DOOR.x+2.5,DOOR.z);
 }
+/** The taxi body itself, in taxi-relative metres: no walk may enter it. */
+const HULL={minX:-1,maxX:1.6,minZ:-2.85,maxZ:2.2};
+/** True when a walk passes through the taxi body. */
+export function crossesTaxi(car:CarPose,points:Point[]){
+  for(let i=0;i<points.length-1;i++){
+    const a=points[i],b=points[i+1],steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.1));
+    for(let j=0;j<=steps;j++){
+      const l=carLocal(car,{x:a.x+(b.x-a.x)*j/steps,z:a.z+(b.z-a.z)*j/steps});
+      if(l.x>HULL.minX&&l.x<HULL.maxX&&l.z>HULL.minZ&&l.z<HULL.maxZ)return true;
+    }
+  }
+  return false;
+}
+const length=(points:Point[])=>points.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p.x-points[i].x,p.z-points[i].z),0);
 /**
- * Kerb → around the bonnet or boot when needed → passenger door. Never through
- * the taxi. With `solid`, whichever end of the car gives a clear path is used.
+ * Kerb → round the bonnet or boot when needed → passenger door. Routes that
+ * enter the taxi are never chosen; with `solid`, the shortest route that also
+ * keeps clear of buildings and water wins.
  */
 export function walkToDoor(car:CarPose,origin:Point,solid?:Solid):Point[]{
-  const o=carLocal(car,origin),door=carPoint(car,DOOR.x,DOOR.z);
-  if(o.x>=BODY.maxX)return [origin,door];
-  const around=(front:boolean)=>{
-    const end=front?BODY.minZ:BODY.maxZ,beyond=front?o.z<=BODY.minZ:o.z>=BODY.maxZ,points=[origin];
-    if(!beyond)points.push(carPoint(car,Math.min(o.x,BODY.minX),end));
-    points.push(carPoint(car,BODY.maxX,end),door);
-    return points;
-  };
-  const nearer=o.z<(BODY.minZ+BODY.maxZ)/2,first=around(nearer);
-  if(!solid||clearPath(solid,first))return first;
-  const other=around(!nearer);
-  return clearPath(solid,other)?other:first;
+  const door=carPoint(car,DOOR.x,DOOR.z),corner=(x:number,z:number)=>carPoint(car,x,z);
+  const FL=corner(BODY.minX,BODY.minZ),FR=corner(BODY.maxX,BODY.minZ),BL=corner(BODY.minX,BODY.maxZ),BR=corner(BODY.maxX,BODY.maxZ);
+  const routes=[[],[FR],[BR],[FL,FR],[BL,BR]].map(via=>[origin,...via,door]).filter(route=>!crossesTaxi(car,route)).sort((a,b)=>length(a)-length(b));
+  const clear=solid&&routes.find(route=>clearPath(solid,route));
+  return clear||routes[0]||[origin,BR,door];
 }
 function along(points:Point[],fraction:number){
   const lengths=points.slice(1).map((p,i)=>Math.hypot(p.x-points[i].x,p.z-points[i].z)),total=lengths.reduce((a,b)=>a+b,0);

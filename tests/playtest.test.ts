@@ -8,7 +8,7 @@ import {createMission,guaranteedFare,migrateSnapshot,BOARDING_SECONDS,DEPARTURE_
 import {createNavigation} from '../src/navigation/Navigation';
 import {createAtlasNotes} from '../src/navigation/AtlasNotes';
 import {decodeSave,mapSignature,type SaveData} from '../src/game/Save';
-import {PassengerPresence,createPerson,carPoint,clearPath,kerbOrigin,walkToDoor,DOOR} from '../src/world/People';
+import {PassengerPresence,createPerson,carPoint,clearPath,crossesTaxi,kerbOrigin,walkToDoor,DOOR} from '../src/world/People';
 import {inRect} from '../src/world/district';
 import {LocalFrame} from '../src/world/LocalFrame';
 import {defaultBindings,readBindings,bindingConflict,bindingLabel} from '../src/input/Bindings';
@@ -223,16 +223,20 @@ test('walks stay clear of buildings from off-centre parking positions, choosing 
  const teatro=context.district.taxi!.stops.find(s=>s.id==='teatro')!,off={x:38.53,z:-362.08,heading:0};
  assert.ok(teatro);
  assert.equal(clearPath(context.buildings,walkToDoor(off,kerbOrigin(context,context.buildings,'teatro',off),context.buildings)),true,'Teatro off-centre');
+ // Regression: the opposite-end detour used to cut across the cabin at Cinema Principe.
+ const principe={x:-46.4,z:114.99,heading:0},route=walkToDoor(principe,kerbOrigin(context,context.buildings,'principe',principe),context.buildings);
+ assert.equal(crossesTaxi(principe,route),false,'Principe walk avoids the taxi');assert.equal(clearPath(context.buildings,route),true,'Principe walk avoids buildings');
  for(const data of [cerea,outskirts]){
   const district=new District(data),inside=(p:{x:number;z:number},margin:number)=>district.buildings.at(p,margin).some(r=>inRect(p,r,-margin));
   for(const stop of district.district.taxi!.stops){
    const bay=district.parkingZones.find(b=>b.id===stop.bayId)!;
-   for(let dx=-bay.width/2+1.5;dx<=bay.width/2-1.5;dx+=1.5)for(let dz=-bay.depth/2+1.5;dz<=bay.depth/2-1.5;dz+=1.5)for(const heading of [0,Math.PI/2,Math.PI,-Math.PI/2]){
-    const car={x:bay.x+dx,z:bay.z+dz,heading},door=carPoint(car,DOOR.x,DOOR.z);
+   for(let dx=-bay.width/2+1.5;dx<=bay.width/2-1.5;dx+=1.5)for(let dz=-bay.depth/2+1.5;dz<=bay.depth/2-1.5;dz+=1.5)for(let k=0;k<12;k++){
+    const heading=k*Math.PI/6,car={x:bay.x+dx,z:bay.z+dz,heading},door=carPoint(car,DOOR.x,DOOR.z);
     // A door pressed against a wall (or a car overlapping one) has no clear walk to its own door.
     if(inside(door,.35)||[[-1.55,-3.4],[1.95,-3.4],[-1.55,2.8],[1.95,2.8]].some(([x,z])=>inside(carPoint(car,x,z),0)))continue;
     const path=walkToDoor(car,kerbOrigin(district,district.buildings,stop.id,car),district.buildings);
     assert.equal(clearPath(district.buildings,path),true,`${stop.id} at ${dx},${dz},${heading}`);
+    assert.equal(crossesTaxi(car,path),false,`${stop.id}: walk crosses the taxi at ${dx},${dz},${heading}`);
    }
   }
  }
