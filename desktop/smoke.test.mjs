@@ -576,6 +576,86 @@ test('presentation modes preserve sharp UI, mirrors and controller settings with
 });
 
 
+/** The internal size Settings.renderSize should give for this window (Sharp 1920 wide; High 3840×2160; ratio 2). */
+const expectedPicture=page=>page.evaluate(()=>{
+ const mode=document.querySelector('[data-key=resolution]').value,w=innerWidth,h=innerHeight,r=devicePixelRatio;
+ const scale=mode==='sharp'?Math.min(r,2,1920/w):mode==='high'?Math.min(r,2,3840/w,2160/h):Math.min(1,(mode==='retro'?270:540)/h);
+ const canvas=document.querySelector('#viewport'),box=canvas.getBoundingClientRect();
+ return {mode,expected:[Math.round(w*scale),Math.round(h*scale)],buffer:[canvas.width,canvas.height],css:[box.width,box.height],window:[w,h],ratio:r,info:document.querySelector('.picture-info').textContent,
+  hudFont:getComputedStyle(document.querySelector('#timer')).fontSize,pixelated:canvas.classList.contains('pixel-picture')};
+});
+test('picture quality is labelled, saved, keyboard/controller selectable and follows HiDPI and fullscreen', {timeout:120000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-picture-quality-'));
+ const launch=()=>_electron.launch({args:[path.resolve('.'),'--force-device-scale-factor=2',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ let app=await launch();
+ try{
+  let page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.deepEqual(await page.locator('[data-key=resolution] option').allInnerTexts(),['Retro 270p','Retro 540p','Sharp','High (to 4K)']);
+  let state=await expectedPicture(page);
+  assert.equal(state.mode,'retro-fine','A fresh profile never starts in a costly mode');assert.equal(state.ratio,2);
+  assert.deepEqual(state.buffer,state.expected);assert.match(state.info,/^Default\..*Drawing \d+×540 for a \d+×\d+ window\.$/);
+  const font=state.hudFont,css=state.css;
+  // Keyboard: Tab from the scenery choice, then an arrow key, as the panel advertises.
+  await page.locator('[data-key=detail]').focus();await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(()=>document.activeElement.dataset.key),'resolution');
+  await page.keyboard.press('ArrowDown');await page.waitForFunction(()=>document.querySelector('[data-key=resolution]').value==='sharp');
+  state=await expectedPicture(page);assert.deepEqual(state.buffer,state.expected);assert.ok(state.buffer[0]>state.window[0],'Sharp uses the HiDPI ratio');
+  assert.match(state.info,new RegExp(`street plates\\. Drawing ${state.buffer[0]}×${state.buffer[1]} for a ${state.window[0]*2}×${state.window[1]*2} window`));
+  await page.locator('[data-key=resolution]').blur();
+  // Controller: D-pad to the Picture row, A cycles to High.
+  await page.evaluate(()=>{window.qualityPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};
+   Object.defineProperty(navigator,'getGamepads',{value:()=>[window.qualityPad],configurable:true});});
+  for(const key of ['detail','resolution']){
+   await page.evaluate(()=>{window.qualityPad.buttons[13].value=1;});
+   await page.waitForFunction(key=>document.querySelector(`[data-key=${key}]`).classList.contains('controller-selected'),key);
+   await page.evaluate(()=>{window.qualityPad.buttons[13].value=0;});await frames(page);
+  }
+  await page.evaluate(()=>{window.qualityPad.buttons[0].value=1;});
+  await page.waitForFunction(()=>document.querySelector('[data-key=resolution]').value==='high');
+  await page.evaluate(()=>{window.qualityPad.buttons[0].value=0;});await frames(page);
+  assert.equal(await page.getByRole('button',{name:'Start the engine'}).isVisible(),true,'Changing quality does not start the shift');
+  state=await expectedPicture(page);assert.deepEqual(state.buffer,state.expected);assert.match(state.info,/Most demanding/);
+  assert.ok(state.buffer[0]>=state.window[0]*2||state.buffer[0]===3840||state.buffer[1]===2160,'High draws every device pixel up to its cap');
+  for(const mode of ['retro','retro-fine','sharp','high']){
+   await page.locator('[data-key=resolution]').selectOption(mode);state=await expectedPicture(page);
+   assert.deepEqual(state.buffer,state.expected,mode);assert.deepEqual(state.css,css,`${mode} keeps the display-size canvas`);assert.equal(state.hudFont,font,`${mode} keeps HUD text at display resolution`);
+   assert.equal(state.pixelated,mode.startsWith('retro'));
+   assert.ok(Math.abs(state.buffer[0]/state.buffer[1]-state.window[0]/state.window[1])<.01,`${mode} keeps the aspect ratio`);
+  }
+  // Same knowledge and controls in every mode: an estimate placed in High stays put in Retro.
+  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>document.querySelector('#atlas-marker-status')?.textContent.includes('Your estimated position'));
+  const pin=await page.locator('.atlas-pin').getAttribute('transform');
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  await page.locator('[data-key=resolution]').selectOption('retro');await page.locator('[data-key=resolution]').selectOption('high');
+  await page.keyboard.press('Enter');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),pin,'Picture quality never moves the atlas marker');
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+  // Fullscreen and back recompute the picture for the new window.
+  for(const full of [true,false]){
+   await app.evaluate(async({BrowserWindow},full)=>{const win=BrowserWindow.getAllWindows()[0];if(win.isFullScreen()===full)return;
+    await new Promise(resolve=>{win.once(full?'enter-full-screen':'leave-full-screen',resolve);win.setFullScreen(full);});},full);
+   // The window manager may deliver the final size after the fullscreen event; wait for it to settle.
+   await page.waitForFunction(()=>{const size=`${innerWidth}x${innerHeight}`,stable=window.qualityLastSize===size;window.qualityLastSize=size;return stable;},null,{polling:400});
+   await page.waitForFunction(()=>{const c=document.querySelector('#viewport'),m=document.querySelector('[data-key=resolution]').value,r=devicePixelRatio,w=innerWidth,h=innerHeight;
+    const k=Math.min(r,2,3840/w,2160/h);return m==='high'&&c.width===Math.round(w*k)&&c.height===Math.round(h*k);},null,{timeout:10000});
+   state=await expectedPicture(page);assert.deepEqual(state.buffer,state.expected,`fullscreen ${full}`);
+  }
+  assert.deepEqual(errors,[]);
+  await app.close();
+  // The explicit choice is saved; relaunching keeps it rather than silently changing it.
+  app=await launch();page=await app.firstWindow();
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  state=await expectedPicture(page);assert.equal(state.mode,'high');assert.deepEqual(state.buffer,state.expected);
+  await page.screenshot({path:'test-results/picture-quality-high-hidpi.png'});
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
 test('restricted storage and keyboard settings preserve startup and resume controls', {timeout:90000}, async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-settings-regression-'));
  const app=await _electron.launch({args:[path.resolve('.'),'--district=harbor',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});

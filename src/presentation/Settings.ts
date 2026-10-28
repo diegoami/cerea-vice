@@ -1,6 +1,6 @@
 export interface PresentationSettings {
   detail: boolean;
-  resolution: 'sharp' | 'retro' | 'retro-fine';
+  resolution: 'retro' | 'retro-fine' | 'sharp' | 'high';
   motion: boolean;
   volume: number;
   radio: boolean;
@@ -11,16 +11,26 @@ export function readSettings(storage: Pick<Storage,'getItem'> | (()=>Pick<Storag
     const source=typeof storage==='function'?storage():storage;
     const value=JSON.parse(source.getItem('cerea-presentation')??'{}');
     return {detail:typeof value.detail==='boolean'?value.detail:defaults.detail,
-      resolution:['sharp','retro','retro-fine'].includes(value.resolution)?value.resolution:defaults.resolution,
+      resolution:['retro','retro-fine','sharp','high'].includes(value.resolution)?value.resolution:defaults.resolution,
       motion:typeof value.motion==='boolean'?value.motion:defaults.motion,
       volume:typeof value.volume==='number'&&Number.isFinite(value.volume)?Math.max(0,Math.min(1,value.volume)):defaults.volume,
       radio:typeof value.radio==='boolean'?value.radio:defaults.radio};
   } catch {return {...defaults};}
 }
-export function renderSize(width:number,height:number,mode:PresentationSettings['resolution'],pixelRatio=1) {
-  const scale=mode==='sharp'?Math.min(pixelRatio,2,1920/width):Math.min(1,(mode==='retro'?270:540)/height);
-  return {width:Math.round(width*scale),height:Math.round(height*scale)};
+export const isRetro=(mode:PresentationSettings['resolution'])=>mode==='retro'||mode==='retro-fine';
+/** Internal picture size for a CSS-pixel window. Sharp keeps its 0.9 cap (1920 px wide,
+ * pixel ratio 2); High is opt-in only and caps at 3840×2160 and the GPU's `limit`. */
+export function renderSize(width:number,height:number,mode:PresentationSettings['resolution'],pixelRatio=1,limit=Infinity) {
+  const scale=mode==='sharp'?Math.min(pixelRatio,2,1920/width):mode==='high'?Math.min(pixelRatio,2,3840/width,2160/height):Math.min(1,(mode==='retro'?270:540)/height);
+  const fit=Math.min(1,limit/Math.max(width*scale,height*scale));
+  return {width:Math.max(1,Math.round(width*scale*fit)),height:Math.max(1,Math.round(height*scale*fit))};
 }
+export const pictureNotes:Record<PresentationSettings['resolution'],string>={
+  'retro':'Lightest. Coarse pixels; small signs are hard to read.',
+  'retro-fine':'Default. Pixel look at a modest cost.',
+  'sharp':'Display resolution up to 1920 px wide, for reading street plates.',
+  'high':'Full display and HiDPI resolution up to 3840 px wide. Most demanding: choose Sharp or Retro if driving stutters.',
+};
 /** Shared keyboard/native form controls and controller cycling, only outside play. */
 export class SettingsPanel {
   private readonly element=document.createElement('section');
@@ -33,7 +43,8 @@ export class SettingsPanel {
     this.element.setAttribute('aria-label','Presentation settings');
     this.element.innerHTML=`<strong>PICTURE & SOUND</strong><small>D-pad: select · A: change · Start: drive<br>Keyboard: Tab / arrows edit · Space activates buttons · Enter / Esc / P drive</small>
       <label>Scenery <select data-key="detail"><option value="true">Detailed</option><option value="false">Simple</option></select></label>
-      <label>Picture <select data-key="resolution"><option value="sharp">Sharp (read signs)</option><option value="retro">Retro 270p</option><option value="retro-fine">Retro 540p</option></select></label>
+      <label>Picture <select data-key="resolution"><option value="retro">Retro 270p</option><option value="retro-fine">Retro 540p</option><option value="sharp">Sharp</option><option value="high">High (to 4K)</option></select></label>
+      <small class="picture-info" role="status"></small>
       <label>Cockpit motion <select data-key="motion"><option value="true">Subtle</option><option value="false">Off</option></select></label>
       <label>Volume <select data-key="volume"><option value="0">Mute</option><option value="0.25">Quiet</option><option value="0.5">Medium</option><option value="1">Full</option></select></label>
       <label>Radio <select data-key="radio"><option value="false">Off</option><option value="true">On</option></select></label>`;
@@ -51,6 +62,11 @@ export class SettingsPanel {
     for(const select of this.selects)select.value=String(values[select.dataset.key as keyof PresentationSettings]);
   }
   private get selects(){return [...this.element.querySelectorAll('select')];}
+  /** Names the selected quality and the picture size actually drawn, in device pixels. */
+  showPicture(width:number,height:number,windowWidth:number,windowHeight:number){
+    const info=this.element.querySelector('.picture-info')!;
+    info.textContent=`${pictureNotes[this.values.resolution]} Drawing ${width}×${height} for a ${windowWidth}×${windowHeight} window.`;
+  }
   private commit(){
     for(const select of this.selects){const key=select.dataset.key as keyof PresentationSettings;
       Object.assign(this.values,{[key]:key==='volume'?Number(select.value):key==='resolution'?select.value:select.value==='true'});}
