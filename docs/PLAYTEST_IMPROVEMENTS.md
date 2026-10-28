@@ -152,3 +152,21 @@ up to about 3 m/s), D-pad down / O comfort, and the walk's readability from the
 driver's seat. Walks avoid buildings, water and the taxi body, not decorative
 props. No physical controller or Windows close/relaunch gameplay check was run
 in this pass.
+
+Validation on 28 October 2026 for 0.9.0-rc.1 (Node 24, WSL):
+
+- `npm test`: 98/98 checks passed, including no automatic offers, stable
+  request/close/reopen and save/load of the list, accept versus close/new-list
+  payouts, remapped Request fares with conflicts and 0.8 profile migration,
+  context isolation of held inputs, the boarding walk through rebasing, reload
+  and save/resume, clear arrival paths at every Cerea and outskirts stop, 0.8
+  save migration and an unchanged atlas marker.
+- TypeScript/Vite production build passed, with the existing >500 kB chunk
+  warning.
+- The prescribed Xvfb/xfwm4 desktop suite passed 12/12 scenarios, now covering
+  the fare list by keyboard, mouse and simulated controller, a remapped request
+  key, saving and loading during a boarding walk, and Electron relaunch.
+  `passenger-arriving.png` and `cerea-fare-board.png` are written to ignored
+  `test-results/`.
+- Not run: Windows packaging/launch, a physical controller, and a Windows
+  close/relaunch gameplay check; these remain owner checks.
