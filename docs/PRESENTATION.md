@@ -33,7 +33,8 @@ profile uses defaults. The simulator remains paused while options are changed.
 - Cockpit motion: bounded interior-only roll/pitch (under one degree) and
   small wheel vibration, with an exact Off setting. The road camera, compass,
   car position, handling and gear selection are unaffected.
-- Sound: master volume including mute; radio independently off by default.
+- Sound (superseded by [AUDIO.md](AUDIO.md): new engine, 75% default volume,
+  music level and a local music folder): master volume including mute; radio independently off by default.
   An idle/engine triangle oscillator follows speed and gear. A brief square
   tick follows steering rather than supplying turn advice. A sine-note loop
   is the quiet radio bed. Atlas, pause, briefing and results fade the master

@@ -72,7 +72,7 @@ play uses fresh dispatch randomness.
 
 The map now extends farther south and east, including the post office and the Oratorio dello Spasimo area, plus additional streets north and west. All taxi stop pairs have finite directed road routes. Pickup areas are game placements near mapped places, not claims about real taxi ranks or parking permissions. See [map sources and layout](MAPS.md) and [source details](data/README.md).
 
-Presentation options never change fares, clocks, stopping areas or passenger-service rules. Sound fades out while the atlas or pause screen freezes the shift.
+Presentation options never change fares, clocks, stopping areas or passenger-service rules. Sound fades out, and folder radio music pauses in place, while the atlas or pause screen freezes the shift. Radio controls never change the clock or fares.
 
 The district context now owns indexed queries and the directed route graph.
 The route implementation changes in B preserve the old paths, route costs and
