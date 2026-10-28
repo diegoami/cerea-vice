@@ -4,7 +4,9 @@ import {box,material} from './builders';
 import type {District} from './district';
 import type {Mission} from '../mission/Mission';
 import type {LocalFrame} from './LocalFrame';
-import type {Point} from './schema';
+import type {Point,Rect} from './schema';
+import {inRect} from './district';
+import {BOARDING_SECONDS,DEPARTURE_SECONDS} from '../mission/Mission';
 
 /** Faceted, clothed people with a face and bent limbs; no external assets. */
 export function createPerson(identity:string,seated=false){
@@ -45,18 +47,114 @@ export function createPerson(identity:string,seated=false){
   return group;
 }
 
-/** Mission-dependent people live outside disposable visual tiles. */
-export class PassengerPresence {
-  private figures=new Map<string,THREE.Group>();
-  constructor(private context:District,scene:THREE.Scene){
-    for(const stop of context.district.taxi?.stops??[]){const figure=createPerson(stop.id);figure.name=`Waiting at ${stop.id}`;this.figures.set(stop.id,figure);scene.add(figure);}
+export interface CarPose extends Point {heading:number}
+type Solid={at(point:Point,radius?:number):Rect[]}|Rect[];
+/** Taxi-relative point: +lx is the passenger side, +lz is rearward. */
+export function carPoint(car:CarPose,lx:number,lz:number):Point{
+  const c=Math.cos(car.heading),s=Math.sin(car.heading);
+  return {x:car.x+c*lx-s*lz,z:car.z+s*lx+c*lz};
+}
+function carLocal(car:CarPose,p:Point){const c=Math.cos(car.heading),s=Math.sin(car.heading),dx=p.x-car.x,dz=p.z-car.z;return {x:dx*c+dz*s,z:-dx*s+dz*c};}
+/** Outside the passenger door, and the point inside it where the passenger sits down. */
+export const DOOR={x:1.95,z:.55},SEAT={x:1.05,z:.6};
+// Car body plus clearance, in taxi-relative metres.
+const BODY={minX:-1.55,maxX:1.95,minZ:-3.4,maxZ:2.8};
+const blocked=(solid:Solid,p:Point,margin=.35)=>(Array.isArray(solid)?solid:solid.at(p,margin)).some(r=>inRect(p,r,-margin));
+/** True when a walked segment stays clear of buildings and water. */
+export function clearPath(solid:Solid,points:Point[]){
+  for(let i=0;i<points.length-1;i++){
+    const a=points[i],b=points[i+1],steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.4));
+    for(let j=0;j<=steps;j++)if(blocked(solid,{x:a.x+(b.x-a.x)*j/steps,z:a.z+(b.z-a.z)*j/steps},.2))return false;
   }
-  update(mission:Mission,frame:LocalFrame,near:Point){
-    for(const stop of this.context.district.taxi?.stops??[]){
-      const figure=this.figures.get(stop.id)!,bay=this.context.parkingZones.find(b=>b.id===stop.bayId)!;
-      const p={x:bay.x+bay.width/2-1,z:bay.z+bay.depth/2-1},q=frame.toLocal(p);
-      figure.position.set(q.x,.12,q.z);
-      figure.visible=!(mission.taxiStage==='dropoff'&&mission.pickupStop?.id===stop.id)&&Math.hypot(p.x-near.x,p.z-near.z)<(this.context.district.streaming?.loadRadius??1100)-45;
+  return true;
+}
+/**
+ * A doorway or other off-street spot beside a stop: walk away from the road
+ * until a building face (stand just outside it) or five metres of open ground.
+ */
+export function kerbOrigin(context:District,solid:Solid,stopId:string,car:CarPose):Point{
+  const stop=context.district.taxi!.stops.find(s=>s.id===stopId)!,bay=context.parkingZones.find(b=>b.id===stop.bayId)!;
+  const road=context.nearestRoad(bay).point;
+  let dx=bay.x-road.x,dz=bay.z-road.z,length=Math.hypot(dx,dz);
+  if(length<.5){const side=carPoint(car,1,0);dx=side.x-car.x;dz=side.z-car.z;length=1;}
+  dx/=length;dz/=length;
+  const door=carPoint(car,DOOR.x,DOOR.z),start=Math.max(bay.width,bay.depth)/2;
+  for(const turn of [0,.45,-.45,.9,-.9,1.5,-1.5]){
+    const ux=dx*Math.cos(turn)-dz*Math.sin(turn),uz=dx*Math.sin(turn)+dz*Math.cos(turn);
+    let last:Point|undefined;
+    for(let t=start;t<=start+12;t+=.5){
+      const p={x:bay.x+ux*t,z:bay.z+uz*t};
+      if(blocked(solid,p)){if(last)return last;break;}
+      // Stop at open ground rather than crossing onto another street.
+      if(t>start+1&&context.isPaved(p))break;
+      if(!context.isPaved(p))last=p;
+      if(last&&t>=start+5)return last;
+    }
+    if(last&&clearPath(solid,[last,door]))return last;
+  }
+  return carPoint(car,DOOR.x+2.5,DOOR.z);
+}
+/** Kerb → around the bonnet or boot when needed → passenger door. Never through the taxi. */
+export function walkToDoor(car:CarPose,origin:Point):Point[]{
+  const o=carLocal(car,origin),points=[origin];
+  if(o.x<BODY.maxX){
+    const front=o.z<(BODY.minZ+BODY.maxZ)/2,end=front?BODY.minZ:BODY.maxZ;
+    const beyond=front?o.z<=BODY.minZ:o.z>=BODY.maxZ;
+    if(!beyond)points.push(carPoint(car,Math.min(o.x,BODY.minX),end));
+    points.push(carPoint(car,BODY.maxX,end));
+  }
+  points.push(carPoint(car,DOOR.x,DOOR.z));
+  return points;
+}
+function along(points:Point[],fraction:number){
+  const lengths=points.slice(1).map((p,i)=>Math.hypot(p.x-points[i].x,p.z-points[i].z)),total=lengths.reduce((a,b)=>a+b,0);
+  let left=Math.max(0,Math.min(1,fraction))*total;
+  for(let i=0;i<lengths.length;i++){
+    if(left<=lengths[i]||i===lengths.length-1){const t=lengths[i]?Math.min(1,left/lengths[i]):1,a=points[i],b=points[i+1];return {x:a.x+(b.x-a.x)*t,z:a.z+(b.z-a.z)*t,heading:Math.atan2(b.x-a.x,-(b.z-a.z))};}
+    left-=lengths[i];
+  }
+  return {...points[0],heading:0};
+}
+/** Where a walking/boarding passenger stands, or undefined when they are not outside. */
+export function passengerPose(path:Point[],car:CarPose,fraction:number,leaving=false){
+  const walk=.8,f=leaving?1-fraction:fraction;
+  if(f<=walk){const p=along(path,f/walk);return {x:p.x,z:p.z,heading:leaving?p.heading+Math.PI:p.heading,sink:0,step:f/walk};}
+  // Turn toward the seat and lower into it; the body hides the rest.
+  const t=(f-walk)/(1-walk),door=carPoint(car,DOOR.x,DOOR.z),seat=carPoint(car,SEAT.x,SEAT.z);
+  return {x:door.x+(seat.x-door.x)*t,z:door.z+(seat.z-door.z)*t,heading:car.heading-Math.PI/2,sink:t*.75,step:0};
+}
+
+/**
+ * Only the active passenger exists outside the car: walking from a doorway to
+ * an accepted, stopped taxi, or away after dropoff. Mission state and timers
+ * drive it, so tile reloads, rebasing and saves cannot duplicate or strand it.
+ */
+export class PassengerPresence {
+  private boarder?:{identity:string;figure:THREE.Group};
+  private leaver?:{departure:object;figure:THREE.Group;path:Point[];car:CarPose};
+  constructor(private context:District,private scene:THREE.Scene,private solid:Solid=context.buildings){}
+  private figure(identity:string){const figure=createPerson(identity);figure.name=`Passenger ${identity}`;this.scene.add(figure);return figure;}
+  private dispose(figure:THREE.Group){figure.removeFromParent();figure.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});}
+  private place(figure:THREE.Group,frame:LocalFrame,pose:ReturnType<typeof passengerPose>){
+    const q=frame.toLocal(pose);
+    figure.position.set(q.x,(this.context.isPaved(pose)?.02:.12)-pose.sink+Math.abs(Math.sin(pose.step*Math.PI*9))*.05,q.z);
+    figure.rotation.set(0,-pose.heading,Math.sin(pose.step*Math.PI*9)*.04);
+  }
+  /** Names of passengers currently drawn outside the taxi (for checks). */
+  get outside(){return [this.boarder?.figure,this.leaver?.figure].filter(f=>f?.visible).map(f=>f!.name);}
+  update(mission:Mission,frame:LocalFrame,car:CarPose){
+    const identity=mission.boarding>0?mission.passengerIdentity:'';
+    if(this.boarder&&this.boarder.identity!==identity){this.dispose(this.boarder.figure);this.boarder=undefined;}
+    if(identity){
+      this.boarder??={identity,figure:this.figure(identity)};
+      const path=walkToDoor(car,kerbOrigin(this.context,this.solid,mission.pickupStop!.id,car));
+      this.place(this.boarder.figure,frame,passengerPose(path,car,1-mission.boarding/BOARDING_SECONDS));
+    }
+    const departure=mission.departure;
+    if(this.leaver&&this.leaver.departure!==departure){this.dispose(this.leaver.figure);this.leaver=undefined;}
+    if(departure){
+      if(!this.leaver){const pose={x:car.x,z:car.z,heading:car.heading};this.leaver={departure,figure:this.figure(departure.identity),car:pose,path:walkToDoor(pose,kerbOrigin(this.context,this.solid,departure.stopId,pose))};}
+      this.place(this.leaver.figure,frame,passengerPose(this.leaver.path,this.leaver.car,1-departure.remaining/DEPARTURE_SECONDS,true));
     }
   }
 }
