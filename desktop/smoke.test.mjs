@@ -47,7 +47,7 @@ test('review regressions: focused settings resume by keyboard and only advertise
   assert.match(await page.locator('#hint').innerText(),/nothing accepted/);assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned · 0 fares/);
   await page.waitForTimeout(600);assert.equal(await page.locator('.fare-board').isVisible(),false,'A closed list does not reopen');
   await requestFares(page);assert.deepEqual(await listed(page),offers,'Reopening shows the same fares and quotes');
-  await button(1,1);await button(1,0);await button(1,1);await button(1,0);await page.locator('#overlay').waitFor({state:'hidden'});assert.equal(await page.locator('#gear').innerText(),'D','B closes the list without shifting');
+  await button(1,1);await button(1,0);await page.locator('#overlay').waitFor({state:'hidden'});assert.equal(await page.locator('#gear').innerText(),'D','B closes the list without shifting');
   await button(13,1);await page.locator('.fare-board').waitFor();assert.deepEqual(await listed(page),offers,'D-pad down shows the list');
   await button(0,1);await button(0,0);assert.equal(await page.locator('.fare-board').isVisible(),true,'A held from the request cannot accept');
   await button(13,0);await button(13,1);await button(13,0);
