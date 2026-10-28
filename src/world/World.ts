@@ -9,6 +9,7 @@ import { box, sign, signpost, material, streetNamePlate } from "./builders";
 import { createStreetPlates } from "./streetPlates";
 import { createSigns } from "./signs";
 import { District } from "./district";
+import { ground, paving, features as mapped, facadeTrim, light, haze, skyGradient } from "./palette";
 export function createWorld(logical:District){
 const frame=new LocalFrame(logical.spawn);
 // Legacy Harbor geometry/obstacles are authored around zero, not translated data.
@@ -47,16 +48,16 @@ class World {
     this.scene=new THREE.Scene();this.colliders=[];
     const scene=this.scene,bounds=district.bounds;
     const width=bounds.maxX-bounds.minX,depth=bounds.maxZ-bounds.minZ;
-    scene.background=new THREE.Color(0xa3b6b4);scene.fog=new THREE.Fog(0xa3b6b4,160,1100);
-    this.daylightAmbient=new THREE.HemisphereLight(0xffe3bf,0x62776d,2.3);scene.add(this.daylightAmbient);
-    const sun=new THREE.DirectionalLight(0xffdfae,2);sun.position.set(-200,300,100);scene.add(sun);this.daylightSun=sun;
-    box(scene,(bounds.minX+bounds.maxX)/2,-0.4,(bounds.minZ+bounds.maxZ)/2,width+100,0.7,depth+100,0x7d876b);
+    scene.background=new THREE.Color(haze.initial);scene.fog=new THREE.Fog(haze.initial,160,1100);
+    this.daylightAmbient=new THREE.HemisphereLight(light.sky,light.bounce,2.3);scene.add(this.daylightAmbient);
+    const sun=new THREE.DirectionalLight(light.sun,2);sun.position.set(-200,300,100);scene.add(sun);this.daylightSun=sun;
+    box(scene,(bounds.minX+bounds.maxX)/2,-0.4,(bounds.minZ+bounds.maxZ)/2,width+100,0.7,depth+100,ground.town);
     for(const feature of district.features) {
       for(let i=0;i<feature.points.length-1;i++) {
         const a=feature.points[i],b=feature.points[i+1];
         if(feature.kind==="water") {
-          strip(scene,a,b,feature.width+2,-0.06,0.1,0xadb09a);
-          strip(scene,a,b,feature.width,0,0.05,0x668e94);
+          strip(scene,a,b,feature.width+2,-0.06,0.1,mapped.bank);
+          strip(scene,a,b,feature.width,0,0.05,mapped.water);
           const length=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.ceil(length/6);
           const nx=-(b.z-a.z)/(length||1)*feature.width/2,nz=(b.x-a.x)/(length||1)*feature.width/2;
           for(let j=0;j<steps;j++) {
@@ -66,29 +67,29 @@ class World {
             this.colliders.push({x:(p.x+q.x)/2,z:(p.z+q.z)/2,width:Math.abs(q.x-p.x)+feature.width,depth:Math.abs(q.z-p.z)+feature.width,points:[{x:p.x+nx,z:p.z+nz},{x:q.x+nx,z:q.z+nz},{x:q.x-nx,z:q.z-nz},{x:p.x-nx,z:p.z-nz}]});
           }
         } else {
-          strip(scene,a,b,4,0.01,0.05,0x8d8a77);
+          strip(scene,a,b,4,0.01,0.05,mapped.ballast);
           const length=Math.hypot(b.x-a.x,b.z-a.z),nx=-(b.z-a.z)/(length||1)*0.8,nz=(b.x-a.x)/(length||1)*0.8;
-          for(const side of [-1,1])strip(scene,{x:a.x+nx*side,z:a.z+nz*side},{x:b.x+nx*side,z:b.z+nz*side},0.12,0.09,0.1,0xaab4b1);
+          for(const side of [-1,1])strip(scene,{x:a.x+nx*side,z:a.z+nz*side},{x:b.x+nx*side,z:b.z+nz*side},0.12,0.09,0.1,mapped.rail);
         }
       }
     }
     for(const road of roads) {
       const a=nodeById(road.a),b=nodeById(road.b),w=roadWidth(road);
-      strip(scene,a,b,w+2.5,0.01,0.08,0xb3ae98);
+      strip(scene,a,b,w+2.5,0.01,0.08,paving.verge);
     }
     for(const road of roads) {
       const a=nodeById(road.a),b=nodeById(road.b),w=roadWidth(road);
-      strip(scene,a,b,w,0.075,0.06,0x4d5655);
-      const cap=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,0.06,12),material(0x4d5655));cap.position.set(a.x,0.075,a.z);scene.add(cap);
+      strip(scene,a,b,w,0.075,0.06,paving.road);
+      const cap=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,0.06,12),material(paving.road));cap.position.set(a.x,0.075,a.z);scene.add(cap);
       const length=Math.hypot(b.x-a.x,b.z-a.z);
       for(let t=10;t<length-8;t+=12) {
         const p={x:a.x+(b.x-a.x)*t/length,z:a.z+(b.z-a.z)*t/length};
         const q={x:a.x+(b.x-a.x)*(t+3)/length,z:a.z+(b.z-a.z)*(t+3)/length};
-        strip(scene,p,q,0.15,0.12,0.025,0xe3dbc1);
+        strip(scene,p,q,0.15,0.12,0.025,paving.dash);
       }
       if(road.bridge) {
         const nx=-(b.z-a.z)/length*(w/2+0.5),nz=(b.x-a.x)/length*(w/2+0.5);
-        for(const side of [-1,1])strip(scene,{x:a.x+nx*side,z:a.z+nz*side},{x:b.x+nx*side,z:b.z+nz*side},0.2,1,0.2,0x696f65);
+        for(const side of [-1,1])strip(scene,{x:a.x+nx*side,z:a.z+nz*side},{x:b.x+nx*side,z:b.z+nz*side},0.2,1,0.2,paving.bridgeRail);
       }
     }
     for(const building of district.buildings) {
@@ -103,7 +104,7 @@ class World {
           const mid={x:(wall.a.x+wall.b.x)/2,z:(wall.a.z+wall.b.z)/2};
           if(pointInPolygon({x:mid.x+nx*0.1,z:mid.z+nz*0.1},building.points)){nx=-nx;nz=-nz;}
           for(const t of [0.25,0.5,0.75]) {
-            const window=box(this.simpleBuildings,wall.a.x+(wall.b.x-wall.a.x)*t+nx*0.04,Math.min(3.5,building.height-1),wall.a.z+(wall.b.z-wall.a.z)*t+nz*0.04,1.4,1.5,0.06,0x586d68);
+            const window=box(this.simpleBuildings,wall.a.x+(wall.b.x-wall.a.x)*t+nx*0.04,Math.min(3.5,building.height-1),wall.a.z+(wall.b.z-wall.a.z)*t+nz*0.04,1.4,1.5,0.06,facadeTrim.simpleWindow);
             window.rotation.y=Math.atan2(-(wall.b.z-wall.a.z),wall.b.x-wall.a.x);
           }
         }
@@ -136,10 +137,10 @@ class World {
       }
     }
     for(const zone of parkingZones) {
-      box(scene,zone.x,0.14,zone.z,zone.width,0.08,zone.depth,0x647d6f);
+      box(scene,zone.x,0.14,zone.z,zone.width,0.08,zone.depth,paving.bay);
       for(const side of [-1,1]) {
-        box(scene,zone.x+side*zone.width/2,0.2,zone.z,0.2,0.03,zone.depth,0xf0d7a0);
-        box(scene,zone.x,0.2,zone.z+side*zone.depth/2,zone.width,0.03,0.2,0xf0d7a0);
+        box(scene,zone.x+side*zone.width/2,0.2,zone.z,0.2,0.03,zone.depth,paving.bayLine);
+        box(scene,zone.x,0.2,zone.z+side*zone.depth/2,zone.width,0.03,0.2,paving.bayLine);
       }
     }
     for(const plan of planParkingSigns()) {
@@ -198,13 +199,13 @@ class World {
   updateDaylight(hour:number) {
     if(!this.daylightSun||!this.daylightAmbient)return;
     const daylight=Math.max(0,Math.sin((hour-6)/12*Math.PI));
-    const sky=new THREE.Color(0xc6ad94).lerp(new THREE.Color(0x9fb6bf),daylight);
+    const sky=new THREE.Color(haze.low).lerp(new THREE.Color(haze.high),daylight);
     this.scene.fog?.color.copy(sky);
     if(this.sky&&this.skyHour!==Math.floor(hour*60)){
       this.skyHour=Math.floor(hour*60);
       const canvas=this.sky.image as HTMLCanvasElement,c=canvas.getContext('2d')!;
       const gradient=c.createLinearGradient(0,0,0,128);
-      gradient.addColorStop(0,'#557e9b');gradient.addColorStop(.48,'#'+sky.getHexString());gradient.addColorStop(.58,'#e5c69d');gradient.addColorStop(1,'#8d8b70');
+      gradient.addColorStop(0,skyGradient.zenith);gradient.addColorStop(.48,'#'+sky.getHexString());gradient.addColorStop(.58,skyGradient.glow);gradient.addColorStop(1,skyGradient.below);
       c.fillStyle=gradient;c.fillRect(0,0,16,128);this.sky.needsUpdate=true;
     }
     this.daylightSun.intensity=1.8+daylight*1.4;this.daylightAmbient.intensity=1.05+daylight*.45;

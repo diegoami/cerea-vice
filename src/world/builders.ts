@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Rect } from "./district";
 import type { DirectionRow } from "./directions";
+import { props } from "./palette";
 
 const materials = new Map<number, THREE.MeshLambertMaterial>();
 export function material(color: number) {
@@ -119,7 +120,7 @@ export function signpost(
   height = 4.2,
 ) {
   const postHeight = height - (width * lines.length) / 12;
-  box(parent, x, postHeight / 2, z, 0.22, postHeight, 0.22, 0x43575a);
+  box(parent, x, postHeight / 2, z, 0.22, postHeight, 0.22, props.post);
   sign(parent, x, height, z, lines, width, angle, color);
 }
 
@@ -192,7 +193,7 @@ export function streetNamePlate(
   }
   if(plan.mount==='post'){
     const poleHeight=plan.height-plan.width*192/1024/2;
-    box(group,0,poleHeight/2,0,.09,poleHeight,.09,0x68726d);
+    box(group,0,poleHeight/2,0,.09,poleHeight,.09,props.platePole);
   }
   group.position.set(plan.position.x,0,plan.position.z);group.rotation.y=plan.angle;parent.add(group);
   return group;
