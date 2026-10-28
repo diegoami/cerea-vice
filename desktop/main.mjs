@@ -19,10 +19,10 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 // The player's music folder: chosen only through the native dialog, never by a renderer path.
-const music = { table: new Map(), root: undefined };
+const music = { table: new Map(), root: undefined, library: undefined };
 async function musicLibrary(folder) {
   const { library, table, root } = await scanFolder(folder);
-  music.table = table; music.root = root;
+  music.table = table; music.root = root; music.library = library;
   return library;
 }
 
@@ -80,7 +80,8 @@ app.whenReady().then(() => {
   ipcMain.handle('music:choose', async event => {
     if (!fromGame(event)) throw new Error('Not available');
     const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), { title: 'Choose a music folder for the radio', properties: ['openDirectory'] });
-    if (result.canceled || !result.filePaths[0]) return { cancelled: true, ...(await musicLibrary(await readChoice(app.getPath('userData')))) };
+    // Cancelling must not rescan: a rescan issues fresh track ids the renderer has not seen.
+    if (result.canceled || !result.filePaths[0]) return { cancelled: true, ...(music.library ?? await musicLibrary(await readChoice(app.getPath('userData')))) };
     try { await writeChoice(app.getPath('userData'), result.filePaths[0]); } catch { /* Still usable for this session. */ }
     return musicLibrary(result.filePaths[0]);
   });

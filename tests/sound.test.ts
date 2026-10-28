@@ -130,6 +130,27 @@ test('the folder radio plays by id, skips unreadable tracks and explains missing
  assert.ok(changes>0);
 });
 
+test('a playback error that is not an unplayable track is retried with a pause, not every frame',async()=>{
+ const player=new FakePlayer();let rejections=0;
+ player.play=()=>{player.plays++;rejections++;return Promise.reject(Object.assign(new Error('audio device'),{name:'NotAllowedError'}));};
+ const radio=new Radio({library:async()=>library({}),chooseFolder:async()=>library({})},()=>player as unknown as HTMLAudioElement);await radio.load();
+ const now=Date.now;let clock=1_000_000;Date.now=()=>clock;
+ try{
+  radio.update(true,.5);await Promise.resolve();await Promise.resolve();assert.equal(rejections,1);
+  for(let frame=0;frame<30;frame++)radio.update(true,.5);assert.equal(rejections,1,'No new attempt every frame');
+  clock+=2100;radio.update(true,.5);await Promise.resolve();await Promise.resolve();assert.equal(rejections,2,'Retries after the pause');
+  assert.equal(radio.playable,true,'The track is not blamed');
+  clock+=100;radio.next();radio.update(true,.5);assert.equal(rejections,3,'Choosing another track tries at once');
+ }finally{Date.now=now;}
+});
+
+test('cancelling the folder dialog keeps the track ids the renderer already holds',async()=>{
+ const player=new FakePlayer();const first=library({});
+ const radio=new Radio({library:async()=>first,chooseFolder:async()=>({...first,cancelled:true})},()=>player as unknown as HTMLAudioElement);
+ await radio.load();radio.update(true,.5);const before=player.src;await radio.choose();
+ assert.match(radio.message,/Kept “Radio”/);radio.update(true,.5);assert.equal(player.src,before,'Same track, same id');assert.equal(radio.playable,true);
+});
+
 test('the radio survives a failing bridge and explains the browser build',async()=>{
  const broken=new Radio({library:async()=>{throw new Error('ipc');},chooseFolder:async()=>{throw new Error('ipc');}},()=>new FakePlayer() as unknown as HTMLAudioElement);
  await broken.load();assert.equal(broken.playable,false);assert.match(broken.message,/could not be read/);

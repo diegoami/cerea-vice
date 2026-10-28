@@ -773,6 +773,10 @@ test('the radio plays a chosen local folder, skips a broken track, survives a re
   await page.getByRole('button',{name:'Choose music folder…'}).click();
   await page.locator('.radio-status').filter({hasText:'2 tracks, 1 other file ignored'}).waitFor();
   assert.equal(await page.locator('[data-key=radio]').inputValue(),'true');assert.equal(await page.locator('[data-key=radioSource]').inputValue(),'folder');
+  // Regression: cancelling the dialog must not rescan and strand the ids the player already holds.
+  await app.evaluate(({dialog})=>{dialog.showOpenDialog=async()=>({canceled:true,filePaths:[]});});
+  await page.getByRole('button',{name:'Choose music folder…'}).click();
+  await page.locator('.radio-status').filter({hasText:'Kept'}).waitFor();
   // Ids are the only handle: a path or traversal request is refused.
   const refused=await page.evaluate(async()=>Promise.all(['cerea-music://track/../../etc/passwd','cerea-music://track/00000000-0000-4000-8000-000000000000','cerea-music://file/etc/passwd'].map(src=>new Promise(resolve=>{const a=new Audio();a.onerror=()=>resolve(true);a.oncanplay=()=>resolve(false);a.src=src;}))));
   assert.deepEqual(refused,[true,true,true]);

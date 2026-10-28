@@ -4,6 +4,8 @@ export interface MusicLibrary {status:'none'|'ok'|'missing'|'empty'|'unreadable'
 export interface MusicApi {library():Promise<MusicLibrary>;chooseFolder():Promise<MusicLibrary>}
 type Player=Pick<HTMLAudioElement,'play'|'pause'|'load'|'addEventListener'|'removeAttribute'>&{src:string;volume:number;paused:boolean};
 const ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/** After a playback error that is not an unplayable track (for example an audio-device error), wait before trying again. */
+const RETRY_MS=2000;
 const short=(text:string)=>text.length>40?`${text.slice(0,39)}…`:text;
 
 /**
@@ -17,6 +19,7 @@ export class Radio {
   private loaded='';
   private player?:Player;
   private playing=false;
+  private retryAt=0;
   message='';
   onChange:()=>void=()=>{};
   constructor(private readonly api:MusicApi|undefined=(globalThis as {cereaMusic?:MusicApi}).cereaMusic,private readonly createPlayer:()=>Player=()=>new Audio()){
@@ -35,7 +38,7 @@ export class Radio {
     if(chosen&&library.cancelled&&this.library.status==='ok'){this.message=`Kept “${library.folder??'your music folder'}”.`;this.onChange();return;}
     const valid=library&&Array.isArray(library.tracks)?library.tracks.filter(t=>t&&ID.test(t.id)&&typeof t.title==='string'):[];
     this.library={status:library?.status??'none',folder:typeof library?.folder==='string'?library.folder:undefined,tracks:valid,skipped:Number(library?.skipped)||0};
-    this.index=0;this.failures=0;this.loaded='';this.stop();
+    this.index=0;this.failures=0;this.loaded='';this.retryAt=0;this.stop();
     const folder=this.library.folder?`“${this.library.folder}”`:'The music folder';
     const fallback=' The built-in tune plays instead.';
     this.message=this.library.status==='ok'&&valid.length?`${folder}: ${valid.length} track${valid.length===1?'':'s'}${this.library.skipped?`, ${this.library.skipped} other file${this.library.skipped===1?'':'s'} ignored`:''}.`
@@ -50,7 +53,7 @@ export class Radio {
   previous(){this.step(-1);}
   private step(direction:number){
     if(!this.playable){this.onChange();return;}
-    this.index=(this.index+direction+this.library.tracks.length)%this.library.tracks.length;this.failures=0;this.loaded='';
+    this.index=(this.index+direction+this.library.tracks.length)%this.library.tracks.length;this.failures=0;this.loaded='';this.retryAt=0;
     this.message=`Track ${this.summary}`;this.onChange();
   }
   /** Plays only while driving with the folder source on; pauses (keeping its place) otherwise. */
@@ -60,7 +63,7 @@ export class Radio {
     const track=this.library.tracks[this.index];
     if(this.loaded!==track.id){this.loaded=track.id;player.src=`cerea-music://track/${track.id}`;player.load();this.playing=false;}
     player.volume=Math.max(0,Math.min(1,level));
-    if(!this.playing){this.playing=true;void player.play().catch((error:unknown)=>{if((error as {name?:string})?.name==='NotSupportedError')this.fail(track.id);else this.playing=false;});}
+    if(!this.playing&&Date.now()>=this.retryAt){this.playing=true;void player.play().catch((error:unknown)=>{if((error as {name?:string})?.name==='NotSupportedError')this.fail(track.id);else {this.playing=false;this.retryAt=Date.now()+RETRY_MS;}});}
   }
   private stop(){if(this.player&&this.playing){this.player.pause();}this.playing=false;}
   private attach(){
