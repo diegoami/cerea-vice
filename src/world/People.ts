@@ -78,33 +78,43 @@ export function kerbOrigin(context:District,solid:Solid,stopId:string,car:CarPos
   let dx=bay.x-road.x,dz=bay.z-road.z,length=Math.hypot(dx,dz);
   if(length<.5){const side=carPoint(car,1,0);dx=side.x-car.x;dz=side.z-car.z;length=1;}
   dx/=length;dz/=length;
-  const door=carPoint(car,DOOR.x,DOOR.z),start=Math.max(bay.width,bay.depth)/2;
+  const start=Math.max(bay.width,bay.depth)/2,fallbacks:Point[]=[];
+  // The whole walk counts, including any detour round the bonnet or boot.
+  const walkable=(p:Point)=>clearPath(solid,walkToDoor(car,p,solid));
   for(const turn of [0,.45,-.45,.9,-.9,1.5,-1.5]){
     const ux=dx*Math.cos(turn)-dz*Math.sin(turn),uz=dx*Math.sin(turn)+dz*Math.cos(turn);
     let last:Point|undefined;
     for(let t=start;t<=start+12;t+=.5){
       const p={x:bay.x+ux*t,z:bay.z+uz*t};
-      if(blocked(solid,p)){if(last)return last;break;}
+      if(blocked(solid,p)){if(last&&walkable(last))return last;break;}
       // Stop at open ground rather than crossing onto another street.
       if(t>start+1&&context.isPaved(p))break;
       if(!context.isPaved(p))last=p;
-      if(last&&t>=start+4)return last;
+      if(last&&t>=start+4){if(walkable(last))return last;break;}
     }
-    if(last&&clearPath(solid,[last,door]))return last;
+    if(last){if(walkable(last))return last;fallbacks.push(last);}
   }
-  return carPoint(car,DOOR.x+2.5,DOOR.z);
+  // Otherwise stand just beside the passenger door, and failing that take the best earlier spot.
+  for(const reach of [2.5,1.8,3.5]){const p=carPoint(car,DOOR.x+reach,DOOR.z);if(!blocked(solid,p)&&walkable(p))return p;}
+  return fallbacks[0]??carPoint(car,DOOR.x+2.5,DOOR.z);
 }
-/** Kerb → around the bonnet or boot when needed → passenger door. Never through the taxi. */
-export function walkToDoor(car:CarPose,origin:Point):Point[]{
-  const o=carLocal(car,origin),points=[origin];
-  if(o.x<BODY.maxX){
-    const front=o.z<(BODY.minZ+BODY.maxZ)/2,end=front?BODY.minZ:BODY.maxZ;
-    const beyond=front?o.z<=BODY.minZ:o.z>=BODY.maxZ;
+/**
+ * Kerb → around the bonnet or boot when needed → passenger door. Never through
+ * the taxi. With `solid`, whichever end of the car gives a clear path is used.
+ */
+export function walkToDoor(car:CarPose,origin:Point,solid?:Solid):Point[]{
+  const o=carLocal(car,origin),door=carPoint(car,DOOR.x,DOOR.z);
+  if(o.x>=BODY.maxX)return [origin,door];
+  const around=(front:boolean)=>{
+    const end=front?BODY.minZ:BODY.maxZ,beyond=front?o.z<=BODY.minZ:o.z>=BODY.maxZ,points=[origin];
     if(!beyond)points.push(carPoint(car,Math.min(o.x,BODY.minX),end));
-    points.push(carPoint(car,BODY.maxX,end));
-  }
-  points.push(carPoint(car,DOOR.x,DOOR.z));
-  return points;
+    points.push(carPoint(car,BODY.maxX,end),door);
+    return points;
+  };
+  const nearer=o.z<(BODY.minZ+BODY.maxZ)/2,first=around(nearer);
+  if(!solid||clearPath(solid,first))return first;
+  const other=around(!nearer);
+  return clearPath(solid,other)?other:first;
 }
 function along(points:Point[],fraction:number){
   const lengths=points.slice(1).map((p,i)=>Math.hypot(p.x-points[i].x,p.z-points[i].z)),total=lengths.reduce((a,b)=>a+b,0);
@@ -147,13 +157,13 @@ export class PassengerPresence {
     if(this.boarder&&this.boarder.identity!==identity){this.dispose(this.boarder.figure);this.boarder=undefined;}
     if(identity){
       this.boarder??={identity,figure:this.figure(identity)};
-      const path=walkToDoor(car,kerbOrigin(this.context,this.solid,mission.pickupStop!.id,car));
+      const path=walkToDoor(car,kerbOrigin(this.context,this.solid,mission.pickupStop!.id,car),this.solid);
       this.place(this.boarder.figure,frame,passengerPose(path,car,1-mission.boarding/BOARDING_SECONDS));
     }
     const departure=mission.departure;
     if(this.leaver&&this.leaver.departure!==departure){this.dispose(this.leaver.figure);this.leaver=undefined;}
     if(departure){
-      if(!this.leaver){const pose={x:car.x,z:car.z,heading:car.heading};this.leaver={departure,figure:this.figure(departure.identity),car:pose,path:walkToDoor(pose,kerbOrigin(this.context,this.solid,departure.stopId,pose))};}
+      if(!this.leaver){const pose={x:car.x,z:car.z,heading:car.heading};this.leaver={departure,figure:this.figure(departure.identity),car:pose,path:walkToDoor(pose,kerbOrigin(this.context,this.solid,departure.stopId,pose),this.solid)};}
       this.place(this.leaver.figure,frame,passengerPose(this.leaver.path,this.leaver.car,1-departure.remaining/DEPARTURE_SECONDS,true));
     }
   }

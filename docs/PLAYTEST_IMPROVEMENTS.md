@@ -155,11 +155,13 @@ in this pass.
 
 Validation on 28 October 2026 for 0.9.0-rc.1 (Node 24, WSL):
 
-- `npm test`: 98/98 checks passed, including no automatic offers, stable
+- `npm test`: 99/99 checks passed, including no automatic offers, stable
   request/close/reopen and save/load of the list, accept versus close/new-list
-  payouts, remapped Request fares with conflicts and 0.8 profile migration,
+  payouts, remapped Request fares with conflicts and 0.8 profile migration (including
+  profiles that already use O and the other candidate keys),
   context isolation of held inputs, the boarding walk through rebasing, reload
-  and save/resume, clear arrival paths at every Cerea and outskirts stop, 0.8
+  and save/resume, clear arrival paths at every Cerea and outskirts stop (also from off-centre
+  parking positions, going round whichever end of the taxi is clear), 0.8
   save migration and an unchanged atlas marker.
 - TypeScript/Vite production build passed, with the existing >500 kB chunk
   warning.

@@ -15,6 +15,11 @@ export function bindingLabel(bindings:Bindings,action:ControlAction,controller=f
 export function bindingConflict(bindings:Bindings,action:ControlAction,key:string|number){
  return controlActions.find(other=>other!==action&&(typeof key==='string'?bindings[other].keys.includes(key):bindings[other].button===key));
 }
+/** A key no 0.8 profile action uses: O when free, then the other letters, then digits. */
+function freeKey(used:Set<unknown>){
+ const candidates=['KeyO',...'HVXBNCDEFGIJKLMQRSTUWYZ'.split('').map(c=>`Key${c}`),...Array.from({length:10},(_,i)=>`Digit${i}`)];
+ return candidates.find(k=>validKey(k)&&!used.has(k))??'KeyO';
+}
 export function readBindings():Bindings{
  const result=structuredClone(defaultBindings);
  try{
@@ -23,7 +28,7 @@ export function readBindings():Bindings{
    // 0.8 profiles predate Request fares; keep their choices and add a free default.
    if(data&&typeof data==='object'&&!data.requestFares){
      const used=new Set<unknown>(Object.values(data as Record<string,{keys?:unknown[]}>).flatMap(b=>Array.isArray(b?.keys)?b.keys:[]));
-     data.requestFares={keys:[['KeyO','KeyH','KeyV','KeyX','KeyB','KeyN'].find(k=>!used.has(k))??'KeyO'],button:13};
+     data.requestFares={keys:[freeKey(used)],button:13};
    }
    const keys=new Set<string>(),buttons=new Set<number>();
    for(const action of controlActions){

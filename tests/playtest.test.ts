@@ -218,6 +218,25 @@ test('every stop has an off-street arrival point and a clear walk that never cro
   }
  }
 });
+test('walks stay clear of buildings from off-centre parking positions, choosing the clear side of the taxi',()=>{
+ // Regression: the detour corner used to push the first leg through OSM building 194101723 at Teatro.
+ const teatro=context.district.taxi!.stops.find(s=>s.id==='teatro')!,off={x:38.53,z:-362.08,heading:0};
+ assert.ok(teatro);
+ assert.equal(clearPath(context.buildings,walkToDoor(off,kerbOrigin(context,context.buildings,'teatro',off),context.buildings)),true,'Teatro off-centre');
+ for(const data of [cerea,outskirts]){
+  const district=new District(data),inside=(p:{x:number;z:number},margin:number)=>district.buildings.at(p,margin).some(r=>inRect(p,r,-margin));
+  for(const stop of district.district.taxi!.stops){
+   const bay=district.parkingZones.find(b=>b.id===stop.bayId)!;
+   for(let dx=-bay.width/2+1.5;dx<=bay.width/2-1.5;dx+=1.5)for(let dz=-bay.depth/2+1.5;dz<=bay.depth/2-1.5;dz+=1.5)for(const heading of [0,Math.PI/2,Math.PI,-Math.PI/2]){
+    const car={x:bay.x+dx,z:bay.z+dz,heading},door=carPoint(car,DOOR.x,DOOR.z);
+    // A door pressed against a wall (or a car overlapping one) has no clear walk to its own door.
+    if(inside(door,.35)||[[-1.55,-3.4],[1.95,-3.4],[-1.55,2.8],[1.95,2.8]].some(([x,z])=>inside(carPoint(car,x,z),0)))continue;
+    const path=walkToDoor(car,kerbOrigin(district,district.buildings,stop.id,car),district.buildings);
+    assert.equal(clearPath(district.buildings,path),true,`${stop.id} at ${dx},${dz},${heading}`);
+   }
+  }
+ }
+});
 test('remapped L3/key gear controls keep their edges and never change atlas/menu bindings',()=>{
  const target=new EventTarget();Object.defineProperty(globalThis,'window',{value:target,configurable:true});
  const buttons=Array.from({length:17},()=>({value:0}));
@@ -264,4 +283,11 @@ test('Request fares follows its remapped key/button, only while driving, and nev
  assert.deepEqual(migrated.requestFares,{keys:['KeyH'],button:13},'Request fares gets a free key');
  bindings.requestFares.button=7;stored=JSON.stringify(bindings);assert.deepEqual(readBindings(),defaultBindings,'Stored conflicts fall back to defaults');
  bindings.requestFares.button=9;stored=JSON.stringify(bindings);assert.deepEqual(readBindings(),defaultBindings,'Start stays reserved');
+ // Regression: a 0.8 profile already using O, H, V, X, B and N must keep every choice.
+ const busy=structuredClone(defaultBindings) as Partial<typeof defaultBindings>;delete busy.requestFares;
+ busy.shiftGear!.keys=['KeyO'];busy.atlas!.keys=['KeyH'];busy.information!.keys=['KeyV'];busy.resetLook!.keys=['KeyX'];busy.glanceLeft!.keys=['KeyB'];busy.glanceRight!.keys=['KeyN'];
+ stored=JSON.stringify(busy);const kept=readBindings();
+ for(const action of ['shiftGear','atlas','information','resetLook','glanceLeft','glanceRight'] as const)assert.deepEqual(kept[action],busy[action],`${action} survives the upgrade`);
+ assert.deepEqual(kept.requestFares,{keys:['KeyC'],button:13},'Request fares takes the next free key');
+ assert.notDeepEqual(kept,defaultBindings);
 });
