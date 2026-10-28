@@ -44,7 +44,7 @@ export class SettingsPanel {
     this.element.innerHTML=`<strong>PICTURE & SOUND</strong><small>D-pad: select · A: change · Start: drive<br>Keyboard: Tab / arrows edit · Space activates buttons · Enter / Esc / P drive</small>
       <label>Scenery <select data-key="detail"><option value="true">Detailed</option><option value="false">Simple</option></select></label>
       <label>Picture <select data-key="resolution"><option value="retro">Retro 270p</option><option value="retro-fine">Retro 540p</option><option value="sharp">Sharp</option><option value="high">High (to 4K)</option></select></label>
-      <small class="picture-info" role="status"></small>
+      <small class="picture-info"></small><span class="picture-announce" role="status" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap"></span>
       <label>Cockpit motion <select data-key="motion"><option value="true">Subtle</option><option value="false">Off</option></select></label>
       <label>Volume <select data-key="volume"><option value="0">Mute</option><option value="0.25">Quiet</option><option value="0.5">Medium</option><option value="1">Full</option></select></label>
       <label>Radio <select data-key="radio"><option value="false">Off</option><option value="true">On</option></select></label>`;
@@ -60,7 +60,9 @@ export class SettingsPanel {
     });
     this.element.addEventListener('change',()=>this.commit());
     for(const select of this.selects)select.value=String(values[select.dataset.key as keyof PresentationSettings]);
+    this.announced=values.resolution;
   }
+  private announced:string;
   private get selects(){return [...this.element.querySelectorAll('select')];}
   /** Names the selected quality and the picture size actually drawn, in device pixels. */
   showPicture(width:number,height:number,windowWidth:number,windowHeight:number){
@@ -71,6 +73,8 @@ export class SettingsPanel {
     for(const select of this.selects){const key=select.dataset.key as keyof PresentationSettings;
       Object.assign(this.values,{[key]:key==='volume'?Number(select.value):key==='resolution'?select.value:select.value==='true'});}
     try{localStorage.setItem('cerea-presentation',JSON.stringify(this.values));}catch{/* Settings still apply in memory. */}
+    // Window resizes redraw the size line silently; only a change of picture mode is announced.
+    if(this.values.resolution!==this.announced){this.announced=this.values.resolution;this.element.querySelector('.picture-announce')!.textContent=pictureNotes[this.values.resolution];}
     this.changed();
   }
   update(visible:boolean,dt:number,y:number,confirm:boolean){

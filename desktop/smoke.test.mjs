@@ -640,12 +640,16 @@ test('picture quality is labelled, saved, keyboard/controller selectable and fol
   for(const full of [true,false]){
    await app.evaluate(async({BrowserWindow},full)=>{const win=BrowserWindow.getAllWindows()[0];if(win.isFullScreen()===full)return;
     await new Promise(resolve=>{win.once(full?'enter-full-screen':'leave-full-screen',resolve);win.setFullScreen(full);});},full);
-   // The window manager may deliver the final size after the fullscreen event; wait for it to settle.
-   await page.waitForFunction(()=>{const size=`${innerWidth}x${innerHeight}`,stable=window.qualityLastSize===size;window.qualityLastSize=size;return stable;},null,{polling:400});
-   await page.waitForFunction(()=>{const c=document.querySelector('#viewport'),m=document.querySelector('[data-key=resolution]').value,r=devicePixelRatio,w=innerWidth,h=innerHeight;
-    const k=Math.min(r,2,3840/w,2160/h);return m==='high'&&c.width===Math.round(w*k)&&c.height===Math.round(h*k);},null,{timeout:10000});
-   state=await expectedPicture(page);assert.deepEqual(state.buffer,state.expected,`fullscreen ${full}`);
+   // The window manager may deliver the final size after the fullscreen event, and the game redraws on its resize
+   // event. Wait until the window and the picture agree and stay agreeing across polls, then assert on that state.
+   const agree=state=>state.mode==='high'&&JSON.stringify(state.buffer)===JSON.stringify(state.expected);
+   const deadline=Date.now()+15000;let streak=0;
+   while(Date.now()<deadline&&streak<3){state=await expectedPicture(page);streak=agree(state)?streak+1:0;await page.waitForTimeout(300);}
+   assert.deepEqual(state.buffer,state.expected,`fullscreen ${full}`);
   }
+  // Resizing redraws the size line silently; only the mode change was announced.
+  assert.equal(await page.locator('.picture-info').getAttribute('role'),null);
+  assert.match(await page.locator('.picture-announce').innerText(),/High|4K|resolution|sharp/i);
   assert.deepEqual(errors,[]);
   await app.close();
   // The explicit choice is saved; relaunching keeps it rather than silently changing it.
