@@ -63,7 +63,7 @@ npm run test:desktop                  # On a graphical desktop
 xvfb-run -a sh -c 'xfwm4 --compositor=off & npm run test:desktop'
 ```
 
-The desktop smoke test covers offline startup, sandbox settings, controller-only start/driving, steering, handbraking, directions, atlas pages and moving-access rejection, frozen reading time, mission reminders, disconnect/pause/reconnect, keyboard fallback, and fullscreen. The Windows x64 bundle has also been launched successfully on the Windows host from a local Windows directory. Physical controller testing and full Windows gameplay validation remain separate checks.
+The desktop smoke test covers offline startup, sandbox settings, controller-only start/driving, steering, handbraking, directions, atlas pages and moving-access rejection, frozen reading time, mission reminders, disconnect/pause/reconnect, keyboard fallback, fullscreen, and that menu, HUD, atlas and result text fits every supported window size and picture mode. The Windows x64 bundle has also been launched successfully on the Windows host from a local Windows directory. Physical controller testing and full Windows gameplay validation remain separate checks.
 
 ## Release candidate
 
