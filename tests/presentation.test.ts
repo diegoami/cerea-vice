@@ -59,6 +59,36 @@ test('internal resolution respects aspect ratio and Sharp retains display legibi
  assert.deepEqual(renderSize(1280,900,'sharp'),{width:1280,height:900});
  assert.deepEqual(renderSize(3840,2160,'sharp',2),{width:1920,height:1080});
 });
+test('picture quality defaults to economical Retro 540p and only an explicit saved choice selects High',()=>{
+ assert.equal(defaults.resolution,'retro-fine');
+ assert.equal(readSettings({getItem:()=>null}).resolution,'retro-fine');
+ assert.equal(readSettings({getItem:()=>'{}'}).resolution,'retro-fine');
+ for(const mode of ['retro','retro-fine','sharp','high'] as const)assert.equal(readSettings({getItem:()=>JSON.stringify({resolution:mode})}).resolution,mode);
+ for(const bad of ['native','4k',2,null,'HIGH'])assert.equal(readSettings({getItem:()=>JSON.stringify({resolution:bad})}).resolution,'retro-fine');
+});
+test('High follows the display and HiDPI beyond Sharp, within 3840×2160, pixel ratio 2 and the GPU limit',async()=>{
+ const {renderSize,isRetro,pictureNotes}=await import('../src/presentation/Settings');
+ // Sharp is unchanged from 0.9.
+ assert.deepEqual(renderSize(2560,1440,'sharp',1),{width:1920,height:1080});
+ assert.deepEqual(renderSize(1280,720,'sharp',2),{width:1920,height:1080});
+ // High: 1440p and 4K at 100% scaling, 4K at 200% (CSS 1920×1080), and a 3× phone-like ratio.
+ assert.deepEqual(renderSize(2560,1440,'high',1),{width:2560,height:1440});
+ assert.deepEqual(renderSize(3840,2160,'high',1),{width:3840,height:2160});
+ assert.deepEqual(renderSize(1920,1080,'high',2),{width:3840,height:2160});
+ assert.deepEqual(renderSize(1280,720,'high',3),{width:2560,height:1440});
+ assert.deepEqual(renderSize(5120,2160,'high',1),{width:3840,height:1620});
+ assert.deepEqual(renderSize(1920,1200,'high',2),{width:3456,height:2160});
+ // A smaller GPU limit shrinks every mode proportionally rather than distorting it.
+ assert.deepEqual(renderSize(3840,2160,'high',1,2048),{width:2048,height:1152});
+ assert.deepEqual(renderSize(1280,720,'retro-fine',1,4096),{width:960,height:540});
+ for(const [w,h] of [[960,640],[1280,720],[1440,900],[2560,1080],[3840,2160]])for(const mode of ['retro','retro-fine','sharp','high'] as const)for(const ratio of [1,1.25,2]){
+  const size=renderSize(w,h,mode,ratio);
+  assert.ok(Math.abs(size.width/size.height-w/h)<.01,`${mode} keeps the ${w}×${h} aspect ratio`);
+  assert.ok(size.width<=3840&&size.height<=2160);
+ }
+ assert.equal(isRetro('retro'),true);assert.equal(isRetro('retro-fine'),true);assert.equal(isRetro('sharp'),false);assert.equal(isRetro('high'),false);
+ assert.match(pictureNotes['high'],/demanding/);assert.match(pictureNotes['retro-fine'],/Default/);
+});
 test('settings tolerate a throwing storage getter as well as blocked reads',()=>{
  assert.deepEqual(readSettings(()=>{throw new DOMException('Storage disabled','SecurityError');}),defaults);
  assert.deepEqual(readSettings({getItem:()=>{throw new DOMException('Storage disabled','SecurityError');}}),defaults);

@@ -1,5 +1,5 @@
 import { StreamingWorld } from "../world/streaming/StreamingWorld";
-import { SettingsPanel, readSettings, renderSize } from "../presentation/Settings";
+import { SettingsPanel, readSettings, renderSize, isRetro } from "../presentation/Settings";
 import { Sound, musicGain } from "../presentation/Sound";
 import { Radio } from "../presentation/Radio";
 import { BodyMotion } from "../presentation/Motion";
@@ -115,6 +115,7 @@ class Game {
     window.addEventListener("pagehide",()=>{this.sound.dispose();if(this.world instanceof StreamingWorld)this.world.dispose();},{once:true});
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    this.watchPixelRatio();
     window.addEventListener("blur", () => this.pause());
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) this.pause();
@@ -133,11 +134,20 @@ class Game {
   private resize() {
     const width = window.innerWidth,
       height = window.innerHeight;
-    const size=renderSize(width,height,this.settings.resolution,window.devicePixelRatio||1);
+    const ratio=window.devicePixelRatio||1,gl=this.renderer.getContext();
+    const limit=Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),this.renderer.capabilities.maxTextureSize,...gl.getParameter(gl.MAX_VIEWPORT_DIMS));
+    const size=renderSize(width,height,this.settings.resolution,ratio,limit);
     this.renderer.setSize(size.width,size.height,false);
-    this.renderer.domElement.classList.toggle('pixel-picture',this.settings.resolution!=='sharp');
+    this.renderer.domElement.classList.toggle('pixel-picture',isRetro(this.settings.resolution));
+    // Report what the browser actually allocated, which can be less than requested.
+    this.settingsPanel.showPicture(gl.drawingBufferWidth,gl.drawingBufferHeight,Math.round(width*ratio),Math.round(height*ratio));
     this.cockpit.camera.aspect = width / height;
     this.cockpit.camera.updateProjectionMatrix();
+  }
+
+  /** Moving between displays can change the pixel ratio without a window resize. */
+  private watchPixelRatio(){
+    matchMedia(`(resolution: ${window.devicePixelRatio||1}dppx)`).addEventListener("change",()=>{this.resize();this.watchPixelRatio();},{once:true});
   }
 
   private pause() {
@@ -406,8 +416,8 @@ class Game {
     this.interior.update({...this.car,...this.world.frame.toLocal(this.car)},this.motion.roll,this.motion.pitch,this.motion.wobble);
     const renderStart=context.profile.start();
     this.interior.renderMirrors(this.renderer,this.world.scene,dt);
-    if(this.settings.resolution==='sharp')this.renderer.render(this.world.scene, this.cockpit.camera);
-    else this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
+    if(isRetro(this.settings.resolution))this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
+    else this.renderer.render(this.world.scene, this.cockpit.camera);
     context.profile.end("render",renderStart);
     if(this.timingPanel&&time>=this.timingRefresh){this.timingRefresh=time+500;this.timingPanel.textContent=context.profile.text()+(this.world instanceof StreamingWorld?`\ntiles: ${this.world.stream.resident.size} resident · ${this.world.stream.stats.loads} loads / ${this.world.stream.stats.unloads} unloads`:"");}
   }

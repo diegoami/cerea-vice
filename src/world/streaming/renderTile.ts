@@ -7,6 +7,7 @@ import {box,sign,signpost,streetNamePlate,material} from '../builders';
 import {createScenery} from '../Scenery';
 import type {Point,Rect,Bounds} from '../schema';
 import type {TileRef,TilePayload} from './schema';
+import {ground,paving,features as feature} from '../palette';
 export type Surfaces=ReturnType<ReturnType<typeof createScenery>['createFacadeMaterials']>;
 export interface RenderedTile {group:THREE.Group;anchor:Point;bounds:Bounds;setDetail(enabled:boolean):void;dispose():void}
 /** Tile data is local and owner-assigned; all GPU vertices are relative to its centre. */
@@ -25,13 +26,13 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
  for(const i of payload.bays)if(!owns(context.parkingZones[i]))throw new Error('Invalid bay owner');
  const group=new THREE.Group(),detail=new THREE.Group(),simple=new THREE.Group(),scenery=createScenery(context);group.add(detail,simple);
  const strip=(parent:THREE.Object3D,a:Point,b:Point,width:number,y:number,h:number,color:number)=>{const m=box(parent,(a.x+b.x)/2,y,(a.z+b.z)/2,Math.hypot(b.x-a.x,b.z-a.z),h,width,color);m.rotation.y=Math.atan2(-(b.z-a.z),b.x-a.x);};
- const rural=anchor.z<-500;box(group,0,-.4,0,250,.7,250,rural?0x84905b:0x7d876b);
- if(rural){box(group,-64,-.035,0,115,.02,235,0x999365);box(group,64,-.035,0,115,.02,235,0x71855a);}
- for(const index of payload.features){const f=context.district.features[index];for(let i=0;i<f.points.length-1;i++){const a=local(f.points[i]),b=local(f.points[i+1]);strip(group,a,b,f.width,0,.05,f.kind==='water'?0x668e94:0x8d8a77);if(f.kind==='rail'){const length=Math.hypot(b.x-a.x,b.z-a.z)||1,nx=-(b.z-a.z)/length*.8,nz=(b.x-a.x)/length*.8;for(const side of [-1,1])strip(group,{x:a.x+side*nx,z:a.z+side*nz},{x:b.x+side*nx,z:b.z+side*nz},.12,.09,.1,0xaab4b1);}}}
- for(const index of payload.roads){const r=context.roads[index],a=local(context.nodeById(r.a)),b=local(context.nodeById(r.b)),w=roadWidth(r);strip(group,a,b,w+2.5,.01,.08,0xb3ae98);strip(group,a,b,w,.075,.06,0x4d5655);
-  const cap=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,.06,12),material(0x4d5655));cap.position.set(a.x,.075,a.z);group.add(cap);
-  const length=Math.hypot(b.x-a.x,b.z-a.z);for(let t=10;t<length-8;t+=12)strip(group,{x:a.x+(b.x-a.x)*t/length,z:a.z+(b.z-a.z)*t/length},{x:a.x+(b.x-a.x)*(t+3)/length,z:a.z+(b.z-a.z)*(t+3)/length},.15,.12,.025,0xe3dbc1);
-  if(r.bridge){const nx=-(b.z-a.z)/length*(w/2+.5),nz=(b.x-a.x)/length*(w/2+.5);for(const s of [-1,1])strip(group,{x:a.x+nx*s,z:a.z+nz*s},{x:b.x+nx*s,z:b.z+nz*s},.2,1,.2,0x696f65);}
+ const rural=anchor.z<-500;box(group,0,-.4,0,250,.7,250,rural?ground.meadow:ground.town);
+ if(rural){box(group,-64,-.035,0,115,.02,235,ground.stubble);box(group,64,-.035,0,115,.02,235,ground.crop);}
+ for(const index of payload.features){const f=context.district.features[index];for(let i=0;i<f.points.length-1;i++){const a=local(f.points[i]),b=local(f.points[i+1]);strip(group,a,b,f.width,0,.05,f.kind==='water'?feature.water:feature.ballast);if(f.kind==='rail'){const length=Math.hypot(b.x-a.x,b.z-a.z)||1,nx=-(b.z-a.z)/length*.8,nz=(b.x-a.x)/length*.8;for(const side of [-1,1])strip(group,{x:a.x+side*nx,z:a.z+side*nz},{x:b.x+side*nx,z:b.z+side*nz},.12,.09,.1,feature.rail);}}}
+ for(const index of payload.roads){const r=context.roads[index],a=local(context.nodeById(r.a)),b=local(context.nodeById(r.b)),w=roadWidth(r);strip(group,a,b,w+2.5,.01,.08,paving.verge);strip(group,a,b,w,.075,.06,paving.road);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,.06,12),material(paving.road));cap.position.set(a.x,.075,a.z);group.add(cap);
+  const length=Math.hypot(b.x-a.x,b.z-a.z);for(let t=10;t<length-8;t+=12)strip(group,{x:a.x+(b.x-a.x)*t/length,z:a.z+(b.z-a.z)*t/length},{x:a.x+(b.x-a.x)*(t+3)/length,z:a.z+(b.z-a.z)*(t+3)/length},.15,.12,.025,paving.dash);
+  if(r.bridge){const nx=-(b.z-a.z)/length*(w/2+.5),nz=(b.x-a.x)/length*(w/2+.5);for(const s of [-1,1])strip(group,{x:a.x+nx*s,z:a.z+nz*s},{x:b.x+nx*s,z:b.z+nz*s},.2,1,.2,paving.bridgeRail);}
  }
  const buildings=payload.buildings.map(localRect);
  scenery.decorateBuildings(detail,buildings,surfaces,anchor);
@@ -42,8 +43,8 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
  for(const index of payload.landmarks){const p=context.landmarks[index],q=local(p);if(p.kind==='church'){box(group,q.x,15,q.z,5,30,5,0xb58c6e);const roof=new THREE.Mesh(new THREE.ConeGeometry(3,6,4),material(0x8f6351));roof.position.set(q.x,33,q.z);group.add(roof);}
 
  }
- for(const index of payload.bays){const b=localRect(context.parkingZones[index]);box(group,b.x,.14,b.z,b.width,.08,b.depth,0x647d6f);
-  for(const s of [-1,1]){box(group,b.x+s*b.width/2,.2,b.z,.2,.03,b.depth,0xf0d7a0);box(group,b.x,.2,b.z+s*b.depth/2,b.width,.03,.2,0xf0d7a0);}
+ for(const index of payload.bays){const b=localRect(context.parkingZones[index]);box(group,b.x,.14,b.z,b.width,.08,b.depth,paving.bay);
+  for(const s of [-1,1]){box(group,b.x+s*b.width/2,.2,b.z,.2,.03,b.depth,paving.bayLine);box(group,b.x,.2,b.z+s*b.depth/2,b.width,.03,.2,paving.bayLine);}
 
  }
  for(const p of payload.plates)streetNamePlate(group,{...p,position:local(p.position)});
