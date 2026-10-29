@@ -204,3 +204,33 @@ test("arcade car can drive a complete route and stop at the destination before d
   assert.equal(parking.zone, "Blue Hotel forecourt");
   assert.equal(car.collisions, 0);
 });
+test("with no top speed the car keeps gaining on paved roads, feels the same in town and cannot skip through walls", () => {
+  const onRoad = (car: InstanceType<typeof Car>, seconds: number, input: Partial<Actions>) => {
+    for (let i = 0; i < seconds * 60; i++) { car.x = spawn.x; car.z = spawn.z; car.heading = spawn.heading; car.update(1 / 60, { ...idle, ...input }, []); }
+  };
+  assert.equal(context.isPaved(spawn), true);
+  const normal = new Car(), free = new Car(); free.unlimited = true;
+  onRoad(normal, 30, { throttle: 1 });
+  assert.ok(normal.speed <= 21, "The normal setting keeps its limit");
+  // Identical below 15 m/s: the same acceleration in town.
+  const a = new Car(), b = new Car(); b.unlimited = true;
+  for (let i = 0; i < 60; i++) { onRoad(a, 1 / 60, { throttle: 1 }); onRoad(b, 1 / 60, { throttle: 1 }); if (a.speed < 15) assert.equal(b.speed, a.speed); }
+  onRoad(free, 30, { throttle: 1 });
+  assert.ok(free.speed > 50, `No limit: full throttle passes 180 km/h within 30 s (${free.speed.toFixed(1)} m/s)`);
+  const cruising = new Car(); cruising.unlimited = true; onRoad(cruising, 30, { throttle: 0.6 });
+  assert.ok(cruising.speed > 10 && cruising.speed < 13, "Part throttle settles at a steady speed");
+  const coasting = new Car(); coasting.unlimited = true; coasting.speed = 80; onRoad(coasting, 5, {});
+  assert.ok(coasting.speed < 50 && coasting.speed > 0, "Releasing the throttle slows the car");
+  // Leaving the road fast brakes hard, not instantly.
+  let grass = { x: spawn.x, z: spawn.z };
+  for (let r = 4; r < 120 && context.isPaved(grass); r += 2) for (let k = 0; k < 16 && context.isPaved(grass); k++) grass = { x: spawn.x + Math.cos(k * Math.PI / 8) * r, z: spawn.z + Math.sin(k * Math.PI / 8) * r };
+  assert.equal(context.isPaved(grass), false);
+  const offRoad = new Car(); offRoad.unlimited = true; offRoad.speed = 60;
+  for (let i = 0; i < 60; i++) { offRoad.x = grass.x; offRoad.z = grass.z; offRoad.update(1 / 60, idle, []); }
+  assert.ok(offRoad.speed > 25 && offRoad.speed < 45, `About 2.5 g on grass (${offRoad.speed.toFixed(1)} m/s after 1 s)`);
+  // At 400 m/s one step is 6.7 m; moving in half-metre steps still stops at a 20 cm wall.
+  const fast = new Car(); fast.unlimited = true; fast.x = spawn.x; fast.z = spawn.z; fast.heading = 0; fast.speed = 400;
+  const wall = { x: spawn.x, z: spawn.z - 4, width: 10, depth: 0.2 };
+  fast.update(1 / 60, idle, [wall]);
+  assert.equal(fast.speed, 0); assert.ok(fast.z > wall.z, "The car stops before the wall"); assert.equal(fast.collisions, 1);
+});

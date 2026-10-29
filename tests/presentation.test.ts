@@ -18,6 +18,9 @@ test('presentation settings reject malformed storage and bound volume',()=>{
  assert.equal(readSettings({getItem:()=>JSON.stringify({volume:20,resolution:'gps',motion:false})}).volume,1);
  assert.equal(readSettings({getItem:()=>JSON.stringify({resolution:'gps'})}).resolution,'retro-fine');
  assert.equal(readSettings({getItem:()=>JSON.stringify({motion:false})}).motion,false);
+ assert.equal(defaults.unlimitedSpeed,true,'No top speed by default');
+ assert.equal(readSettings({getItem:()=>JSON.stringify({unlimitedSpeed:false})}).unlimitedSpeed,false,'The normal limit is remembered');
+ assert.equal(readSettings({getItem:()=>JSON.stringify({unlimitedSpeed:'yes'})}).unlimitedSpeed,true);
 });
 test('cockpit motion stays subtle and off is exactly still, including after an impact',()=>{
  const motion=new BodyMotion();

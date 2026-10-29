@@ -7,7 +7,8 @@ export const musicGain=(settings:PresentationSettings,throttle:number)=>settings
 /** Engine pitch: a low sawtooth fundamental whose harmonics reach small laptop speakers. */
 export function enginePitch(speed:number,gear:'D'|'R',throttle:number){
   const v=Math.abs(speed);
-  return gear==='R'?44+v*7+throttle*10:40+v*3.8+throttle*12;
+  // Pitch rises with speed up to the old top speed, then only gently, so very high speeds stay listenable.
+  return gear==='R'?44+v*7+throttle*10:40+Math.min(v,21)*3.8+Math.max(0,v-21)*0.8+throttle*12;
 }
 /**
  * Original synthesized tones. No recordings, downloads or external audio assets.
@@ -85,7 +86,7 @@ export class Sound {
     const pitch=enginePitch(car.speed,car.gear,throttle);
     this.engine.frequency.setTargetAtTime(pitch,now,.08);
     this.engineUpper.frequency.setTargetAtTime(pitch*2,now,.08);
-    this.engineFilter.frequency.setTargetAtTime(380+throttle*1100+v*35,now,.1);
+    this.engineFilter.frequency.setTargetAtTime(380+throttle*1100+Math.min(v,40)*35,now,.1);
     this.engineGain.gain.setTargetAtTime(.16+throttle*.12+Math.min(21,v)*.004,now,.08);
     // Reverse adds a thin gear whine, so the selected direction is audible without looking.
     this.whine.frequency.setTargetAtTime(pitch*9,now,.08);

@@ -7,8 +7,10 @@ export interface PresentationSettings {
   /** Radio music level, separate from the master volume; vehicle sound stays at volume. */
   music: number;
   radioSource: 'builtin' | 'folder';
+  /** No top speed on paved roads; false restores the original limit of about 72 km/h. */
+  unlimitedSpeed: boolean;
 }
-export const defaults: PresentationSettings = {detail:true,resolution:'retro-fine',motion:true,volume:0.75,radio:false,music:0.5,radioSource:'builtin'};
+export const defaults: PresentationSettings = {detail:true,resolution:'retro-fine',motion:true,volume:0.75,radio:false,music:0.5,radioSource:'builtin',unlimitedSpeed:true};
 /** Saved levels snap to the offered steps, so old 0.25 / 0.5 / 1 choices are kept as they were. */
 const level=(value:unknown,fallback:number)=>typeof value==='number'&&Number.isFinite(value)?[0,.25,.5,.75,1].reduce((a,b)=>Math.abs(b-value)<Math.abs(a-value)?b:a):fallback;
 export function readSettings(storage: Pick<Storage,'getItem'> | (()=>Pick<Storage,'getItem'>) = ()=>localStorage): PresentationSettings {
@@ -21,7 +23,8 @@ export function readSettings(storage: Pick<Storage,'getItem'> | (()=>Pick<Storag
       volume:level(value.volume,defaults.volume),
       radio:typeof value.radio==='boolean'?value.radio:defaults.radio,
       music:level(value.music,defaults.music),
-      radioSource:['builtin','folder'].includes(value.radioSource)?value.radioSource:defaults.radioSource};
+      radioSource:['builtin','folder'].includes(value.radioSource)?value.radioSource:defaults.radioSource,
+      unlimitedSpeed:typeof value.unlimitedSpeed==='boolean'?value.unlimitedSpeed:defaults.unlimitedSpeed};
   } catch {return {...defaults};}
 }
 export const isRetro=(mode:PresentationSettings['resolution'])=>mode==='retro'||mode==='retro-fine';
@@ -52,6 +55,7 @@ export class SettingsPanel {
       <label>Scenery <select data-key="detail"><option value="true">Detailed</option><option value="false">Simple</option></select></label>
       <label>Picture <select data-key="resolution"><option value="retro">Retro 270p</option><option value="retro-fine">Retro 540p</option><option value="sharp">Sharp</option><option value="high">High (to 4K)</option></select></label>
       <small class="picture-info"></small><span class="picture-announce" role="status" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap"></span>
+      <label>Top speed <select data-key="unlimitedSpeed"><option value="true">No limit</option><option value="false">Normal (72 km/h)</option></select></label>
       <label>Cockpit motion <select data-key="motion"><option value="true">Subtle</option><option value="false">Off</option></select></label>
       <label>Volume <select data-key="volume"><option value="0">Mute (silent)</option><option value="0.25">25%</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option></select></label>
       <label>Radio <select data-key="radio"><option value="false">Off</option><option value="true">On</option></select></label>
