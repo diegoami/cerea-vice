@@ -87,7 +87,9 @@ test('save/load preserves free driving, listed fares, accepted rides, boarding, 
  assert.equal(mapDataVersion(context),2,'Cerea is at map data version 2');
  assert.throws(()=>decodeSave(context,JSON.stringify({...saved(),map:'0',dataVersion:2})),(e:unknown)=>!(e instanceof MapVersionError),'Same version, different map: the generic refusal');
  assert.equal(decodeSave(context,JSON.stringify({...saved(),dataVersion:2})).dataVersion,2);
- assert.throws(()=>decodeSave(context,JSON.stringify(saved(new Mission({seed:75}),{speed:5000,gear:'D'}))),'An absurd speed is treated as damaged');
+ // With no top speed any finite speed the car reached loads (there is no cap to disagree with the car).
+ for(const speed of [401,5000])assert.equal(decodeSave(context,JSON.stringify(saved(new Mission({seed:75}),{speed,gear:'D'}))).car.speed,speed);
+ assert.throws(()=>decodeSave(context,JSON.stringify(saved(new Mission({seed:75}),{speed:Number.POSITIVE_INFINITY,gear:'D'}))),/Invalid saved vehicle/,'A non-finite speed (null in JSON) is damaged');
 });
 test('0.8 saves migrate: a pending offer becomes a one-fare list with the same quote, an accepted ride stays accepted',()=>{
  const legacy=(mutate:(m:Record<string,unknown>)=>void)=>{const value=saved() as unknown as {version:number;mission:Record<string,unknown>};value.version=1;

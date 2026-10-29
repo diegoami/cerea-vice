@@ -18,6 +18,8 @@ export interface TownEntry {
 export interface TownRegistry { version:1; default:string; towns:TownEntry[] }
 
 const plain=(value:unknown):value is string=>typeof value==="string"&&value.length>0;
+/** Text shown to the player: no markup, as for district text (district.ts). Folders loaded at runtime (#33) are untrusted. */
+const shown=(value:unknown):value is string=>plain(value)&&value.length<200&&!/[<>]/.test(value);
 /** Validate the district list, naming the first problem. */
 export function validateRegistry(value:unknown):TownRegistry {
   const fail=(message:string)=>{throw new Error(`District list: ${message}`);};
@@ -29,7 +31,7 @@ export function validateRegistry(value:unknown):TownRegistry {
   for(const town of data.towns!){
     if(!town||!plain(town.id)||!/^[a-z0-9-]+$/.test(town.id))fail(`an entry has an invalid id`);
     if(ids.has(town.id))fail(`"${town.id}" is listed twice`);ids.add(town.id);
-    if(!plain(town.name)||!plain(town.attribution))fail(`"${town.id}" needs a name and an attribution`);
+    if(!shown(town.name)||!shown(town.attribution))fail(`"${town.id}" needs a plain-text name and attribution`);
     if(!plain(town.map)||town.map.includes("..")||town.map.startsWith("/")||!/\.json$/.test(town.map))fail(`"${town.id}" needs a map file inside maps/`);
     if(!Number.isInteger(town.dataVersion)||town.dataVersion<1)fail(`"${town.id}" needs a positive data version`);
     if(!["local","regional","authored"].includes(town.frame))fail(`"${town.id}" has an unknown frame`);

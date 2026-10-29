@@ -20,6 +20,9 @@ test('the district list rejects malformed entries, naming the problem',()=>{
  assert.throws(variant(d=>{d.towns[0].id='Cerea Centro';}),/invalid id/);
  assert.throws(variant(d=>{d.towns=[];}),/no districts are listed/);
  assert.throws(variant(d=>{d.version=2;}),/version must be 1/);
+ // Displayed text cannot carry markup; folders loaded at runtime (#33) will be untrusted.
+ assert.throws(variant(d=>{d.towns[0].name='<img src=x onerror=alert(1)>';}),/"cerea" needs a plain-text name and attribution/);
+ assert.throws(variant(d=>{d.towns[1].attribution='<b>x</b>';}),/"harbor" needs a plain-text name and attribution/);
 });
 
 test('every listed district loads and matches its entry, map file and spec',()=>{
