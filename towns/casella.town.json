@@ -1,0 +1,50 @@
+{
+  "specVersion": 1,
+  "kind": "village",
+  "id": "casella",
+  "name": "Casella",
+  "description": "Casella, a village on the roads between the lower-plain towns.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/casella-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1815,
+      "lon": 11.0976
+    },
+    "bbox": {
+      "south": 45.18038,
+      "west": 11.09601,
+      "north": 45.18262,
+      "east": 11.09919
+    }
+  },
+  "output": "build/towns/casella.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Casella"
+    }
+  ],
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}

@@ -17,7 +17,7 @@ town should be able to mix detail levels by area.
   towns are about **5 minutes** apart; inside its zone every town stays at real scale (owner,
   2026-10-29). A town outside any region is a district chosen from the menu, as today.
 - The **first region** is Cerea with Legnago, Bovolone, Sanguinetto, Nogara and Casaleone and the
-  villages in between (the villages are not built yet, #50); the first **bigger town is about 3 km²**
+  villages in between (seven of them since #50); the first **bigger town is about 3 km²**
   (owner, 2026-10-29).
 - **Script first, runtime loading later.** Towns are added by a build-time script now; the town
   format is designed so a finished town can later be loaded by the running game from a folder.
@@ -75,7 +75,8 @@ Districts and runtime:
 Regions:
 - `tools/build-region.py` joins town districts into one region with the corridor model (see "Regions and
   compression"); `npm run build:region` builds and tiles the first region, the lower Veronese plain.
-  Villages on the corridors are not included yet (#50).
+  Seven villages and hamlets on its corridors are included as rigid zones with no stops (#50); four more
+  sit too close to a town or another village to be placed.
 
 Scale reference: Cerea Centro is about 1.0 × 1.1 km, 1,081 building masses, 51 streets and 480 KB of JSON
 from a 1.9 MB extract. The first region is 13.6 × 7.7 km with six towns, 9,163 buildings and 353 street
@@ -356,7 +357,7 @@ minutes, so a new town adds one smoke scenario rather than a copy of every scena
 7. **Compression mapping** (#40), **general tiler and paged collision** (#29), and gateway routing for
    connected towns (#30).
 8. **First region** (#41): Cerea, Legnago, Bovolone, Sanguinetto, Nogara and Casaleone, shipped in
-   0.11.0-rc.1; the villages on their corridors follow in #50.
+   0.11.0-rc.1; seven villages on their corridors were added in #50.
 9. **Later:** the Verona core (#25), detail zones and named areas (#28), runtime loading from a folder
    (#33).
 
@@ -369,7 +370,9 @@ Done: the spec read by the importer (#23 step 1), the registry and selector (#26
 compression (#40), a general tiler (#29, rendering), and the first region (#41) with direction boards in
 real kilometres. The licence summary is in [LICENSING.md](LICENSING.md) (#27).
 
-Not done: presets beyond `town` and a size budget check (#24), villages on the corridors (#50), paged
+Since then: seven villages on the corridors (#50).
+
+Not done: presets beyond `town` and a size budget check (#24), paged
 collision and plate eviction (#51), detail zones (#28), runtime loading of town folders (#33), and the
 Verona core (#25). Gateway routing (#30) is not needed for this region: it routes over one graph.
 

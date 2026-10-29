@@ -1,0 +1,50 @@
+{
+  "specVersion": 1,
+  "kind": "village",
+  "id": "sanpietro",
+  "name": "San Pietro di Legnago",
+  "description": "San Pietro di Legnago, a village on the roads between the lower-plain towns.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/sanpietro-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1856,
+      "lon": 11.278
+    },
+    "bbox": {
+      "south": 45.1838,
+      "west": 11.27545,
+      "north": 45.1874,
+      "east": 11.28055
+    }
+  },
+  "output": "build/towns/sanpietro.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "San Pietro di Legnago"
+    }
+  ],
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}

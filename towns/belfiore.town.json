@@ -1,0 +1,50 @@
+{
+  "specVersion": 1,
+  "kind": "village",
+  "id": "belfiore",
+  "name": "Belfiore",
+  "description": "Belfiore, a village on the roads between the lower-plain towns.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/belfiore-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1583,
+      "lon": 11.2175
+    },
+    "bbox": {
+      "south": 45.15718,
+      "west": 11.21591,
+      "north": 45.15942,
+      "east": 11.21909
+    }
+  },
+  "output": "build/towns/belfiore.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Belfiore"
+    }
+  ],
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}
