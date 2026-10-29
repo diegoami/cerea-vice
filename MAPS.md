@@ -39,6 +39,9 @@ The running game loads only the local JSON files; it does not contact OpenStreet
 
 ## Adding another district
 
+The planned spec-driven pipeline for real towns, starting with Verona, is in
+[docs/TOWNS.md](docs/TOWNS.md). Until it exists, districts are added by hand as below.
+
 1. Create a version 1 district JSON matching `DistrictDefinition` in `src/world/schema.ts`.
 2. Use local metre coordinates: north is negative Z and east is positive X. Preserve a consistent scale. Roads connect node IDs; intermediate shape points retain curves. Different elevation crossings must not share a junction ID unless the roads actually connect.
 3. Supply road widths, `roadClass` and one-way direction where needed. `primary`, `secondary` and `tertiary` receive major-road direction boards where they meet other major roads; other classes use name plates. A one-way segment runs from `a` to `b`. Road-rule enforcement is not simulated, but route hints and onward signs honour this direction.
