@@ -93,6 +93,11 @@ test('the region manifest is reproducible from its specs and keeps its towns at 
   const second=cerea.nodes[200],moved=built.nodes.find((n:any)=>n.id===second.id);
   assert.ok(Math.abs((moved.x-shifted.x)-(second.x-first.x))<0.02&&Math.abs((moved.z-shifted.z)-(second.z-first.z))<0.02,'Distances inside a town are unchanged');
   assert.equal(built.provenance.compression.k,0.6);
+  // Villages on the corridors are placed rigidly too, and carry no stops of their own.
+  const region=JSON.parse(readFileSync('regions/lower-verona.region.json','utf8')),villages=region.villages.map((v:any)=>JSON.parse(readFileSync(v.spec,'utf8')).id);
+  assert.deepEqual(Object.keys(built.provenance.compression.villages).sort(),[...villages].sort());
+  assert.ok(villages.length>=5&&built.taxi.stops.every((s:any)=>!villages.includes(s.id.split(':')[0])),'Villages have no stops');
+  for(const id of villages){const name=JSON.parse(readFileSync(`towns/${id}.town.json`,'utf8')).name;assert.ok(built.areas.some((a:any)=>a.name===name),`${name} is labelled`);}
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 

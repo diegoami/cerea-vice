@@ -28,7 +28,7 @@ def utm(lat,lon):
     return x,y
 def convergence(lat,lon):return math.atan(math.tan(math.radians(lon)-LON0)*math.sin(math.radians(lat)))
 
-REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','k','zoneMargin','towns','corridors','content','views'}
+REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','k','zoneMargin','villages','villageMargin','towns','corridors','content','views'}
 def check_spec(region):
     """Reject unknown or missing settings, so a value the builder ignores cannot look meaningful."""
     unknown=set(region)-REGION_KEYS
@@ -36,7 +36,8 @@ def check_spec(region):
     for key in ('id','name','k','zoneMargin','towns','corridors','content','output'):
         if key not in region:raise SystemExit(f'Region spec is missing "{key}"')
     if not isinstance(region['zoneMargin'],(int,float)) or region['zoneMargin']<0:raise SystemExit('"zoneMargin" must be a non-negative number of metres')
-    for entry in region['towns']:
+    if 'villages' in region and not isinstance(region.get('villageMargin'),(int,float)):raise SystemExit('"villageMargin" is required with "villages"')
+    for entry in region['towns']+region.get('villages',[]):
         if set(entry)!={'spec'}:raise SystemExit(f'A town entry takes only "spec"; got {sorted(entry)} (zones are each town\'s area plus "zoneMargin")')
 
 def town_inputs(spec_path,spec):
@@ -63,11 +64,17 @@ def main(argv=None):
     args=parser.parse_args(argv)
     region=json.loads(args.spec.read_text());check_spec(region);k=region['k'];zone_margin=region['zoneMargin']
     if not (0<k<=1):raise SystemExit('k must be in (0, 1]')
-    towns=[]
+    towns=[];villages=[]
     for entry in region['towns']:
         spec=ensure_town((ROOT/entry['spec']).resolve())
-        towns.append({'spec':spec,'data':json.loads((ROOT/spec['output']).read_text())})
+        towns.append({'spec':spec,'data':json.loads((ROOT/spec['output']).read_text()),'margin':zone_margin})
+    # Villages on the corridors: real streets at real scale, placed rigidly like towns, with no stops.
+    for entry in region.get('villages',[]):
+        spec=ensure_town((ROOT/entry['spec']).resolve())
+        if spec.get('kind')!='village':raise SystemExit(f'{entry["spec"]} is listed as a village but is not "kind": "village"')
+        villages.append({'spec':spec,'data':json.loads((ROOT/spec['output']).read_text()),'margin':region['villageMargin']})
     if args.towns_only:return
+    places=towns+villages
     ids=[t['spec']['id'] for t in towns]
     # Regional frame: false origin and rotation at the centre of the town origins.
     origins=[(t['spec']['area']['origin']['lat'],t['spec']['area']['origin']['lon']) for t in towns]
@@ -78,20 +85,20 @@ def main(argv=None):
         # Grid north is turned by gamma from true north; turn back so negative z is true north.
         x=de*cg-dn*sg;y=de*sg+dn*cg
         return (x,-y)
-    for t,(lat,lon) in zip(towns,origins):
-        rx,rz=frame(lat,lon);t['real']=(rx,rz);t['offset']=(k*rx,k*rz)
+    for t in places:
+        o=t['spec']['area']['origin'];rx,rz=frame(o['lat'],o['lon']);t['real']=(rx,rz);t['offset']=(k*rx,k*rz)
         b=t['data']['bounds'];ox,oz=t['offset'];t['box']=(b['minX']+ox,b['maxX']+ox,b['minZ']+oz,b['maxZ']+oz)
         t['nodes']={n['id']:n for n in t['data']['nodes']}
     # A town's zone is its map's area plus zoneMargin: everything in it moves rigidly with the town.
-    for a,b in itertools.combinations(towns,2):
-        A_,B_=[(x[0]-zone_margin,x[1]+zone_margin,x[2]-zone_margin,x[3]+zone_margin) for x in (a['box'],b['box'])]
-        if A_[0]<B_[1] and B_[0]<A_[1] and A_[2]<B_[3] and B_[2]<A_[3]:raise SystemExit(f'Town zones overlap after compression: {a["spec"]["id"]} and {b["spec"]["id"]}; raise k or lower zoneMargin')
+    for a,b in itertools.combinations(places,2):
+        A_,B_=[(x['box'][0]-x['margin'],x['box'][1]+x['margin'],x['box'][2]-x['margin'],x['box'][3]+x['margin']) for x in (a,b)]
+        if A_[0]<B_[1] and B_[0]<A_[1] and A_[2]<B_[3] and B_[2]<A_[3]:raise SystemExit(f'Zones overlap after compression: {a["spec"]["id"]} and {b["spec"]["id"]}; raise k or lower the margin')
     owner={}
-    for t in towns:
+    for t in places:
         for nid in t['nodes']:
             if nid in owner:raise SystemExit(f'OSM node {nid} is in two towns ({owner[nid]} and {t["spec"]["id"]})')
             owner[nid]=t['spec']['id']
-    by_id={t['spec']['id']:t for t in towns}
+    by_id={t['spec']['id']:t for t in places}
     def world_of_town_node(nid):
         t=by_id[owner[nid]];n=t['nodes'][nid];return (n['x']+t['offset'][0],n['z']+t['offset'][1])
 
@@ -143,7 +150,7 @@ def main(argv=None):
         for p in (there,back):
             for u,v in zip(p,p[1:]):edges.add((u,v) if (u,v) in edge_way else (v,u))
     # Drop edges that a town already has as one of its own roads.
-    town_edges={(r['a'],r['b']) for t in towns for r in t['data']['roads']}|{(r['b'],r['a']) for t in towns for r in t['data']['roads']}
+    town_edges={(r['a'],r['b']) for t in places for r in t['data']['roads']}|{(r['b'],r['a']) for t in places for r in t['data']['roads']}
     edges={e for e in edges|primary if e not in town_edges};primary={e for e in primary if e not in town_edges}
     graph={}
     for u,v in primary:graph.setdefault(u,set()).add(v);graph.setdefault(v,set()).add(u)
@@ -159,9 +166,9 @@ def main(argv=None):
     def zone_town(n):
         # A town's zone is its area plus a margin, so roundabouts and junctions at its edge move with it.
         x,z=coord[n]
-        for t in towns:
-            b=t['data']['bounds'];rx,rz=t['real']
-            if b['minX']+rx-margin<=x<=b['maxX']+rx+margin and b['minZ']+rz-margin<=z<=b['maxZ']+rz+margin:return t
+        for t in places:
+            b=t['data']['bounds'];rx,rz=t['real'];m=t['margin']
+            if b['minX']+rx-m<=x<=b['maxX']+rx+m and b['minZ']+rz-m<=z<=b['maxZ']+rz+m:return t
     fixed={}
     for n in sorted(graph):
         if n in owner:fixed[n]=world_of_town_node(n)
@@ -229,7 +236,7 @@ def main(argv=None):
         if isinstance(value,list):return [shift(v,dx,dz) for v in value]
         return value
     nodes=[];roads=[];bays=[];landmarks=[];buildings=[];features=[];water=[];areas=[];stops=[];zones=[];boards=[]
-    for t in towns:
+    for t in places:
         tid,name,d=t['spec']['id'],t['spec']['name'],t['data'];dx,dz=t['offset'];pref=lambda i:f'{tid}:{i}'
         named=lambda text:text if name.lower() in text.lower() else f'{text} ({name})'
         nodes+=shift(d['nodes'],dx,dz)
@@ -238,7 +245,7 @@ def main(argv=None):
         landmarks+=[{**shift(l,dx,dz),'id':pref(l['id'])} for l in d['landmarks']]
         buildings+=shift(d['buildings'],dx,dz);features+=shift(d['features'],dx,dz);water+=shift(d.get('waterAreas',[]),dx,dz)
         areas+=[{**shift(a,dx,dz)} for a in d['areas']]
-        stops+=[{**s,'id':pref(s['id']),'bayId':pref(s['bayId']),'name':named(s['name']),'description':f'Stop in {named(next(b["name"] for b in d["parkingZones"] if b["id"]==s["bayId"]))}.'} for s in d['taxi']['stops']]
+        stops+=[{**s,'id':pref(s['id']),'bayId':pref(s['bayId']),'name':named(s['name']),'description':f'Stop in {named(next(b["name"] for b in d["parkingZones"] if b["id"]==s["bayId"]))}.'} for s in d.get('taxi',{}).get('stops',[])]
         b=t['box'];zones.append({'id':tid,'name':name,'minX':b[0],'maxX':b[1],'minZ':b[2],'maxZ':b[3]})
     for n in sorted(graph):
         if n in owner:continue
@@ -269,7 +276,7 @@ def main(argv=None):
     start_stop=next(s for s in stops if s['id']==content['start']);sb=next(r for r in roads if start_stop['nodeId'] in (r['a'],r['b']))
     na=next(n for n in nodes if n['id']==sb['a']);nb=next(n for n in nodes if n['id']==sb['b'])
     spawn={'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(nb['x']-na['x'],-(nb['z']-na['z'])),'name':spawn_bay['name']}
-    stamps=sorted({t['data']['provenance']['osmTimestamp'] for t in towns}|{extract['osm3s']['timestamp_osm_base']})
+    stamps=sorted({t['data']['provenance']['osmTimestamp'] for t in places}|{extract['osm3s']['timestamp_osm_base']})
     district={'version':1,'id':region['id'],'dataVersion':region['dataVersion'],**({'subtitle':region['subtitle']} if region.get('subtitle') else {}),'stoppingPolicy':'anywhere','name':region['name'],'description':region['description'],
       'attribution':region['attribution'],'sourceUrl':region['sourceUrl'],'bounds':bounds,'nodes':nodes,'roads':roads,'parkingZones':bays,
       'taxi':{**content['taxi'],'stops':stops,'fares':[{'passenger':p,'pickupId':a,'destinationId':b} for p,a,b in content['fares']]},
@@ -277,7 +284,7 @@ def main(argv=None):
       'mission':{'name':content['mission']['name'],'objective':content['mission']['objective'],'hint':content['mission']['hint'],'duration':content['mission']['duration'],'bayId':target_stop['bayId'],'nodeId':target_stop['nodeId']},
       'provenance':{'source':'OpenStreetMap / Overpass API: town extracts and the region\'s main roads','osmTimestamp':stamps[-1],'osmTimestamps':stamps,
         'frame':{'projection':'UTM zone 32N (EPSG:32632)','falseOrigin':{'lat':round(clat,6),'lon':round(clon,6),'easting':round(E0,2),'northing':round(N0,2)},'rotationDegrees':round(math.degrees(gamma),4)},
-        'compression':{'k':k,'model':'corridor','towns':{t['spec']['id']:{'real':[round(t['real'][0],1),round(t['real'][1],1)],'placed':[round(t['offset'][0],1),round(t['offset'][1],1)]} for t in towns}},
+        'compression':{'k':k,'model':'corridor','towns':{t['spec']['id']:{'real':[round(t['real'][0],1),round(t['real'][1],1)],'placed':[round(t['offset'][0],1),round(t['offset'][1],1)]} for t in towns},'villages':{t['spec']['id']:{'real':[round(t['real'][0],1),round(t['real'][1],1)],'placed':[round(t['offset'][0],1),round(t['offset'][1],1)]} for t in villages},'zoneMargin':zone_margin,**({'villageMargin':region['villageMargin']} if villages else {})},
         'notes':['Towns keep their real streets at real scale; the real main roads between them are shortened by k, keeping their junctions, one-way tags and names.','Direction boards between towns show real road distances.','Designated stopping bays are gameplay placements, not verified real parking permissions.']}}
     output=(args.output or ROOT/'build/regions'/f'{region["id"]}.json').resolve();output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')

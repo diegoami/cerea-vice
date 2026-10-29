@@ -2,14 +2,15 @@
   "specVersion": 1,
   "id": "lower-verona",
   "name": "Lower Veronese plain",
-  "description": "Cerea, Legnago, Bovolone, Sanguinetto, Nogara and Casaleone at real scale, joined by their real main roads, shortened so neighbouring towns are a few minutes apart.",
-  "dataVersion": 1,
+  "description": "Cerea, Legnago, Bovolone, Sanguinetto, Nogara and Casaleone at real scale, joined by their real main roads through the villages between them, shortened so neighbouring towns are a few minutes apart.",
+  "dataVersion": 2,
   "subtitle": "REAL TOWNS / SHORTENED ROADS",
   "attribution": "© OpenStreetMap contributors · ODbL 1.0",
   "sourceUrl": "https://www.openstreetmap.org/copyright",
   "output": "public/maps/lower-verona/manifest.json",
   "k": 0.6,
   "zoneMargin": 200,
+  "villageMargin": 50,
   "towns": [
     {"spec": "towns/cerea.town.json"},
     {"spec": "towns/legnago.town.json"},
@@ -17,6 +18,15 @@
     {"spec": "towns/sanguinetto.town.json"},
     {"spec": "towns/nogara.town.json"},
     {"spec": "towns/casaleone.town.json"}
+  ],
+  "villages": [
+    {"spec": "towns/sanpietro.town.json"},
+    {"spec": "towns/concamarise.town.json"},
+    {"spec": "towns/aselogna.town.json"},
+    {"spec": "towns/venera.town.json"},
+    {"spec": "towns/belfiore.town.json"},
+    {"spec": "towns/alberoni.town.json"},
+    {"spec": "towns/casella.town.json"}
   ],
   "corridors": {
     "extract": "data/sources/lower-verona-main-roads.json",

@@ -28,6 +28,11 @@ def validate(spec):
     need(all(isinstance(origin.get(k),(int,float)) for k in ('lat','lon')),'"area.origin" needs numeric "lat" and "lon"')
     need(all(isinstance(bbox.get(k),(int,float)) for k in ('south','west','north','east')),'"area.bbox" needs numeric south, west, north and east')
     need(bbox['south']<bbox['north'] and bbox['west']<bbox['east'],'"area.bbox" must have south < north and west < east')
+    need(spec.get('kind','town') in ('town','village'),'"kind" must be "town" or "village"')
+    if spec.get('kind')=='village':
+        # A village on a region's corridors: real streets and buildings, no stops or shift of its own.
+        need(not spec.get('landmarks') and not spec.get('stops') and not spec.get('content'),'a village has no landmarks, stops or content')
+        return
     landmarks=spec.get('landmarks');need(isinstance(landmarks,list) and landmarks,'"landmarks" must be a confirmed, non-empty list')
     ids=set()
     for item in landmarks:
@@ -50,6 +55,7 @@ def validate(spec):
     need(all(isinstance(mission.get(k),str) for k in ('name','objective','hint')) and isinstance(mission.get('duration'),(int,float)),'"content.mission" needs name, objective, hint and duration')
 
 def build(spec,output):
+    village=spec.get('kind')=='village'
     source=json.loads((ROOT/spec['source']['extract']).read_text())
     lat0,lon0=spec['area']['origin']['lat'],spec['area']['origin']['lon']
     box=spec['area']['bbox'];west,south,east,north=box['west'],box['south'],box['east'],box['north']
@@ -95,6 +101,10 @@ def build(spec,output):
             for nxt in adjacency[stack.pop()]:
                 if nxt not in seen:seen.add(nxt);stack.append(nxt)
         remaining-=seen;components.append(seen)
+    if not components:
+        # A hamlet may hold no named road of its own: the corridor through it moves with its zone anyway.
+        if not village:raise SystemExit(f'{spec["id"]}: no named road inside its area')
+        components=[set()]
     keep=max(components,key=len);nodes={id:n for id,n in nodes.items() if id in keep};roads=[r for r in roads if r['a'] in keep and r['b'] in keep]
     for id,node in nodes.items():
         names=sorted({r['name'] for r in roads if id in (r['a'],r['b'])})
@@ -107,7 +117,7 @@ def build(spec,output):
 
     buildings=[];landmarks=[]
     # Confirmed landmarks that are buildings or named sites (ways), and mapped points (nodes).
-    landmark_specs={item['osmId']:(item['id'],item['name'],item['road'],item['kind'],item['height']) for item in spec['landmarks'] if not item.get('point')}
+    landmark_specs={item['osmId']:(item['id'],item['name'],item['road'],item['kind'],item['height']) for item in spec.get('landmarks',[]) if not item.get('point')}
     for e in source['elements']:
         tags=e.get('tags',{});geo=e.get('geometry',[])
         if not tags.get('building') or len(geo)<4:continue
@@ -139,12 +149,12 @@ def build(spec,output):
         chosen=max(candidates,key=lambda b:b['width']*b['depth'])
         chosen['height']=height
         landmarks.append({'id':id,'name':name,'road':road,'kind':kind,'height':height,'osmId':chosen['osmId'],**{k:chosen[k] for k in ['x','z','width','depth','points']}})
-    missing=[item['id'] for item in spec['landmarks'] if not item.get('point') and not any(p['id']==item['id'] for p in landmarks)]
+    missing=[item['id'] for item in spec.get('landmarks',[]) if not item.get('point') and not any(p['id']==item['id'] for p in landmarks)]
     if missing:raise RuntimeError('Confirmed landmarks not found in the extract or outside the area: '+', '.join(missing))
 
     # Mapped points (cinemas in Cerea) have a precise position rather than their own named
     # footprint. Associate each with the containing/nearest building, retaining the position.
-    for item in [item for item in spec['landmarks'] if item.get('point')]:
+    for item in [item for item in spec.get('landmarks',[]) if item.get('point')]:
         element=next((e for e in source['elements'] if e['id']==item['osmId']),None)
         if element is None:raise RuntimeError(f'Mapped point {item["osmId"]} for landmark {item["id"]} is not in the extract')
         location=point(element)
@@ -155,7 +165,7 @@ def build(spec,output):
 
     # Some confirmed POIs use their nearest mapped street as the game stopping
     # frontage. This is a practical pickup location, not a claim about a postal address.
-    nearest={item['id'] for item in spec['landmarks'] if item.get('frontage')=='nearest'}
+    nearest={item['id'] for item in spec.get('landmarks',[]) if item.get('frontage')=='nearest'}
     for place in landmarks:
         if place['id'] in nearest:
             place['road']=min(roads,key=lambda road:dist(place,project(place,nodes[road['a']],nodes[road['b']])) )['name']
@@ -179,8 +189,8 @@ def build(spec,output):
         if not candidates:raise RuntimeError('No accessible stopping bay for '+landmark_id)
         _,p,r,size=min(candidates,key=lambda item:item[0]);node=min((r['a'],r['b']),key=lambda id:dist(nodes[id],p))
         return {'id':landmark_id,'name':name,**p,'width':size,'depth':size},r,node
-    bay_names={stop['landmark']:stop['bay'] for stop in spec['stops']}
-    content=spec['content'];start,target=content['start'],content['mission']['target']
+    bay_names={stop['landmark']:stop['bay'] for stop in spec.get('stops',[])}
+    content=spec.get('content',{});start,target=(None,None) if village else (content['start'],content['mission']['target'])
     bays=[];stop_data=[]
     for place in landmarks:
         if place['id'] not in bay_names:continue
@@ -190,10 +200,11 @@ def build(spec,output):
         if place['id']==target:target_node=node
     # Keep the starting bay first for legacy district tools.
     bays.sort(key=lambda zone:(zone['id']!=start,zone['id']))
-    t=content['taxi']
-    taxi={'startHour':t['startHour'],'endHour':t['endHour'],'clockRate':t['clockRate'],'baseCents':t['baseCents'],'perKmCents':t['perKmCents'],'maxBonusCents':t['maxBonusCents'],'stops':stop_data,'fares':[{'passenger':name,'pickupId':pickup,'destinationId':dropoff} for name,pickup,dropoff in content['fares']]}
-    a,b=nodes[spawn_road['a']],nodes[spawn_road['b']]
-    if not spawn_road['oneWay'] and b['z']>a['z']:a,b=b,a
+    if not village:
+     t=content['taxi']
+     taxi={'startHour':t['startHour'],'endHour':t['endHour'],'clockRate':t['clockRate'],'baseCents':t['baseCents'],'perKmCents':t['perKmCents'],'maxBonusCents':t['maxBonusCents'],'stops':stop_data,'fares':[{'passenger':name,'pickupId':pickup,'destinationId':dropoff} for name,pickup,dropoff in content['fares']]}
+     a,b=nodes[spawn_road['a']],nodes[spawn_road['b']]
+     if not spawn_road['oneWay'] and b['z']>a['z']:a,b=b,a
     feature_spec=spec.get('features',{});widths=feature_spec.get('waterWidths',{});unnamed=feature_spec.get('unnamed',{'water':'Canale','rail':'Ferrovia'})
     features=[]
     for e in source['elements']:
@@ -250,8 +261,11 @@ def build(spec,output):
 
     centre={'x':(bounds['minX']+bounds['maxX'])/2,'z':(bounds['minZ']+bounds['maxZ'])/2}
     areas=[{'name':item['name'],'x':item.get('x',centre['x']),'z':item.get('z',centre['z']),'width':bounds['maxX']-bounds['minX'],'depth':bounds['maxZ']-bounds['minZ']} for item in spec.get('areas',[])]
-    mission=content['mission']
-    district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
+    if village:
+        district={'version':1,'kind':'village','id':spec['id'],'dataVersion':spec['dataVersion'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':[],'landmarks':[],'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
+    mission=content.get('mission',{})
+    if not village:
+     district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')
     subprocess.run(['node',str(ROOT/'tools/prepare-town.mjs'),str(output)],check=True)

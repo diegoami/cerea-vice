@@ -1,0 +1,50 @@
+{
+  "specVersion": 1,
+  "kind": "village",
+  "id": "alberoni",
+  "name": "Alberoni",
+  "description": "Alberoni, a village on the roads between the lower-plain towns.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/alberoni-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1805,
+      "lon": 11.0874
+    },
+    "bbox": {
+      "south": 45.17938,
+      "west": 11.08581,
+      "north": 45.18162,
+      "east": 11.08899
+    }
+  },
+  "output": "build/towns/alberoni.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Alberoni"
+    }
+  ],
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}

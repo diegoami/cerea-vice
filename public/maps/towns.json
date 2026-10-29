@@ -68,7 +68,7 @@
       "id": "lower-verona",
       "name": "Lower Veronese plain",
       "map": "lower-verona/manifest.json",
-      "dataVersion": 1,
+      "dataVersion": 2,
       "attribution": "© OpenStreetMap contributors · ODbL 1.0",
       "frame": "regional",
       "taxi": true,

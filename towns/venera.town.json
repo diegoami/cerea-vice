@@ -1,0 +1,50 @@
+{
+  "specVersion": 1,
+  "kind": "village",
+  "id": "venera",
+  "name": "Venera",
+  "description": "Venera, a village on the roads between the lower-plain towns.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/venera-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1815,
+      "lon": 11.1797
+    },
+    "bbox": {
+      "south": 45.1797,
+      "west": 11.17715,
+      "north": 45.1833,
+      "east": 11.18225
+    }
+  },
+  "output": "build/towns/venera.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Venera"
+    }
+  ],
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}
