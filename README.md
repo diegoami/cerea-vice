@@ -294,8 +294,8 @@ Enter, Escape and P resume even when a settings action has focus.
 props. Detailed scenery uses locally painted shutters, windows, ground-floor
 shop doors, ochre, cream, terracotta and grey-stucco neighbourhood colours,
 trees, lamps and parked cars. These
-are visual scenery, without new collisions or traffic. Waiting figures appear
-at every Cerea stop and do not identify the current fare. Harbor keeps its
+are visual scenery, without new collisions or traffic. Taxi stops show no
+waiting figures; only an accepted passenger walks to the stopped taxi. Harbor keeps its
 handcrafted scenery; picture, sound and motion options work there too.
 
 The synthesized engine follows speed, throttle and the selected gear; braking,
