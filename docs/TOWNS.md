@@ -324,6 +324,16 @@ They fail a town on:
 - a size report over budget (file size, building count, tiles, plate textures and their estimated
   memory).
 
+Done in `tools/town-doctor.ts` (#24): every check above except confirmed stops and landmarks, which the
+importer already refuses, and direction-board ownership, still checked for Cerea only by the sign tests. Unplaced street-plate arms are listed, not failed (the region has 11). A
+bay counts as accessible when a path at the car's 1.05 m margin leads from its street into it.
+
+**Budgets** (from the region spike): a single-file district up to 1.6 MB, 3,500 buildings, 2,000 road
+segments and 150 MiB of street-name textures (about 1 MiB per name). A tiled district keeps its manifest
+resident (up to 6 MB, 12,000 buildings, 9,000 road segments), tiles up to 250 kB, and at most 150 MiB of
+street-name textures for the tiles kept around any one place. The region today: 5.1 MB, 9,795
+buildings, 6,874 segments, largest tile 92 kB, at most 130 street names resident.
+
 Fixed-pose screenshots go with each build; `tools/capture-views.mjs` reads its districts and poses from
 the registry and the spec instead of its own list (R14). The desktop suite already takes several
 minutes, so a new town adds one smoke scenario rather than a copy of every scenario.
@@ -375,11 +385,12 @@ Done: the spec read by the importer (#23 step 1), the registry and selector (#26
 compression (#40), a general tiler (#29, rendering), and the first region (#41) with direction boards in
 real kilometres. The licence summary is in [LICENSING.md](LICENSING.md) (#27).
 
-Since then: six villages on the corridors (#50), and whole-network checks in the region builder (#70).
+Since then: six villages on the corridors (#50), whole-network checks in the region builder (#70), the
+town doctor and size report (#24, `npm run town:check`), bay access checked in the importer (#73), and
+street-name textures freed when no resident tile shows them (#51).
 
-Not done: presets beyond `town` and a size budget check (#24), paged
-collision and plate eviction (#51), detail zones (#28), runtime loading of town folders (#33), and the
-Verona core (#25). Gateway routing (#30) is not needed for this region: it routes over one graph.
+Not done: presets beyond `town` (#24), paged collision (#51), detail zones (#28), runtime loading of
+town folders (#33), and the Verona core (#25). Gateway routing (#30) is not needed for this region: it routes over one graph.
 
 ## Risks and open questions
 

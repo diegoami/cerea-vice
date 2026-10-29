@@ -3,7 +3,7 @@
   "id": "lower-verona",
   "name": "Lower Veronese plain",
   "description": "Cerea, Legnago, Bovolone, Sanguinetto, Nogara and Casaleone at real scale, joined by their real main roads through the villages between them, shortened so neighbouring towns are a few minutes apart.",
-  "dataVersion": 2,
+  "dataVersion": 3,
   "subtitle": "REAL TOWNS / SHORTENED ROADS",
   "attribution": "© OpenStreetMap contributors · ODbL 1.0",
   "sourceUrl": "https://www.openstreetmap.org/copyright",

@@ -3,7 +3,7 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import type {TileMaterials} from './TileMaterials';
 import type {District} from '../district';
 import {roadWidth} from '../district';
-import {box,sign,signpost,streetNamePlate,material} from '../builders';
+import {box,sign,signpost,streetNamePlate,releaseStreetNamePlate,material} from '../builders';
 import {createScenery} from '../Scenery';
 import type {Point,Rect,Bounds} from '../schema';
 import type {TileRef,TilePayload} from './schema';
@@ -64,6 +64,6 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
   for(const m of originals){m.removeFromParent();m.geometry.dispose();}
  };
  batch(group,[detail,simple]);batch(detail);batch(simple);
- let disposed=false;
- return {group,anchor,bounds:ref.bounds,setDetail(enabled){detail.visible=enabled;simple.visible=!enabled;},dispose(){if(disposed)return;disposed=true;group.removeFromParent();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();group.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.shared){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});for(const g of geometries)g.dispose();for(const t of textures)t.dispose();for(const m of materials)m.dispose();group.clear();}};
+ let disposed=false;const tileMaterials=materials;
+ return {group,anchor,bounds:ref.bounds,setDetail(enabled){detail.visible=enabled;simple.visible=!enabled;},dispose(){if(disposed)return;disposed=true;group.removeFromParent();for(const p of payload.plates){const face=releaseStreetNamePlate(p.name);if(face)tileMaterials.release(face);}const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();group.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.shared){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});for(const g of geometries)g.dispose();for(const t of textures)t.dispose();for(const m of materials)m.dispose();group.clear();}};
 }
