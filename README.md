@@ -258,12 +258,13 @@ See the [tentative development roadmap](ROADMAP.md) for milestones and playable 
 2. Tune the expanded district from driving and sign feedback.
 3. Add a distinct “Where am I?” request if it improves navigation help.
 
-## Independent review
+## Reviews
 
-The project uses an exact-head PR review handoff adapted from Geoclick2027.
-See [the review workflow](docs/EXTERNAL_REVIEW.md) and
-[the whole-project review brief](docs/whole-project-review.md). A fresh session
-of another model family runs `/review-pr`; setup alone does not start a review.
+Reviews are run by the owner by hand, with any agent and model: optional reviews
+of individual PRs ([brief](docs/review-pr.md)) and a milestone review before each
+release tag ([process](docs/milestone-review.md)). The ready-to-paste prompts are in
+[review prompts](docs/review-prompts.md). The earlier review workflow is kept as
+[history](docs/EXTERNAL_REVIEW.md).
 
 ## Picture, sound and comfort
 
