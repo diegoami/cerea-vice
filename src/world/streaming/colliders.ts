@@ -15,5 +15,7 @@ export function streamingColliders(context:District):Rect[]{
    }
   }
  }
+ // Water areas carry their own collision shape: the water minus every road corridor, so bridges stay open.
+ for(const area of context.district.waterAreas??[])result.push(...area.solid);
  return [...result,...context.district.buildings];
 }

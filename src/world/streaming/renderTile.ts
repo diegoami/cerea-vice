@@ -26,8 +26,14 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
  for(const i of payload.bays)if(!owns(context.parkingZones[i]))throw new Error('Invalid bay owner');
  const group=new THREE.Group(),detail=new THREE.Group(),simple=new THREE.Group(),scenery=createScenery(context);group.add(detail,simple);
  const strip=(parent:THREE.Object3D,a:Point,b:Point,width:number,y:number,h:number,color:number)=>{const m=box(parent,(a.x+b.x)/2,y,(a.z+b.z)/2,Math.hypot(b.x-a.x,b.z-a.z),h,width,color);m.rotation.y=Math.atan2(-(b.z-a.z),b.x-a.x);};
- const rural=anchor.z<-500;box(group,0,-.4,0,250,.7,250,rural?ground.meadow:ground.town);
+ const rural=payload.ground?payload.ground==='rural':anchor.z<-500;box(group,0,-.4,0,250,.7,250,rural?ground.meadow:ground.town);
  if(rural){box(group,-64,-.035,0,115,.02,235,ground.stubble);box(group,64,-.035,0,115,.02,235,ground.crop);}
+ for(const piece of payload.water??[]){
+  if(!Array.isArray(piece.points)||piece.points.length<3||piece.points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.z)))throw new Error('Invalid tile water');
+  const shape=new THREE.Shape(piece.points.map(p=>{const q=local(p);return new THREE.Vector2(q.x,-q.z);}));
+  shape.holes=(piece.holes??[]).map(ring=>new THREE.Path(ring.map(p=>{const q=local(p);return new THREE.Vector2(q.x,-q.z);})));
+  const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);const mesh=new THREE.Mesh(geometry,material(feature.water));mesh.position.y=.02;group.add(mesh);
+ }
  for(const index of payload.features){const f=context.district.features[index];for(let i=0;i<f.points.length-1;i++){const a=local(f.points[i]),b=local(f.points[i+1]);strip(group,a,b,f.width,0,.05,f.kind==='water'?feature.water:feature.ballast);if(f.kind==='rail'){const length=Math.hypot(b.x-a.x,b.z-a.z)||1,nx=-(b.z-a.z)/length*.8,nz=(b.x-a.x)/length*.8;for(const side of [-1,1])strip(group,{x:a.x+side*nx,z:a.z+side*nz},{x:b.x+side*nx,z:b.z+side*nz},.12,.09,.1,feature.rail);}}}
  for(const index of payload.roads){const r=context.roads[index],a=local(context.nodeById(r.a)),b=local(context.nodeById(r.b)),w=roadWidth(r);strip(group,a,b,w+2.5,.01,.08,paving.verge);strip(group,a,b,w,.075,.06,paving.road);
   const cap=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,.06,12),material(paving.road));cap.position.set(a.x,.075,a.z);group.add(cap);

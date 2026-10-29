@@ -45,6 +45,8 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   if (data.dataVersion!==undefined&&!(Number.isSafeInteger(data.dataVersion)&&data.dataVersion>=1)) throw new Error("Invalid map data version");
   validateStreaming(data);
   for (const feature of data.features) if (!(feature.width>0) || feature.points?.length<2 || feature.points.some((point) => !validPoint(point)) || !["water", "rail"].includes(feature.kind)) throw new Error("Invalid map feature");
+  const ring=(points:unknown)=>Array.isArray(points)&&points.length>=3&&points.every(validPoint);
+  if (data.waterAreas!==undefined && (!Array.isArray(data.waterAreas) || data.waterAreas.some(area=>!plainText(area.name)||!ring(area.points)||(area.holes!==undefined&&(!Array.isArray(area.holes)||!area.holes.every(ring)))||!Array.isArray(area.solid)||area.solid.some(piece=>!ring(piece.points)||![piece.x,piece.z,piece.width,piece.depth].every(Number.isFinite)||(piece.holes!==undefined&&!piece.holes.every(ring)))))) throw new Error("Invalid water area");
 }
 
 export function projectToSegment(point: Point, a: Point, b: Point): Point {

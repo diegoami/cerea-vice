@@ -52,6 +52,10 @@ The planned spec-driven pipeline for real towns, starting with Verona, is in
 2. Use local metre coordinates: north is negative Z and east is positive X. Preserve a consistent scale. Roads connect node IDs; intermediate shape points retain curves. Different elevation crossings must not share a junction ID unless the roads actually connect.
 3. Supply road widths, `roadClass` and one-way direction where needed. `primary`, `secondary` and `tertiary` receive major-road direction boards where they meet other major roads; other classes use name plates. A one-way segment runs from `a` to `b`. Road-rule enforcement is not simulated, but route hints and onward signs honour this direction.
 4. Supply bounds, building polygons, water/rail polylines, named landmarks and rectangular game stopping areas.
+   Rivers and lakes can also be areas (`waterAreas`): set `"waterAreas": true` under `features` in a town spec
+   and `tools/import-town.py` takes `natural=water` and `waterway=riverbank` ways and multipolygons; the
+   prepare step clips them to the district and subtracts every road corridor for their collision shape, so
+   bridges stay drivable. Cerea has none and does not set the flag.
 5. Set the starting position, heading and name. A basic district can define one mission destination bay and road node. For taxi mode, add `taxi.stops` and `taxi.fares`, start/end hours, clock rate and fare parameters; every referenced stop needs an accessible bay and a reachable road node.
 6. Put the file in `public/maps/` and add its entry to `public/maps/towns.json` (built from a town spec,
    `tools/import-town.py` adds it). The briefing, LB / RB cycling and `--district` then offer it; no code

@@ -15,5 +15,9 @@ export interface TilePayload {
  version:1;id:string;provenance:TileManifest['provenance'];
  buildings:MapBuilding[];roads:number[];features:number[];landmarks:number[];bays:number[];
  plates:StreetPlatePlan[];boards:RoadsideBoard[];props:PropPlan[];
+ /** The water areas clipped to this tile, for drawing; collision uses the district's resident water shapes. */
+ water?:{points:Point[];holes?:Point[][]}[];
+ /** Ground for this tile: town paving colours or countryside fields. Defaults to the outskirts rule. */
+ ground?:'town'|'rural';
 }
 export interface PrototypeDefinition extends DistrictDefinition {streaming:TileManifest}
