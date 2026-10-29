@@ -1,6 +1,6 @@
 # Adding towns: design
 
-Status: proposal, revised 2026-10-29 after the PR #31 review. No code yet. Owner decisions are marked
+Status: proposal, revised 2026-10-29 after the PR #31 review and the owner's region decisions. No code yet. Owner decisions are marked
 **Decided**; everything else is a recommendation to review. Review findings are cited as R1–R15.
 
 ## Goal
@@ -13,7 +13,11 @@ town should be able to mix detail levels by area.
 - Verona is **real geography throughout**: street network, names and one-way tags from
   OpenStreetMap, as in Cerea Centro.
 - The first Verona area is about **1 km²** around the Arena.
-- Towns are **separate districts chosen from the menu for now**, connected by real roads later.
+- Towns are **connected in regions** by their real intercity roads, **shortened** so neighbouring
+  towns are about **5 minutes** apart; inside its zone every town stays at real scale (owner,
+  2026-10-29). A town outside any region is a district chosen from the menu, as today.
+- The **first region** is Cerea with Legnago, Bovolone, Sanguinetto, Nogara and Casaleone and the
+  villages in between; the first **bigger town is about 3 km²** (owner, 2026-10-29).
 - **Script first, runtime loading later.** Towns are added by a build-time script now; the town
   format is designed so a finished town can later be loaded by the running game from a folder.
 - **Every named street is drivable**, including pedestrian streets, as today, in every preset. The
@@ -100,6 +104,78 @@ Consequences:
   node and the regional bounds instead of absolute coordinates (R12). **Saves for both Cerea and the
   outskirts stop loading at that point**, with a message that names the map version (see Saves).
 - Stop, bay and landmark ids are prefixed by town (for example `verona:arena`).
+
+## Regions and compression
+
+**Decided:** towns keep their real streets at real scale; only the space between them is shortened.
+
+**Mapping.** Work in the regional frame. Let `C` be the region centre, `k` the compression factor
+(0 < k ≤ 1), and `c_i` the centre of town zone `i`. The global contraction is `g(p) = C + k (p − C)`.
+Inside zone `i` the town only moves, by `T_i = (k − 1)(c_i − C)`, so its streets are unchanged.
+Between towns:
+
+```
+f(p) = g(p) − Σ_i w_i(p) · (k − 1)(p − c_i)
+```
+
+where `w_i` is 1 inside zone `i` and falls to 0 across a transition band around it (a smoothstep on the
+distance from the zone boundary). Inside a zone this reduces to `p + T_i`; far from every zone it is
+`g(p)`. Town centres keep their exact compass bearings to each other, and the distance between their
+zones shrinks by `k`.
+
+**Rules.**
+- Corridor roads keep their real nodes, junctions, one-way tags and names; their geometry is mapped by
+  `f`, so they shorten by about `k` outside the bands and bend slightly inside them. Village zones are
+  rigid like towns but use the `sketch` preset.
+- No buildings in transition bands, which distort; the bands get only countryside filler (fields,
+  trees), so nothing visibly warps.
+- Checks on a grid over the region: `f` has a positive Jacobian everywhere (no folds), no two zones
+  overlap after mapping, bands do not overlap each other, and town-to-town bearings are unchanged.
+- Fares, the speed bonus and timing use the driven, compressed distance, so pay per minute stays
+  consistent. The paper atlas shows the same compressed map; no GPS, route line or live marker.
+- **For the owner:** direction boards between towns should show the distance you will actually drive
+  (recommended), not the real-world kilometres.
+- A compressed region is no longer at true UTM positions outside the zones; the frame, false origin,
+  `k`, `C` and the zones are recorded in the region spec and provenance.
+
+**Region spec.** One file per region, for example `regions/lower-verona.region.json`: the town specs and
+their zone polygons, village zones, the corridor roads to keep (as OSM way ids or a rule such as "the
+main roads connecting these towns"), `k`, `C`, the band width and the countryside filler preset. A
+region is delivered tiled, with paged collision (#29), since it is several kilometres across.
+
+## First region: the lower Veronese plain
+
+Measured 2026-10-29 from an Overpass query of places and `trunk`/`primary`/`secondary`/`tertiary` roads
+in the box 45.14–45.29 N, 11.03–11.34 E (OSM data timestamp 2026-10-29T09:59:35Z; 2.2 MB; not checked
+in). Road distances are shortest paths over those roads between the town place nodes, ignoring one-way
+tags; drive times assume 17 m/s, a little under the car's paved top speed of about 20 m/s
+(`src/driving/Car.ts`).
+
+| Pair | Straight km | Road km | Drive at 17 m/s | At k = 0.6 |
+| --- | ---: | ---: | ---: | ---: |
+| Cerea – Casaleone | 2.6 | 3.6 | 3.5 min | about 2 min |
+| Casaleone – Sanguinetto | 4.0 | 5.2 | 5.1 min | about 3 min |
+| Cerea – Sanguinetto | 4.9 | 5.9 | 5.8 min | about 3.5 min |
+| Nogara – Sanguinetto | 7.1 | 7.6 | 7.5 min | about 4.5 min |
+| Legnago – Cerea | 7.7 | 8.4 | 8.2 min | about 5 min |
+| Cerea – Bovolone | 10.3 | 10.6 | 10.4 min | about 6 min |
+| Legnago – Nogara | 19.7 | 22.0 | 21.5 min | about 13 min |
+
+The "at k" column scales the whole road distance and is an upper bound on the saving, since town zones
+are not shortened. So the compression this region needs is **mild, about k = 0.6**, not the 1:4 to 1:5 a
+generic 20 km example suggests; the nearest pairs are already about 5 minutes apart uncompressed. `k` is
+set from measured in-game drive times (#41), with the 5-minute target for typical neighbours.
+
+The box also contains 30 more villages (among them Asparetto, Aselogna, San Pietro di Legnago, Concamarise,
+Salizzole, Roverchiara, San Pietro di Morubio, Venera), 85 hamlets and about 527 km of main road. "The
+villages in between" therefore means the villages on the chosen corridors, as sketch zones; the rest
+stays countryside. The town centres span 19.6 km east–west (Nogara to Legnago) and 9.7 km north–south
+(Bovolone to Casaleone); at k = 0.6 that is 11.8 × 5.8 km between centres, roughly 14 × 8 km with the
+outer town zones.
+
+Legnago, the largest town and the only one of about 3 km², also lies on the Adige, so it is the first
+real test of water polygons and bridges. The Verona core (#25) moves after this region; it is the next
+bigger-city test, not the first.
 
 ## Spec file
 
@@ -268,18 +344,21 @@ minutes, so a new town adds one smoke scenario rather than a copy of every scena
 3. **Regional frame, schema and save changes** (#23 step 2): Cerea and the outskirts move to the frame,
    ids are prefixed, `dataVersion` and the narrower signature arrive, and the new road, water and paved
    area fields are added. Cerea and outskirts saves break once here.
-4. **Verona spike** (#32): run the importer for the Verona core twice, with today's fixed widths and
-   with fitted widths, and report trimmed and removed buildings, streets below 2.8 m and 2.1 m, named
-   footways, steps and squares, water and bridges, multipolygon buildings, plate count and memory,
-   reachability, bays and file size. Budgets use the fitted numbers; the fixed run shows what fitting
-   saves.
+4. **Region spike** (#32, retargeted from Verona to the first region): Legnago at about 3 km² and one
+   small town, each with fixed and fitted widths (trimmed and removed buildings, streets below 2.8 m and
+   2.1 m, named footways, steps and squares, the Adige and bridges, multipolygon buildings, plate count
+   and memory, reachability, bays, file size), plus the corridors mapped with `k` = 0.6 (drive lengths,
+   fold and overlap checks, tile count).
 5. **Presets and checks over the registry** (#24), with budgets from the spike.
-6. **Licence and provenance decision** (#27), a gate before #25 ships a new town.
-7. **Verona core** (#25).
-8. **Later:** detail zones and named areas (#28), larger towns and a general tiler (#29), connected towns
-   (#30), runtime loading from a folder (#33).
+6. **Licence and provenance decision** (#27), a gate before the first new town ships.
+7. **Compression mapping** (#40), **general tiler and paged collision** (#29), and gateway routing for
+   connected towns (#30).
+8. **First region** (#41): Cerea, Legnago, Bovolone, Sanguinetto, Nogara, Casaleone and the villages on
+   their corridors.
+9. **Later:** the Verona core (#25), detail zones and named areas (#28), runtime loading from a folder
+   (#33).
 
-1 to 7 are the near-term plan, in milestone "0.11 — Towns pipeline".
+1 to 8 are the near-term plan, in milestone "0.11 — Towns pipeline".
 
 ## Risks and open questions
 
