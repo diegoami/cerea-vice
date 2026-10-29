@@ -244,7 +244,8 @@ def main(argv=None):
     except SpecError as error:raise SystemExit(f'{args.spec}: {error}')
     output=(args.output or ROOT/spec['output']).resolve()
     build(spec,output)
-    # Only the town's own map is registered; a build written elsewhere (tests, experiments) is not.
-    if args.output is None:update_registry(spec,args.spec,output)
+    # Only a town's own map under public/maps/ is registered; builds written elsewhere (tests, spikes) are not.
+    if args.output is None and output.is_relative_to(REGISTRY.parent):update_registry(spec,args.spec,output)
+    elif args.output is None:print(f'Not registered: {output} is outside {REGISTRY.parent}')
 
 if __name__=='__main__':main()
