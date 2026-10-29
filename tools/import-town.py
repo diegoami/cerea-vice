@@ -382,7 +382,7 @@ def update_registry(spec,spec_path,output):
 def main(argv=None):
     parser=argparse.ArgumentParser(description='Build a district from a town spec.')
     parser.add_argument('spec',type=Path,help='towns/<id>.town.json')
-    parser.add_argument('--output',type=Path,help='write the district here instead of the spec\'s "output"')
+    parser.add_argument('--output',type=Path,help='write the district here instead of the spec\'s "output" (for a tiled town: <folder>/manifest.json)')
     parser.add_argument('--check',action='store_true',help='validate the spec and its extract path only')
     args=parser.parse_args(argv)
     spec=json.loads(args.spec.read_text())
@@ -392,6 +392,9 @@ def main(argv=None):
         if not (ROOT/spec['source']['extract']).is_file():raise SystemExit(f'{args.spec}: extract {spec["source"]["extract"]} is missing')
         print(f'{args.spec}: valid');return
     output=(args.output or ROOT/spec['output']).resolve()
+    if spec.get('delivery')=='tiled' and output.name!='manifest.json':
+        # A tiled town fills a folder (manifest.json and tiles/); refuse a file name before any work (#81).
+        raise SystemExit(f'{args.spec}: a tiled town is written as <folder>/manifest.json; got --output {args.output}')
     if spec.get('delivery')=='tiled':
         # Over the single-file budget (npm run town:check): build the district, then tile it into the
         # output's folder (manifest and 250 m tiles), as a region is.

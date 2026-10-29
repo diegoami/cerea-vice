@@ -1,5 +1,6 @@
 import { roadWidth, type Point } from "../world/district";
 import { District } from "../world/district";
+import { atlasLabel } from "../world/placeNames";
 export type AtlasPage = "map" | "index";
 export function createAtlas(context:District){
 const {district,areaAt,landmarks,nodeById,parkingZones,roads}=context;
@@ -33,7 +34,7 @@ function mapSvg() {
   const paths=roads.map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${roadWidth(road)}"/>`;}).join("");
   const labels=atlasStreetEntries().map(street=>`<text data-street="${xml(street.name)}" x="${street.x}" y="${street.z-1*u}" transform="rotate(${street.angle} ${street.x} ${street.z})" style="font-size:${4*u}px">${xml(street.name.toUpperCase())}</text>`).join("");
   const bays=parkingZones.map((zone)=>`<rect x="${zone.x-zone.width/2}" y="${zone.z-zone.depth/2}" width="${zone.width}" height="${zone.depth}" class="atlas-bay"/><text x="${zone.x}" y="${zone.z+2*u}" class="atlas-parking" data-map-label="parking" style="font-size:${6*u}px">P</text>`).join("");
-  const places=landmarks.map((place)=>`<path d="${(place.points?[place.points,...(place.holes??[])]:[[{x:place.x-place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z+place.depth/2},{x:place.x-place.width/2,z:place.z+place.depth/2}]]).map(ring=>`M ${ring.map(p=>`${p.x} ${p.z}`).join(" L ")} Z`).join(" ")}" fill-rule="evenodd" class="atlas-building"/><text x="${place.x}" y="${place.z-place.depth/2-4*u}" class="atlas-place-label" data-map-label="place" style="font-size:${4.5*u}px">${xml((place.kind==="church"?"San Zeno":place.kind==="school"?"Scuola Visentini":place.name).toUpperCase())}</text>`).join("");
+  const places=landmarks.map((place)=>`<path d="${(place.points?[place.points,...(place.holes??[])]:[[{x:place.x-place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z+place.depth/2},{x:place.x-place.width/2,z:place.z+place.depth/2}]]).map(ring=>`M ${ring.map(p=>`${p.x} ${p.z}`).join(" L ")} Z`).join(" ")}" fill-rule="evenodd" class="atlas-building"/><text x="${place.x}" y="${place.z-place.depth/2-4*u}" class="atlas-place-label" data-map-label="place" style="font-size:${4.5*u}px">${xml(atlasLabel(place).toUpperCase())}</text>`).join("");
   const features=district.features.map((feature)=>`<polyline points="${points(feature.points)}" fill="none" stroke="${feature.kind==="water"?"#9cbfc1":"#756e5b"}" stroke-width="${feature.width}" ${feature.kind==="rail"?'stroke-dasharray="3 2"':""}/>`).join("");
   // Rivers and squares as areas (#25): water in the key's colour, squares in pale stone, under the buildings.
   const area=(rings:Point[][],fill:string)=>`<path d="${rings.map(ring=>`M ${ring.map(p=>`${p.x} ${p.z}`).join(" L ")} Z`).join(" ")}" fill-rule="evenodd" fill="${fill}"/>`;

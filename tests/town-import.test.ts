@@ -126,3 +126,19 @@ test('the Verona spec rebuilds and tiles to the shipped map, with courtyards, sq
   for(const [id,gate] of [['borsari',138812787],['leoni',694354426]] as const)assert.notEqual(map.landmarks.find((l:any)=>l.id===id).osmId,gate);
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+test('a tiled town refuses a file name as output and the tiler never deletes unrelated files (#81)',{timeout:120000},async()=>{
+ const directory=await mkdtemp(path.join(tmpdir(),'tiled-output-'));
+ try{
+  const marker=path.join(directory,'unrelated-notes.txt');await writeFile(marker,'developer work\n');
+  const refused=run('towns/verona.town.json','--output',path.join(directory,'verona.json'));
+  assert.notEqual(refused.status,0);assert.match(refused.stderr,/a tiled town is written as <folder>\/manifest.json/);
+  assert.equal(await readFile(marker,'utf8'),'developer work\n','nothing is deleted');
+  // The tiler replaces its own tiles folder and manifest only.
+  const {readdir}=await import('node:fs/promises');
+  await import('node:fs/promises').then(fs=>fs.mkdir(path.join(directory,'tiles'))).then(()=>writeFile(path.join(directory,'tiles','stale.json'),'{}'));
+  const tiled=spawnSync('node',['--import','tsx','tools/tile-district.mjs','public/maps/cerea.json',directory],{encoding:'utf8'});assert.equal(tiled.status,0,tiled.stderr);
+  assert.equal(await readFile(marker,'utf8'),'developer work\n','an unrelated file beside the output survives');
+  const tiles=await readdir(path.join(directory,'tiles'));assert.ok(tiles.length>0&&!tiles.includes('stale.json'),'stale tiles are replaced');
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
