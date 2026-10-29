@@ -821,7 +821,7 @@ h1 em {
   .atlas-tools > span { font-size: 16px; }
   .atlas-tools button { font-size: 18px; padding: 7px; }
 }
-.district-switch { display:flex;gap:8px;margin:16px 0 8px; }
+.district-switch { display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px;max-height:8.5em;overflow-y:auto; }
 .modal .district-switch button { padding:10px;font:20px "Vice", monospace;justify-content:center;background:#30453f;color:#dce4cf; }
 .modal .district-switch button[aria-pressed="true"] { background:var(--accent);color:#17262c; }
 .atlas-attribution { font:16px/1.4 "Vice", monospace; padding:4px 18px;color:#516254; }

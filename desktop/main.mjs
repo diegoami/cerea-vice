@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session } fro
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assetPath } from './assets.mjs';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { readChoice, scanFolder, trackResponse, writeChoice } from './music.mjs';
 
 // Portable Windows launches and the WSL launcher share durable player data.
@@ -26,6 +26,11 @@ async function musicLibrary(folder) {
   return library;
 }
 
+// Districts come from the bundled registry; an unlisted --district is ignored rather than passed on.
+function listedDistricts() {
+  try { return JSON.parse(readFileSync(path.join(app.getAppPath(), 'dist', 'maps', 'towns.json'), 'utf8')).towns.map(town => town.id); }
+  catch { return []; }
+}
 function createWindow() {
   const window = new BrowserWindow({
     title: 'Cerea Vice',
@@ -59,7 +64,7 @@ function createWindow() {
     }
   });
   const requestedDistrict = app.commandLine.getSwitchValue('district');
-  const selected = ['cerea','harbor','cerea-outskirts'].includes(requestedDistrict) ? `#district=${requestedDistrict}` : '';
+  const selected = listedDistricts().includes(requestedDistrict) ? `#district=${requestedDistrict}` : '';
   const parameters=new URLSearchParams();if(app.commandLine.hasSwitch('profile'))parameters.set('profile','1');if(app.commandLine.hasSwitch('tile-lab'))parameters.set('tile-lab','1');
   window.loadURL(`cerea://game/${parameters.size?'?'+parameters:''}${selected}`);
 }

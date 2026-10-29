@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "default": "cerea",
+  "towns": [
+    {
+      "id": "cerea",
+      "name": "Cerea Centro",
+      "map": "cerea.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "local",
+      "taxi": true,
+      "provenance": true,
+      "spec": "towns/cerea.town.json",
+      "views": [
+        {
+          "name": "municipio",
+          "bay": "municipio"
+        },
+        {
+          "name": "san-zeno",
+          "bay": "church"
+        },
+        {
+          "name": "teatro",
+          "bay": "teatro"
+        }
+      ]
+    },
+    {
+      "id": "harbor",
+      "name": "Harbor District",
+      "map": "harbor.json",
+      "dataVersion": 1,
+      "attribution": "Handcrafted Cerea Vice prototype",
+      "frame": "authored",
+      "taxi": false,
+      "provenance": false,
+      "spec": null
+    },
+    {
+      "id": "cerea-outskirts",
+      "name": "Cerea outskirts prototype",
+      "map": "cerea-outskirts/manifest.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "local",
+      "taxi": true,
+      "provenance": true,
+      "spec": null,
+      "derivedFrom": "cerea",
+      "views": [
+        {
+          "name": "city",
+          "bay": "municipio"
+        },
+        {
+          "name": "countryside",
+          "z": -1150
+        },
+        {
+          "name": "hamlet",
+          "bay": "test-hamlet"
+        }
+      ]
+    }
+  ]
+}

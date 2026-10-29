@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { _electron } from 'playwright-core';
@@ -962,4 +962,24 @@ test('the radio plays a chosen local folder, skips a broken track, survives a re
   assert.deepEqual(errors,[]);
  }catch(error){const page=await app.firstWindow();await page.screenshot({path:'test-results/radio-failure.png'});console.log(await page.locator('body').innerText());throw error;}
  finally{await app.close().catch(()=>{});await rm(profile,{recursive:true,force:true});await rm(music,{recursive:true,force:true});}
+});
+
+test('the briefing lists every registered district, and a damaged map offers the others', {timeout:90000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-registry-test-'));
+ const {towns}=JSON.parse(await readFile('public/maps/towns.json','utf8'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=harbor',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.deepEqual(await page.locator('.district-switch button').allInnerTexts(),towns.map(t=>t.name),'The briefing lists the registry, in order');
+  assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Harbor District');
+  // A listed district whose map is missing does not lock the player out.
+  await page.route('**/maps/harbor.json',route=>route.fulfill({status:404,body:'missing'}));
+  await page.reload();
+  await page.getByRole('heading',{name:'Unable to open Harbor District'}).waitFor();
+  assert.deepEqual(await page.locator('.fatal [data-district]').allInnerTexts(),towns.filter(t=>t.id!=='harbor').map(t=>t.name));
+  await page.keyboard.press('Enter'); // The first other district has focus.
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.match(page.url(),/#district=cerea$/);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
