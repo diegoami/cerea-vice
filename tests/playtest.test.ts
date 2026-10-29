@@ -61,7 +61,7 @@ test('accepting commits one ride; closing or a new list pays nothing; service st
  assert.equal(mission.serveAtStop(mission.target!.bay,true),true);assert.equal(mission.receipts[0].baseCents,guarantee);
  assert.equal(mission.receipts[0].bonusCents,0);assert.equal(mission.freeDriving,true);assert.equal(mission.fareBoard.length,0,'Dropoff returns to free driving without an offer');
 });
-function saved(mission=new Mission({seed:75}),car={speed:0,gear:'R' as const}):SaveData{
+function saved(mission=new Mission({seed:75}),car:{speed:number;gear:'D'|'R'}={speed:0,gear:'R'}):SaveData{
  const {AtlasNotes}=createAtlasNotes(context),notes=new AtlasNotes();notes.pointAt({x:40,z:40});notes.place();
  return {version:2,district:context.district.id,map:mapSignature(context),savedAt:new Date().toISOString(),
    car:{x:context.spawn.x,z:context.spawn.z,heading:context.spawn.heading,speed:car.speed,gear:car.gear,steering:0,collisions:3},
@@ -80,6 +80,8 @@ test('save/load preserves free driving, listed fares, accepted rides, boarding, 
  }
  const boarding=new Mission({seed:75});take(boarding);boarding.serveAtStop(boarding.target!.bay,true);
  assert.throws(()=>decodeSave(context,JSON.stringify(saved(boarding,{speed:-2,gear:'R'}))),'A boarding save must have a stationary taxi');
+ assert.equal(decodeSave(context,JSON.stringify(saved(new Mission({seed:75}),{speed:60,gear:'D'}))).car.speed,60,'A save above the old top speed loads');
+ assert.throws(()=>decodeSave(context,JSON.stringify(saved(new Mission({seed:75}),{speed:5000,gear:'D'}))),'An absurd speed is treated as damaged');
 });
 test('0.8 saves migrate: a pending offer becomes a one-fare list with the same quote, an accepted ride stays accepted',()=>{
  const legacy=(mutate:(m:Record<string,unknown>)=>void)=>{const value=saved() as unknown as {version:number;mission:Record<string,unknown>};value.version=1;

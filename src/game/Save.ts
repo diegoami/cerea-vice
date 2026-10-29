@@ -4,6 +4,8 @@ import {createAtlasNotes,type AtlasSnapshot} from '../navigation/AtlasNotes';
 
 /** Version 2 adds free driving, the fare list and boarding progress. */
 export const SAVE_VERSION=2;
+/** With no top speed a car can be saved well above 72 km/h; anything beyond this is treated as damaged. */
+const MAX_SAVED_SPEED=400;
 export interface SaveData {
  version:2;district:string;map:string;savedAt:string;
  car:{x:number;z:number;heading:number;speed:number;gear:'D'|'R';steering:number;collisions:number};
@@ -22,7 +24,7 @@ export function decodeSave(context:District,text:string):SaveData{
  if(!value||(value.version!==1&&value.version!==SAVE_VERSION)||value.district!==context.district.id||value.map!==mapSignature(context)||typeof value.savedAt!=='string'||!Number.isFinite(Date.parse(value.savedAt)))throw new Error('This save belongs to a different map or game version');
  const c=value.car,b=context.district.bounds;
  if(!c||![c.x,c.z,c.heading,c.speed,c.steering].every(Number.isFinite)||c.x<b.minX+1||c.x>b.maxX-1||c.z<b.minZ+1||c.z>b.maxZ-1||
-   Math.abs(c.speed)>21||Math.abs(c.steering)>1||!['D','R'].includes(c.gear)||(c.gear==='D'?c.speed<0:c.speed>0)||
+   Math.abs(c.speed)>MAX_SAVED_SPEED||Math.abs(c.steering)>1||!['D','R'].includes(c.gear)||(c.gear==='D'?c.speed<0:c.speed>0)||
    !Number.isSafeInteger(c.collisions)||c.collisions<0||!Number.isSafeInteger(value.unsafeStops)||value.unsafeStops<0)throw new Error('Invalid saved vehicle');
  const mission=value.version===1?migrateSnapshot(value.mission as LegacyMissionSnapshot):value.mission as MissionSnapshot;
  // A passenger still walking to the taxi requires the taxi to be standing still.

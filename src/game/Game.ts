@@ -374,6 +374,7 @@ class Game {
       // Fixed 60 Hz simulation keeps handling consistent across render rates.
       while (this.accumulator >= 1 / 60) {
         const physicsStart=context.profile.start();
+        this.car.unlimited=this.settings.unlimitedSpeed;
         this.car.update(1 / 60, driving, this.world.collisionIndex);
         this.parking.update(1 / 60, this.car, this.car.speed);
         this.mission.update(1 / 60, this.car, this.parking.stopped);

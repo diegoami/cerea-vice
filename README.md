@@ -241,7 +241,7 @@ The only runtime dependency is **Three.js**. Vite, TypeScript, Three.js type dec
 
 ## Phase 1 assumptions and limits
 
-- Metres and km/h are approximate arcade units. A 60 Hz fixed simulation handles forward/reverse speed, smoothed steering, drag, and handbraking. It is not a physical vehicle model.
+- Metres and km/h are approximate arcade units. A 60 Hz fixed simulation handles forward/reverse speed, smoothed steering, drag, and handbraking. It is not a physical vehicle model. **Top speed → No limit** (the default) lets full throttle keep gaining speed on paved roads; acceleration below about 54 km/h is unchanged, part throttle settles at a steady speed, and the car moves in half-metre steps so it cannot pass through walls. **Normal (72 km/h)** restores the original limit. Reverse and driving off the road keep their low limits, and leaving the road fast brakes hard.
 - Buildings, the tower, pumps, trees, and bridge guardrails use simple expanded rectangles for collision response. District boundaries are solid. Signs and canopy supports are decorative. Grass is driveable at reduced speed; sidewalks are forgiving. The bridge stays level with the road, so no vertical vehicle simulation is needed. No road-rule enforcement or traffic exists.
 - A vehicle's centre must be at least 1.1 metres inside a marked bay to count as legally parked or arrived. Direction requests need exact zero speed, followed by the brief settling interval. Coasting eventually settles; the handbrake is faster.
 - Unsafe stops count once per stopped episode after the car has moved above 1 m/s. Impact counting has a cooldown so one contact does not inflate the count every frame. These are feedback metrics, with no extra penalties.
@@ -317,6 +317,7 @@ Volume, and music ducks slightly while you accelerate. Previous/next track are o
 the settings screen; next track is also bound while driving (**V / D-pad right**
 by default, remappable). See [sound and radio](docs/AUDIO.md) for the design,
 defaults, folder security model and a listening checklist.
+**Top speed** chooses between no limit and the original 72 km/h.
 **Cockpit motion → Off** disables the subtle interior roll/pitch
 and wheel vibration; physics, camera heading and compass are unaffected.
 All textures and built-in sound are generated locally; see [presentation notes](docs/PRESENTATION.md). No music is bundled.
