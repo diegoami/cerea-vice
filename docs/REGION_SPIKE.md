@@ -102,7 +102,8 @@ A narrow band must absorb about (1 − k) × zone radius of offset, which for Le
 350–500 m over 400 m and folds; a wide band reaches the neighbours. Cerea and Casaleone are only 2.6 km
 apart.
 
-**A corridor model does** (`spike_corridors.py`). Only the corridor roads are mapped, not the plane:
+**A corridor model does** (`spike_corridors.py`, which used circular town zones of 450–870 m; the shipped
+builder uses each town's map area plus a 200 m margin instead, see `docs/TOWNS.md`). Only the corridor roads are mapped, not the plane:
 - Town zones move rigidly to `C + k (c − C)`; corridor junctions outside towns (2 in this network)
   become tiny rigid zones placed the same way.
 - Each chain of road between two fixed points is mapped by one similarity transform (scale and turn) that

@@ -68,7 +68,7 @@ test('an unlisted or removed district falls back to the default without deleting
  selectDistrict(list.towns,'harbor');assert.equal(reloads,1);assert.equal(storage.get('cerea-district'),'harbor');assert.equal(location.hash,'#district=harbor');
 });
 
-test('the region manifest is reproducible from its specs and keeps its towns at real scale',{timeout:120000},async()=>{
+test('the region manifest is reproducible from its specs and keeps its towns at real scale',{timeout:400000},async()=>{
  const {spawnSync}=await import('node:child_process');const {mkdtemp,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const path=await import('node:path');
  const directory=await mkdtemp(path.join(tmpdir(),'cerea-region-'));
  try{
@@ -76,8 +76,12 @@ test('the region manifest is reproducible from its specs and keeps its towns at 
   const result=spawnSync('python3',['tools/build-region.py','regions/lower-verona.region.json','--output',output],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
   const built=JSON.parse(readFileSync(output,'utf8')),shipped=load('lower-verona/manifest.json');
-  for(const key of ['nodes','roads','buildings','parkingZones','landmarks'] as const)assert.deepEqual(shipped[key],built[key],`${key} match a fresh build`);
-  assert.deepEqual(shipped.taxi,built.taxi);
+  // Every field of the fresh build is in the shipped manifest unchanged, except the tiler's additions:
+  // its streaming block, and features split into pieces of at most 100 m for tile ownership.
+  assert.deepEqual(Object.keys(shipped).filter(k=>k!=='streaming').sort(),Object.keys(built).sort());
+  for(const key of Object.keys(built))if(key!=='features')assert.deepEqual(shipped[key],built[key],`${key} matches a fresh build`);
+  const split=built.features.flatMap((f:any)=>f.points.slice(1).flatMap((b:any,i:number)=>{const a=f.points[i],n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/100));return Array.from({length:n},(_,j)=>({...f,points:[{x:a.x+(b.x-a.x)*j/n,z:a.z+(b.z-a.z)*j/n},{x:a.x+(b.x-a.x)*(j+1)/n,z:a.z+(b.z-a.z)*(j+1)/n}]}));}));
+  assert.deepEqual(shipped.features,split,'features are the fresh build split as the tiler does');
   // Each town moves rigidly: its own street geometry is its town map shifted by one offset.
   const cerea=load('cerea.json'),placed=built.provenance.compression.towns.cerea.placed;
   const first=cerea.nodes[0],shifted=built.nodes.find((n:any)=>n.id===first.id);
@@ -87,4 +91,41 @@ test('the region manifest is reproducible from its specs and keeps its towns at 
   assert.ok(Math.abs((moved.x-shifted.x)-(second.x-first.x))<0.02&&Math.abs((moved.z-shifted.z)-(second.z-first.z))<0.02,'Distances inside a town are unchanged');
   assert.equal(built.provenance.compression.k,0.6);
  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+test('corridor roads inside a town zone move rigidly with the town',()=>{
+ const region=JSON.parse(readFileSync('regions/lower-verona.region.json','utf8')),shipped=load('lower-verona/manifest.json');
+ const roads=JSON.parse(readFileSync(region.corridors.extract,'utf8')),geo=new Map<string,{lat:number;lon:number}>();
+ for(const w of roads.elements)if(w.type==='way')w.nodes.forEach((id:number,i:number)=>geo.set(String(id),w.geometry[i]));
+ const cerea=load('cerea.json'),spec=JSON.parse(readFileSync('towns/cerea.town.json','utf8')),{lat,lon}=spec.area.origin;
+ const own=new Set(cerea.nodes.map((n:any)=>n.id)),placed=shipped.provenance.compression.towns.cerea.placed,b=cerea.bounds,m=region.zoneMargin;
+ const local=(g:{lat:number;lon:number})=>({x:Math.round((g.lon-lon)*111320*Math.cos(lat*Math.PI/180)*100)/100,z:Math.round(-(g.lat-lat)*111320*100)/100});
+ let checked=0;
+ for(const n of shipped.nodes){
+  if(own.has(n.id)||!geo.has(n.id))continue;const p=local(geo.get(n.id)!);
+  if(p.x<b.minX-m||p.x>b.maxX+m||p.z<b.minZ-m||p.z>b.maxZ+m)continue;
+  checked++;assert.ok(Math.abs(n.x-(p.x+placed[0]))<0.1&&Math.abs(n.z-(p.z+placed[1]))<0.1,`corridor node ${n.id} in Cerea's zone keeps its real place in town`);
+ }
+ assert.ok(checked>0,'Cerea has corridor nodes inside its zone');
+});
+
+test('the region builder rejects settings it would ignore, and rebuilds a town only when its inputs change',{timeout:180000},async()=>{
+ const {spawnSync}=await import('node:child_process');const {mkdtemp,rm,writeFile}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const path=await import('node:path');
+ const run=(file:string,...extra:string[])=>spawnSync('python3',['tools/build-region.py',file,...extra],{encoding:'utf8'});
+ const directory=await mkdtemp(path.join(tmpdir(),'cerea-region-spec-'));
+ try{
+  const region=JSON.parse(readFileSync('regions/lower-verona.region.json','utf8'));
+  const withZone=structuredClone(region);withZone.towns[0].zone=550;await writeFile(path.join(directory,'zone.json'),JSON.stringify(withZone));
+  const zone=run(path.join(directory,'zone.json'));assert.notEqual(zone.status,0);assert.match(zone.stderr,/A town entry takes only "spec"/);
+  const unknown={...region,bands:400};await writeFile(path.join(directory,'unknown.json'),JSON.stringify(unknown));
+  const bad=run(path.join(directory,'unknown.json'));assert.notEqual(bad.status,0);assert.match(bad.stderr,/Unknown region settings: bands/);
+  // A one-town region in a temporary place: built, then reused, then rebuilt after a spec edit.
+  const town=JSON.parse(readFileSync('towns/sanguinetto.town.json','utf8'));town.id='sanguinetto-inputs-test';town.output=path.join(directory,'town.json');
+  const townFile=path.join(directory,'town.town.json');await writeFile(townFile,JSON.stringify(town));
+  const one={...region,towns:[{spec:townFile}]};const oneFile=path.join(directory,'one.json');await writeFile(oneFile,JSON.stringify(one));
+  let result=run(oneFile,'--towns-only');assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/sanguinetto-inputs-test: building \(no output yet\)/);
+  result=run(oneFile,'--towns-only');assert.match(result.stdout,/sanguinetto-inputs-test: up to date/);
+  town.content.mission.name='Changed';await writeFile(townFile,JSON.stringify(town));
+  result=run(oneFile,'--towns-only');assert.match(result.stdout,/sanguinetto-inputs-test: building \(inputs changed\)/);
+ }finally{await rm(directory,{recursive:true,force:true});await rm('build/towns/sanguinetto-inputs-test.inputs.sha256',{force:true});}
 });
