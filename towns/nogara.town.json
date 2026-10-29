@@ -1,0 +1,163 @@
+{
+  "specVersion": 1,
+  "id": "nogara",
+  "name": "Nogara",
+  "description": "Nogara: real streets, named stops and simplified scenery, part of the lower Veronese plain region.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/nogara-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1785,
+      "lon": 11.0611
+    },
+    "bbox": {
+      "south": 45.174,
+      "west": 11.0547,
+      "north": 45.183,
+      "east": 11.0675
+    }
+  },
+  "output": "build/towns/nogara.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "landmarks": [
+    {
+      "osmId": 903131895,
+      "id": "chiesa",
+      "name": "Chiesa di Nogara",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 22
+    },
+    {
+      "osmId": 6926397982,
+      "id": "municipio",
+      "name": "Municipio di Nogara",
+      "road": "(nearest street)",
+      "kind": "civic",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 3885169160,
+      "id": "farmacia",
+      "name": "Farmacia dr. Marcolungo",
+      "road": "(nearest street)",
+      "kind": "pharmacy",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 3136529696,
+      "id": "hotel",
+      "name": "Piccolo Hotel Nogara",
+      "road": "(nearest street)",
+      "kind": "hotel",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 13352841913,
+      "id": "buffalo",
+      "name": "Buffalo Ranch",
+      "road": "(nearest street)",
+      "kind": "restaurant",
+      "frontage": "nearest",
+      "point": true
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "chiesa",
+      "bay": "Sosta Nogara"
+    },
+    {
+      "landmark": "municipio",
+      "bay": "Sosta Municipio di Nogara"
+    },
+    {
+      "landmark": "farmacia",
+      "bay": "Sosta Farmacia dr. Marcolungo"
+    },
+    {
+      "landmark": "hotel",
+      "bay": "Sosta Piccolo Hotel Nogara"
+    },
+    {
+      "landmark": "buffalo",
+      "bay": "Sosta Buffalo Ranch"
+    }
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Nogara"
+    }
+  ],
+  "content": {
+    "start": "chiesa",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "chiesa",
+        "farmacia"
+      ],
+      [
+        "Marco",
+        "municipio",
+        "hotel"
+      ],
+      [
+        "Giulia",
+        "farmacia",
+        "buffalo"
+      ],
+      [
+        "Paolo",
+        "hotel",
+        "chiesa"
+      ],
+      [
+        "Sara",
+        "buffalo",
+        "municipio"
+      ]
+    ],
+    "mission": {
+      "name": "Nogara Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "municipio"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}

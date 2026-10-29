@@ -130,9 +130,13 @@ def build(spec,output):
         if e['id'] not in landmark_specs or any(p['id']==landmark_specs[e['id']][0] for p in landmarks):continue
         poly=[point(p) for p in e.get('geometry',[])[:-1]]
         candidates=[b for b in buildings if inside(b,poly)]
-        if not candidates:raise RuntimeError('Missing building on named site '+str(e['id']))
-        chosen=max(candidates,key=lambda b:b['width']*b['depth'])
         id,name,road,kind,height=landmark_specs[e['id']]
+        if not candidates:
+            # A mapped site with no building inside is usually the building itself without a building tag.
+            if len(poly)<3 or not all(within(p) for p in poly):raise RuntimeError('Missing building on named site '+str(e['id']))
+            candidates=[{**rect(poly),'points':poly,'height':height,'color':[0xb9a287,0xc7b08c,0xb8a58f,0xc2bda6,0xb79a83][e['id']%5],'osmId':e['id']}]
+            buildings.append(candidates[0])
+        chosen=max(candidates,key=lambda b:b['width']*b['depth'])
         chosen['height']=height
         landmarks.append({'id':id,'name':name,'road':road,'kind':kind,'height':height,'osmId':chosen['osmId'],**{k:chosen[k] for k in ['x','z','width','depth','points']}})
     missing=[item['id'] for item in spec['landmarks'] if not item.get('point') and not any(p['id']==item['id'] for p in landmarks)]
@@ -268,10 +272,14 @@ def main(argv=None):
     parser=argparse.ArgumentParser(description='Build a district from a town spec.')
     parser.add_argument('spec',type=Path,help='towns/<id>.town.json')
     parser.add_argument('--output',type=Path,help='write the district here instead of the spec\'s "output"')
+    parser.add_argument('--check',action='store_true',help='validate the spec and its extract path only')
     args=parser.parse_args(argv)
     spec=json.loads(args.spec.read_text())
     try:validate(spec)
     except SpecError as error:raise SystemExit(f'{args.spec}: {error}')
+    if args.check:
+        if not (ROOT/spec['source']['extract']).is_file():raise SystemExit(f'{args.spec}: extract {spec["source"]["extract"]} is missing')
+        print(f'{args.spec}: valid');return
     output=(args.output or ROOT/spec['output']).resolve()
     build(spec,output)
     # Only a town's own map under public/maps/ is registered; builds written elsewhere (tests, spikes) are not.

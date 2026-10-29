@@ -19,6 +19,13 @@ test('the Cerea town spec rebuilds the checked-in district byte for byte',{timeo
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
+test('every town spec in towns/ is valid and has its extract',async()=>{
+ const {readdir}=await import('node:fs/promises');
+ const specs=(await readdir('towns')).filter(f=>f.endsWith('.town.json'));
+ assert.ok(specs.length>=6,'Cerea and the five lower-plain towns');
+ for(const file of specs){const result=run(`towns/${file}`,'--check');assert.equal(result.status,0,`${file}: ${result.stderr}`);}
+});
+
 test('footprints that no road touches keep every corner',async()=>{
  const source=JSON.parse(await readFile('data/sources/cerea-osm.json','utf8')),map=JSON.parse(await readFile('public/maps/cerea.json','utf8'));
  const {lat,lon}=map.provenance.origin,k=111320*Math.cos(lat*Math.PI/180),round=(v:number)=>Math.round(v*100)/100;

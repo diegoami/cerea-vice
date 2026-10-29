@@ -1,0 +1,181 @@
+{
+  "specVersion": 1,
+  "id": "bovolone",
+  "name": "Bovolone",
+  "description": "Bovolone: real streets, named stops and simplified scenery, part of the lower Veronese plain region.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/bovolone-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.2578,
+      "lon": 11.1204
+    },
+    "bbox": {
+      "south": 45.2523,
+      "west": 11.1126,
+      "north": 45.2633,
+      "east": 11.1282
+    }
+  },
+  "output": "build/towns/bovolone.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "landmarks": [
+    {
+      "osmId": 204372958,
+      "id": "santibiagio",
+      "name": "Chiesa dei Santi Biagio, Fermo e Rustico",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 24
+    },
+    {
+      "osmId": 204372749,
+      "id": "sangiuseppe",
+      "name": "Chiesa di San Giuseppe",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 18
+    },
+    {
+      "osmId": 129409025,
+      "id": "biblioteca",
+      "name": "Biblioteca civica di Bovolone",
+      "road": "(nearest street)",
+      "kind": "library",
+      "frontage": "nearest",
+      "height": 9
+    },
+    {
+      "osmId": 129409026,
+      "id": "municipio",
+      "name": "Municipio di Bovolone",
+      "road": "(nearest street)",
+      "kind": "civic",
+      "frontage": "nearest",
+      "height": 12
+    },
+    {
+      "osmId": 204377650,
+      "id": "poste",
+      "name": "Ufficio Postale di Bovolone",
+      "road": "(nearest street)",
+      "kind": "post",
+      "frontage": "nearest",
+      "height": 8
+    },
+    {
+      "osmId": 204378116,
+      "id": "sanfilippo",
+      "name": "Chiesa di San Filippo Neri",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 14
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "santibiagio",
+      "bay": "Sosta Santi Biagio, Fermo e Rustico"
+    },
+    {
+      "landmark": "sangiuseppe",
+      "bay": "Sosta San Giuseppe"
+    },
+    {
+      "landmark": "biblioteca",
+      "bay": "Sosta Biblioteca civica di Bovolone"
+    },
+    {
+      "landmark": "municipio",
+      "bay": "Sosta Municipio di Bovolone"
+    },
+    {
+      "landmark": "poste",
+      "bay": "Sosta Ufficio Postale di Bovolone"
+    },
+    {
+      "landmark": "sanfilippo",
+      "bay": "Sosta San Filippo Neri"
+    }
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Bovolone"
+    }
+  ],
+  "content": {
+    "start": "santibiagio",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "santibiagio",
+        "biblioteca"
+      ],
+      [
+        "Marco",
+        "sangiuseppe",
+        "municipio"
+      ],
+      [
+        "Giulia",
+        "biblioteca",
+        "poste"
+      ],
+      [
+        "Paolo",
+        "municipio",
+        "sanfilippo"
+      ],
+      [
+        "Sara",
+        "poste",
+        "santibiagio"
+      ],
+      [
+        "Luca",
+        "sanfilippo",
+        "sangiuseppe"
+      ]
+    ],
+    "mission": {
+      "name": "Bovolone Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "sangiuseppe"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}

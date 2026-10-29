@@ -1,0 +1,181 @@
+{
+  "specVersion": 1,
+  "id": "sanguinetto",
+  "name": "Sanguinetto",
+  "description": "Sanguinetto: real streets, named stops and simplified scenery, part of the lower Veronese plain region.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/sanguinetto-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1822,
+      "lon": 11.1517
+    },
+    "bbox": {
+      "south": 45.1777,
+      "west": 11.1453,
+      "north": 45.1867,
+      "east": 11.1581
+    }
+  },
+  "output": "build/towns/sanguinetto.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "landmarks": [
+    {
+      "osmId": 289695392,
+      "id": "grazie",
+      "name": "Chiesa di Santa Maria delle Grazie",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 20
+    },
+    {
+      "osmId": 9781556293,
+      "id": "sangiorgio",
+      "name": "Chiesa di San Giorgio Martire",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 9781556281,
+      "id": "municipio",
+      "name": "Municipio di Sanguinetto",
+      "road": "(nearest street)",
+      "kind": "civic",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 167185427,
+      "id": "castello",
+      "name": "Castello Scaligero",
+      "road": "(nearest street)",
+      "kind": "castle",
+      "frontage": "nearest",
+      "height": 14
+    },
+    {
+      "osmId": 289696295,
+      "id": "poste",
+      "name": "Poste Italiane",
+      "road": "(nearest street)",
+      "kind": "post",
+      "frontage": "nearest",
+      "height": 8
+    },
+    {
+      "osmId": 9781556306,
+      "id": "teatro",
+      "name": "Teatro Comunale",
+      "road": "(nearest street)",
+      "kind": "theatre",
+      "frontage": "nearest",
+      "point": true
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "grazie",
+      "bay": "Sosta Santa Maria delle Grazie"
+    },
+    {
+      "landmark": "sangiorgio",
+      "bay": "Sosta San Giorgio Martire"
+    },
+    {
+      "landmark": "municipio",
+      "bay": "Sosta Municipio di Sanguinetto"
+    },
+    {
+      "landmark": "castello",
+      "bay": "Sosta Castello Scaligero"
+    },
+    {
+      "landmark": "poste",
+      "bay": "Sosta Poste Italiane"
+    },
+    {
+      "landmark": "teatro",
+      "bay": "Sosta Teatro Comunale"
+    }
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Sanguinetto"
+    }
+  ],
+  "content": {
+    "start": "grazie",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "grazie",
+        "municipio"
+      ],
+      [
+        "Marco",
+        "sangiorgio",
+        "castello"
+      ],
+      [
+        "Giulia",
+        "municipio",
+        "poste"
+      ],
+      [
+        "Paolo",
+        "castello",
+        "teatro"
+      ],
+      [
+        "Sara",
+        "poste",
+        "grazie"
+      ],
+      [
+        "Luca",
+        "teatro",
+        "sangiorgio"
+      ]
+    ],
+    "mission": {
+      "name": "Sanguinetto Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "sangiorgio"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}
