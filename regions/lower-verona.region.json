@@ -20,7 +20,6 @@
     {"spec": "towns/casaleone.town.json"}
   ],
   "villages": [
-    {"spec": "towns/sanpietro.town.json"},
     {"spec": "towns/concamarise.town.json"},
     {"spec": "towns/aselogna.town.json"},
     {"spec": "towns/venera.town.json"},

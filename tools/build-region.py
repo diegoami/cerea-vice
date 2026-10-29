@@ -174,35 +174,70 @@ def main(argv=None):
         if n in owner:fixed[n]=world_of_town_node(n)
         elif (t:=zone_town(n)):x,z=town_local(t,n);fixed[n]=(x+t['offset'][0],z+t['offset'][1])
         elif len(graph[n])>2:fixed[n]=(k*coord[n][0],k*coord[n][1])
-    mapped=dict(fixed);seen=set();transform={}
-    for start in sorted(fixed):
-        for nxt in sorted(graph[start]):
-            if (start,nxt) in seen:continue
-            chain=[start,nxt]
-            while chain[-1] not in fixed:
-                options=sorted(m for m in graph[chain[-1]] if m!=chain[-2])
-                if not options:break
-                chain.append(options[0])
-            for a,b in zip(chain,chain[1:]):seen.add((a,b));seen.add((b,a))
-            if chain[-1] not in fixed:raise SystemExit(f'Corridor road ends outside any town at node {chain[-1]}')
-            a0,b0=coord[chain[0]],coord[chain[-1]];a1,b1=fixed[chain[0]],fixed[chain[-1]]
-            v0=complex(b0[0]-a0[0],b0[1]-a0[1]);v1=complex(b1[0]-a1[0],b1[1]-a1[1])
-            s=v1/v0 if abs(v0)>1e-6 else 1
-            for n in chain:transform.setdefault(n,(a0,a1,s))
-            for n in chain[1:-1]:
-                z=s*complex(coord[n][0]-a0[0],coord[n][1]-a0[1]);mapped[n]=(a1[0]+z.real,a1[1]+z.imag)
-    # Extra nodes from the return routes: inside a town zone they move with the town; elsewhere they take
-    # the displacement of the nearest primary-corridor node, so a parallel carriageway stays parallel.
-    # Each primary node carries the similarity of its chain, so a roundabout or carriageway beside it is
-    # scaled and turned the same way rather than only shifted.
-    anchors=[(coord[n],transform[n]) for n in sorted(graph) if n in transform and n not in owner and not zone_town(n)]
-    for n in sorted(every):
-        if n in mapped:continue
-        if n in owner:mapped[n]=world_of_town_node(n);continue
-        t=zone_town(n)
-        if t:x,z=town_local(t,n);mapped[n]=(x+t['offset'][0],z+t['offset'][1]);continue
-        _,(a0,a1,sim)=min(anchors,key=lambda a:math.dist(a[0],coord[n]))
-        z=sim*complex(coord[n][0]-a0[0],coord[n][1]-a0[1]);mapped[n]=(a1[0]+z.real,a1[1]+z.imag)
+    def map_with(fixed):
+        mapped=dict(fixed);seen=set();transform={}
+        for start in sorted(fixed):
+            for nxt in sorted(graph.get(start,())):
+                if (start,nxt) in seen:continue
+                chain=[start,nxt]
+                while chain[-1] not in fixed:
+                    options=sorted(m for m in graph[chain[-1]] if m!=chain[-2])
+                    if not options:break
+                    chain.append(options[0])
+                for a,b in zip(chain,chain[1:]):seen.add((a,b));seen.add((b,a))
+                if chain[-1] not in fixed:raise SystemExit(f'Corridor road ends outside any town at node {chain[-1]}')
+                a0,b0=coord[chain[0]],coord[chain[-1]];a1,b1=fixed[chain[0]],fixed[chain[-1]]
+                v0=complex(b0[0]-a0[0],b0[1]-a0[1]);v1=complex(b1[0]-a1[0],b1[1]-a1[1])
+                s=v1/v0 if abs(v0)>1e-6 else 1
+                for n in chain:transform.setdefault(n,(a0,a1,s))
+                for n in chain[1:-1]:
+                    z=s*complex(coord[n][0]-a0[0],coord[n][1]-a0[1]);mapped[n]=(a1[0]+z.real,a1[1]+z.imag)
+        # Extra nodes from the return routes: inside a town zone they move with the town; elsewhere they take
+        # the displacement of the nearest primary-corridor node, so a parallel carriageway stays parallel.
+        # Each primary node carries the similarity of its chain, so a roundabout or carriageway beside it is
+        # scaled and turned the same way rather than only shifted.
+        anchors=[(coord[n],transform[n]) for n in sorted(graph) if n in transform and n not in owner and not zone_town(n)]
+        for n in sorted(every):
+            if n in mapped:continue
+            if n in owner:mapped[n]=world_of_town_node(n);continue
+            t=zone_town(n)
+            if t:x,z=town_local(t,n);mapped[n]=(x+t['offset'][0],z+t['offset'][1]);continue
+            _,(a0,a1,sim)=min(anchors,key=lambda a:math.dist(a[0],coord[n]))
+            z=sim*complex(coord[n][0]-a0[0],coord[n][1]-a0[1]);mapped[n]=(a1[0]+z.real,a1[1]+z.imag)
+        return mapped,transform
+    # A chain mapped outside every zone can still swing into a town's or village's placed area. Fix any
+    # corridor node that lands there (or whose road passes through it) rigidly with that place: it keeps its
+    # real position relative to the place, where it does not meet the place's streets. Remap and repeat.
+    placed_boxes=[(t,(t['box'][0]-10,t['box'][1]+10,t['box'][2]-10,t['box'][3]+10)) for t in places]
+    def segment_in_box(p,q,box):
+        x0,x1,z0,z1=box;low,high=0.0,1.0;dx,dz=q[0]-p[0],q[1]-p[1]
+        for pp,qq in ((-dx,p[0]-x0),(dx,x1-p[0]),(-dz,p[1]-z0),(dz,z1-p[1])):
+            if pp==0:
+                if qq<0:return False
+            else:
+                r=qq/pp
+                if pp<0:low=max(low,r)
+                else:high=min(high,r)
+                if low>high:return False
+        return True
+    absorbed={}
+    # REGION_NO_ABSORB reproduces the 0.12.0-rc.1 mapping, to show the checks below catch what it got wrong.
+    for _ in range(0 if __import__('os').environ.get('REGION_NO_ABSORB') else 20):
+        mapped,transform=map_with({**fixed,**absorbed})
+        intruding={}
+        for u,v in edges:
+            for t,box in placed_boxes:
+                if not segment_in_box(mapped[u],mapped[v],box):continue
+                for n in (u,v):
+                    if n in owner or n in fixed or n in absorbed:continue
+                    if zone_town(n) is t:continue
+                    intruding[n]=t
+        if not intruding:break
+        for n,t in intruding.items():x,z=town_local(t,n);absorbed[n]=(x+t['offset'][0],z+t['offset'][1])
+    else:
+        if not __import__('os').environ.get('REGION_NO_ABSORB'):raise SystemExit('Corridor roads still enter a town or village area after 20 rounds')
+        mapped,transform=map_with(fixed)
+    if absorbed:print(f'{len(absorbed)} corridor nodes fixed with the town or village they would otherwise enter')
     graph=every
     # Checks: no new crossings, bearings kept.
     segs=sorted(edges)
@@ -223,6 +258,53 @@ def main(argv=None):
             near=min(towns,key=lambda t:math.dist(pos(a),t['offset']));wa,wb=edge_way[(a,b)],edge_way[(c,d)]
             print(f'  crossing near {near["spec"]["id"]} ({math.dist(pos(a),near["offset"]):.0f} m): way {wa[1]} "{wa[0].get("name") or wa[0].get("ref")}" ({wa[0].get("highway")},{wa[0].get("oneway","")},{wa[0].get("junction","")}) x way {wb[1]} "{wb[0].get("name") or wb[0].get("ref")}" ({wb[0].get("highway")},{wb[0].get("oneway","")},{wb[0].get("junction","")}); real gap {min(math.dist(real(a),real(c)),math.dist(real(a),real(d)),math.dist(real(b),real(c)),math.dist(real(b),real(d))):.0f} m',file=sys.stderr)
         if not __import__('os').environ.get('REGION_ALLOW_CROSSINGS'):raise SystemExit(f'Compression created {new_crossings} road crossings; raise k')
+    # The complete merged network: a corridor road must not cross a town's or village's street where the
+    # real roads do not cross, and the car must be able to drive every corridor centreline past buildings.
+    def placed_node(t,nid):n=t['nodes'][nid];return (n['x']+t['offset'][0],n['z']+t['offset'][1])
+    def real_node(t,nid):n=t['nodes'][nid];return (n['x']+t['real'][0],n['z']+t['real'][1])
+    def cells(p,q,size):
+        return [(i,j) for i in range(int(min(p[0],q[0])//size),int(max(p[0],q[0])//size)+1) for j in range(int(min(p[1],q[1])//size),int(max(p[1],q[1])//size)+1)]
+    streets={}
+    for t in places:
+        for r in t['data']['roads']:
+            pa,pb=placed_node(t,r['a']),placed_node(t,r['b'])
+            for key in cells(pa,pb,100):streets.setdefault(key,[]).append((t,r['a'],r['b'],pa,pb,r['name']))
+    street_crossings=set()
+    for u,v in edges:
+        p,q=mapped[u],mapped[v]
+        for key in cells(p,q,100):
+            for t,a,b,pa,pb,name in streets.get(key,[]):
+                if len({u,v,a,b})<4 or not cross(p,q,pa,pb):continue
+                if not cross(real(u),real(v),real_node(t,a),real_node(t,b)):street_crossings.add((t['spec']['id'],name,edge_way[(u,v)][0].get('name') or edge_way[(u,v)][0].get('ref'),u,v))
+    if street_crossings:
+        for c in sorted(street_crossings)[:6]:print(f'  corridor {c[2]} ({c[3]}-{c[4]}) crosses {c[1]} in {c[0]}',file=sys.stderr)
+        raise SystemExit(f'Compression made corridor roads cross {len(street_crossings)} town or village streets they do not cross in reality')
+    def inside(p,ring):
+        result=False
+        for (ax,az),(bx,bz) in zip(ring,ring[1:]+ring[:1]):
+            if (az>p[1])!=(bz>p[1]) and p[0]<(bx-ax)*(p[1]-az)/(bz-az)+ax:result=not result
+        return result
+    def near_ring(p,ring,margin):
+        for (ax,az),(bx,bz) in zip(ring,ring[1:]+ring[:1]):
+            dx,dz=bx-ax,bz-az;l=dx*dx+dz*dz;t=0 if l==0 else max(0,min(1,((p[0]-ax)*dx+(p[1]-az)*dz)/l))
+            if math.dist(p,(ax+dx*t,az+dz*t))<margin:return True
+        return False
+    footprints={}
+    for t in places:
+        for bld in t['data']['buildings']:
+            ring=[(q['x']+t['offset'][0],q['z']+t['offset'][1]) for q in bld['points']]
+            xs=[q[0] for q in ring];zs=[q[1] for q in ring]
+            for key in cells((min(xs)-2,min(zs)-2),(max(xs)+2,max(zs)+2),50):footprints.setdefault(key,[]).append((t['spec']['id'],bld.get('osmId'),ring))
+    blocked=set()
+    for u,v in edges:
+        p,q=mapped[u],mapped[v];steps=max(1,int(math.dist(p,q)))
+        for i in range(steps+1):
+            pt=(p[0]+(q[0]-p[0])*i/steps,p[1]+(q[1]-p[1])*i/steps)
+            hit=next(((tid,osm) for tid,osm,ring in footprints.get((int(pt[0]//50),int(pt[1]//50)),[]) if inside(pt,ring) or near_ring(pt,ring,1.05)),None)
+            if hit:blocked.add((hit[0],hit[1],edge_way[(u,v)][0].get('name') or edge_way[(u,v)][0].get('ref'),u,v));break
+    if blocked:
+        for c in sorted(blocked,key=str)[:6]:print(f'  corridor {c[2]} ({c[3]}-{c[4]}) runs into building {c[1]} in {c[0]}',file=sys.stderr)
+        raise SystemExit(f'{len(blocked)} corridor road segments run into a town or village building')
     bearing=lambda p,q:math.degrees(math.atan2(q[0]-p[0],-(q[1]-p[1])))%360
     worst=max(abs((bearing(a['offset'],b['offset'])-bearing(a['real'],b['real'])+180)%360-180) for a,b in itertools.combinations(towns,2))
     if worst>1:raise SystemExit(f'A town-to-town bearing moved by {worst:.2f} degrees')

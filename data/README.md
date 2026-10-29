@@ -65,7 +65,9 @@ content are game interpretations, as for Cerea.
 
 Fetched 2026-10-29 from the same Overpass service, each a box of about 400 m (villages) or 250 m (hamlets)
 around the OSM place node, with highways, buildings and building relations, waterways and amenities:
-`sources/{sanpietro,concamarise,aselogna,venera,belfiore,alberoni,casella}-osm.json`, specs in
+`sources/{concamarise,aselogna,venera,belfiore,alberoni,casella}-osm.json`, specs in
 `towns/<id>.town.json` with `"kind": "village"` (no stops). The exact boxes are in each spec's `area.bbox`.
 Crosare, Malcanton, Magarino and Dossi are on the corridors too but are not included: they sit within about
-600 m of a town (or of Venera), and after compression their area would overlap it.
+600 m of a town (or of Venera), and after compression their area would overlap it. San Pietro di Legnago is
+not included either (milestone review #69, #70): it sits about 1.5 km from Legnago, and with both placed
+rigidly the roads between them had to shrink to about a third and ran across the village's streets.

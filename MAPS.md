@@ -155,9 +155,11 @@ Sanguinetto, Nogara and Casaleone. Each town keeps its real streets at real scal
 the grid convergence there). The real main roads between towns are kept with their junctions, one-way
 tags and names, and shortened by `k = 0.6`, so neighbouring towns are a few minutes apart (Cerea–Legnago
 about 5 minutes at 17 m/s). Direction boards where a road leaves a town give the real road distance to
-the next town. Seven villages and hamlets on those roads (San Pietro di Legnago, Concamarise, Aselogna,
-Venera, Belfiore, Alberoni, Casella) are included at real scale too, placed like the towns but with no
-stops (`"kind": "village"` specs, a 50 m `villageMargin`). Rebuild with:
+the next town. Six villages and hamlets on those roads (Concamarise, Aselogna, Venera, Belfiore,
+Alberoni, Casella) are included at real scale too, placed like the towns but with no
+stops (`"kind": "village"` specs, a 50 m `villageMargin`). The builder also refuses a region where a
+shortened road would cross a town's or village's street, or where a road centreline would run into a
+building. Rebuild with:
 
 ```sh
 npm run build:region     # tools/build-region.py, then tools/tile-district.mjs
