@@ -214,10 +214,40 @@ def build(spec,output):
         for run in runs:
             if len(run)>1:features.append({'name':t.get('name',unnamed['rail'] if t.get('railway') else unnamed['water']),'kind':'rail' if t.get('railway') else 'water','width':feature_spec.get('railWidth',3) if t.get('railway') else widths.get(t.get('name'),feature_spec.get('waterWidth',3)),'points':run})
 
+    # Rivers and lakes as areas, when the spec asks for them (Cerea does not, so its map is unchanged).
+    # Closed ways are rings; multipolygon relations are joined from their member ways. Clipping to the
+    # bounds and the collision shape (water minus road corridors) are done by prepare-town.mjs.
+    water_areas=[]
+    if feature_spec.get('waterAreas'):
+        def join(parts):
+            rings=[];parts=[list(p) for p in parts if len(p)>1]
+            while parts:
+                ring=parts.pop(0)
+                while ring[0]!=ring[-1]:
+                    nxt=next((i for i,p in enumerate(parts) if p[0]==ring[-1] or p[-1]==ring[-1]),None)
+                    if nxt is None:break
+                    part=parts.pop(nxt);ring+=(part if part[0]==ring[-1] else part[::-1])[1:]
+                if ring[0]==ring[-1] and len(ring)>=4:rings.append(ring)
+            return rings
+        key=lambda g:(g['lat'],g['lon'])
+        unnamed_area=unnamed.get('waterArea','Acqua')
+        for e in source['elements']:
+            t=e.get('tags',{})
+            if not (t.get('natural')=='water' or t.get('waterway')=='riverbank'):continue
+            if e['type']=='way':outers,inners=join([[key(g) for g in e.get('geometry',[])]]),[]
+            elif e['type']=='relation':
+                outers=join([[key(g) for g in m.get('geometry',[])] for m in e.get('members',[]) if m.get('role')=='outer'])
+                inners=join([[key(g) for g in m.get('geometry',[])] for m in e.get('members',[]) if m.get('role')=='inner'])
+            else:continue
+            for outer in outers:
+                ring=[point({'lat':a,'lon':b}) for a,b in outer[:-1]]
+                holes=[[point({'lat':a,'lon':b}) for a,b in inner[:-1]] for inner in inners if inside(point({'lat':inner[0][0],'lon':inner[0][1]}),ring)]
+                water_areas.append({'name':t.get('name',unnamed_area),'points':ring,**({'holes':holes} if holes else {})})
+
     centre={'x':(bounds['minX']+bounds['maxX'])/2,'z':(bounds['minZ']+bounds['maxZ'])/2}
     areas=[{'name':item['name'],'x':item.get('x',centre['x']),'z':item.get('z',centre['z']),'width':bounds['maxX']-bounds['minX'],'depth':bounds['maxZ']-bounds['minZ']} for item in spec.get('areas',[])]
     mission=content['mission']
-    district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
+    district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')
     subprocess.run(['node',str(ROOT/'tools/prepare-town.mjs'),str(output)],check=True)

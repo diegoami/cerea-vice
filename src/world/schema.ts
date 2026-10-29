@@ -7,6 +7,8 @@ export interface Landmark extends Rect { id: string; name: string; road: string;
 export interface Bounds { minX: number; maxX: number; minZ: number; maxZ: number }
 export interface MapBuilding extends Rect { height: number; color: number; osmId?: number }
 export interface MapLine { name: string; kind: "water" | "rail"; width: number; points: Point[] }
+/** A river or lake drawn as an area. `solid` is the same water minus every road corridor, so bridges stay drivable. */
+export interface WaterArea { name: string; points: Point[]; holes?: Point[][]; solid: Rect[] }
 export interface NavigationTarget { name:string; nodeId:string; bay:ParkingZone; road?:string }
 export interface TaxiStop { id:string; name:string; road:string; bayId:string; nodeId:string; description:string }
 export interface TaxiFare { passenger:string; pickupId:string; destinationId:string }
@@ -33,6 +35,7 @@ export interface DistrictDefinition {
   landmarks: Landmark[];
   buildings: MapBuilding[];
   features: MapLine[];
+  waterAreas?: WaterArea[];
   areas: (Rect & { name: string })[];
   spawn: Point & { heading: number; name: string };
   taxi?:TaxiDefinition;

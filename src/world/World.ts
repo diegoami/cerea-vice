@@ -52,6 +52,14 @@ class World {
     this.daylightAmbient=new THREE.HemisphereLight(light.sky,light.bounce,2.3);scene.add(this.daylightAmbient);
     const sun=new THREE.DirectionalLight(light.sun,2);sun.position.set(-200,300,100);scene.add(sun);this.daylightSun=sun;
     box(scene,(bounds.minX+bounds.maxX)/2,-0.4,(bounds.minZ+bounds.maxZ)/2,width+100,0.7,depth+100,ground.town);
+    // Rivers and lakes drawn as areas; their collision shape leaves every road, and so every bridge, open.
+    for(const area of district.waterAreas??[]){
+      const shape=new THREE.Shape(area.points.map((p)=>new THREE.Vector2(p.x,-p.z)));
+      shape.holes=(area.holes??[]).map(ring=>new THREE.Path(ring.map(p=>new THREE.Vector2(p.x,-p.z))));
+      const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);
+      const water=new THREE.Mesh(geometry,material(mapped.water));water.position.y=0.02;scene.add(water);
+      this.colliders.push(...area.solid);
+    }
     for(const feature of district.features) {
       for(let i=0;i<feature.points.length-1;i++) {
         const a=feature.points[i],b=feature.points[i+1];

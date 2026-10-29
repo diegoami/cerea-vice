@@ -45,6 +45,29 @@ for(const building of data.buildings) {
   }
 }
 data.buildings=buildings;
+// Water areas: clip to the district, then subtract every road corridor so bridges (and roads along the
+// bank) stay drivable. The drawn area keeps the whole water; `solid` is what the car collides with.
+if(data.waterAreas){
+  const b=data.bounds,frame=[[[b.minX,b.minZ],[b.maxX,b.minZ],[b.maxX,b.maxZ],[b.minX,b.maxZ],[b.minX,b.minZ]]];
+  const ring=points=>[...points.map(p=>[p.x,p.z]),[points[0].x,points[0].z]];
+  const back=r=>r.slice(0,-1).map(([x,z])=>({x,z}));
+  const rect=polygon=>{const outer=back(polygon[0]),xs=outer.map(p=>p.x),zs=outer.map(p=>p.z);return {x:(Math.min(...xs)+Math.max(...xs))/2,z:(Math.min(...zs)+Math.max(...zs))/2,width:Math.max(...xs)-Math.min(...xs),depth:Math.max(...zs)-Math.min(...zs),points:outer,...(polygon.length>1?{holes:polygon.slice(1).map(back)}:{})};};
+  const areas=[];
+  for(const water of data.waterAreas){
+    const clipped=snap(clipping.intersection([[ring(water.points),...(water.holes??[]).map(ring)]],frame)).filter(polygon=>polygon[0].length>3&&area(polygon[0])>4);
+    for(const polygon of clipped){
+      const box=rect(polygon);let solid=[polygon];
+      for(const piece of pieces){
+        if(box.x+box.width/2<piece.minX||box.x-box.width/2>piece.maxX||box.z+box.depth/2<piece.minZ||box.z-box.depth/2>piece.maxZ)continue;
+        if(!solid.length)break;
+        solid=snap(clipping.difference(solid,piece.polygon));
+      }
+      const drawn=rect(polygon);
+      areas.push({name:water.name,points:drawn.points,...(drawn.holes?{holes:drawn.holes}:{}),solid:solid.filter(p=>area(p[0])>1).map(rect)});
+    }
+  }
+  data.waterAreas=areas;
+}
 for(const landmark of data.landmarks) {
   const masses=buildings.filter(building=>building.osmId===landmark.osmId).sort((a,b)=>b.width*b.depth-a.width*a.depth);
   if(!masses.length)throw new Error(`Clearance removed named landmark ${landmark.name}`);
