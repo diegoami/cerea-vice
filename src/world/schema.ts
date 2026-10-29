@@ -19,6 +19,8 @@ export interface DistrictDefinition {
   streaming?:import("./streaming/schema").TileManifest;
   version: 1;
   id: string;
+  /** Version of this district's map data; a save made for another version is refused with both numbers. */
+  dataVersion?: number;
   name: string;
   description: string;
   attribution: string;
