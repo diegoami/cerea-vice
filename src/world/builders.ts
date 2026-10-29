@@ -175,8 +175,10 @@ export function streetNamePlate(
 ) {
   let face=streetFaces.get(plan.name)?.face;
   if(!face) {
-    const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=192;
-    const ctx=canvas.getContext('2d')!;
+    // Drawn at half scale: 512×96 is still over 200 texels per metre on a 2.4 m plate, and a quarter of
+    // the memory per street name (about 0.25 MiB with mipmaps), which a dense centre needs (#51).
+    const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;
+    const ctx=canvas.getContext('2d')!;ctx.scale(.5,.5);
     ctx.fillStyle='#eeeadd';ctx.fillRect(0,0,1024,192);
     ctx.strokeStyle='#344b56';ctx.lineWidth=10;ctx.strokeRect(10,10,1004,172);
     ctx.fillStyle='#233e4a';ctx.font='bold 140px Arial';ctx.textAlign='center';ctx.textBaseline='middle';

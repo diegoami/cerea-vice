@@ -6,16 +6,18 @@ import clipping,{type Polygon} from 'polygon-clipping';
 import {District,inRect,roadWidth} from '../src/world/district';
 import {SpatialGrid,rectBounds,type Box} from '../src/world/SpatialGrid';
 import {streamingColliders} from '../src/world/streaming/colliders';
+import {PLATE_RADIUS} from '../src/world/streaming/TileStream';
 import {createNavigation} from '../src/navigation/Navigation';
 import {createStreetPlates} from '../src/world/streetPlates';
+import {createSigns} from '../src/world/signs';
 import type {Point,Rect} from '../src/world/schema';
 import type {TownEntry} from '../src/world/load';
 
 export interface CheckResult {id:string;title:string;problems:string[];notes:string[]}
 /** The car's collision margin, as in the driving model and the region builder. */
 export const CAR_MARGIN=1.05;
-/** One street-name texture: a 1024×192 RGBA canvas with mipmaps. */
-export const PLATE_TEXTURE_BYTES=1024*192*4*4/3;
+/** One street-name texture: a 512×96 RGBA canvas with mipmaps (src/world/builders.ts). */
+export const PLATE_TEXTURE_BYTES=512*96*4*4/3;
 
 /**
  * Budgets from the region spike (docs/REGION_SPIKE.md): a single-file district handled about
@@ -95,7 +97,8 @@ export function checkBays(context:District):CheckResult{
   if(!context.roads.some(r=>r.name===stop.road)){problems.push(`${stop.id}: no road named ${stop.road}`);continue;}
   if(!reachesBay(context,grid,bay,stop.road))problems.push(`${stop.id}: the car cannot get from ${stop.road} into bay ${bay.id}`);
  }
- return result('bays','An accessible bay per stop',problems,[`${stops.length} bays`]);
+ const signed=new Set(createSigns(context).planParkingSigns().map(sign=>sign.zoneId)),unsigned=context.parkingZones.filter(bay=>!signed.has(bay.id)).map(bay=>bay.id);
+ return result('bays','An accessible bay per stop',problems,[`${stops.length} bays`,...(unsigned.length?[`no room for a P sign at: ${unsigned.join(', ')}`]:[])]);
 }
 
 /** No building covers a road's paved width, its junction caps or a stopping bay. */
@@ -160,8 +163,8 @@ export function measureSize(mapFile:string,context:District):SizeReport{
  const streaming=context.district.streaming;
  // A single file shows all its plates at once: one texture per street name that has a plate.
  if(!streaming){const plated=new Set(createStreetPlates(context).planStreetPlates().plates.map(p=>p.name)).size;return {delivery:'single',...base,plateNames:plated,plateMiB:plated*PLATE_TEXTURE_BYTES/2**20};}
- // Street-name textures are freed when no resident tile uses them, so the peak is the most
- // distinct names among the tiles kept around any one place (sampled at every tile centre).
+ // Tiles build their plates within PLATE_RADIUS of the car and free their textures beyond it, so the
+ // peak is the most distinct names among the tiles that close to any one place (sampled at tile centres).
  const dir=path.dirname(mapFile),names=new Map<string,Set<string>>();let largest={id:'',bytes:0};
  for(const tile of streaming.tiles){
   if(tile.bytes>largest.bytes)largest={id:tile.id,bytes:tile.bytes};
@@ -172,7 +175,7 @@ export function measureSize(mapFile:string,context:District):SizeReport{
  const tileGrid=new SpatialGrid(streaming.tiles,t=>t.bounds,streaming.tileSize);let resident=0;
  for(const tile of streaming.tiles){
   const c=centre(tile.bounds),seen=new Set<string>();
-  for(const other of tileGrid.at(c,streaming.retainRadius))if(Math.hypot(Math.max(other.bounds.minX-c.x,0,c.x-other.bounds.maxX),Math.max(other.bounds.minZ-c.z,0,c.z-other.bounds.maxZ))<=streaming.retainRadius)for(const name of names.get(other.id)!)seen.add(name);
+  for(const other of tileGrid.at(c,PLATE_RADIUS.hide))if(Math.hypot(Math.max(other.bounds.minX-c.x,0,c.x-other.bounds.maxX),Math.max(other.bounds.minZ-c.z,0,c.z-other.bounds.maxZ))<=PLATE_RADIUS.hide)for(const name of names.get(other.id)!)seen.add(name);
   resident=Math.max(resident,seen.size);
  }
  return {delivery:'tiled',...base,tiles:streaming.tiles.length,largestTile:largest,residentPlateNames:resident,plateMiB:resident*PLATE_TEXTURE_BYTES/2**20};

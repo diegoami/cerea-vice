@@ -14,11 +14,12 @@ import {createScenery} from '../src/world/Scenery.ts';
 const [input,outputDir,sidecarFile]=process.argv.slice(2);
 if(!input||!outputDir){console.error('usage: node --import tsx tools/tile-district.mjs <district.json> <output dir> [<sidecar.json>]');process.exit(2);}
 const data=JSON.parse(fs.readFileSync(input,'utf8'));
-const sidecar=sidecarFile?JSON.parse(fs.readFileSync(sidecarFile,'utf8')):{zones:[],boards:[]};
+// Without a sidecar the district is one town: town ground everywhere and no boards between towns.
+const sidecar=sidecarFile?JSON.parse(fs.readFileSync(sidecarFile,'utf8')):{zones:[{minX:data.bounds.minX-250,maxX:data.bounds.maxX+250,minZ:data.bounds.minZ-250,maxZ:data.bounds.maxZ+250}],boards:[],synthetic:'Real streets and squares at real scale. Stopping bays, signs and props are game placements.'};
 const size=250;
 // One routing region: the whole district is a single graph (no portals), which validation accepts as a tree.
 for(const road of data.roads)road.region='region';
-const provenance={source:data.provenance?.source??'OpenStreetMap',licence:'OSM-derived database content: ODbL-1.0; no separate licence assigned to original game content',osmTimestamp:data.provenance?.osmTimestamp??'',synthetic:'Towns are real at real scale; the real main roads between them are shortened (corridor compression). Stopping bays, signs and props are game placements.'};
+const provenance={source:data.provenance?.source??'OpenStreetMap',licence:'OSM-derived database content: ODbL-1.0; no separate licence assigned to original game content',osmTimestamp:data.provenance?.osmTimestamp??'',synthetic:sidecar.synthetic??'Towns are real at real scale; the real main roads between them are shortened (corridor compression). Stopping bays, signs and props are game placements.'};
 const regionStub={version:1,tileSize:size,fogDistance:300,loadRadius:1000,retainRadius:1200,tiles:[],regions:[{id:'region',name:data.name,nodeIds:data.nodes.map(n=>n.id)}],portals:[],provenance};
 // Plans need a District; validate without the tiles first.
 const plain=structuredClone(data);delete plain.streaming;
@@ -47,20 +48,21 @@ data.features=data.features.flatMap(f=>f.points.slice(1).flatMap((b,i)=>{const a
 data.features.forEach((f,i)=>tile({x:(f.points[0].x+f.points[1].x)/2,z:(f.points[0].z+f.points[1].z)/2}).features.push(i));
 data.landmarks.forEach((p,i)=>tile(p).landmarks.push(i));data.parkingZones.forEach((p,i)=>tile(p).bays.push(i));
 for(const p of plates.plates)tile(p.position).plates.push(p);for(const p of boards)tile(p.position).boards.push(p);for(const p of props)tile(p).props.push(p);
-// Water: each tile draws its own clipped piece; collision keeps the resident whole-area solid shapes.
+// Water and squares: each tile draws its own clipped piece; collision keeps the resident whole-area water shapes.
 const ring=points=>[...points.map(p=>[p.x,p.z]),[points[0].x,points[0].z]],back=r=>r.slice(0,-1).map(([x,z])=>({x,z}));
-for(const area of data.waterAreas??[]){
+for(const [list,key] of [[data.waterAreas??[],'water'],[data.pavedAreas??[],'paved']])for(const area of list){
  const xs=area.points.map(p=>p.x),zs=area.points.map(p=>p.z);
  for(let x=Math.floor(Math.min(...xs)/size);x<=Math.floor(Math.max(...xs)/size);x++)for(let z=Math.floor(Math.min(...zs)/size);z<=Math.floor(Math.max(...zs)/size);z++){
   const id=`${x}_${z}`;if(!tiles.has(id))continue;
   const cell=[[[x*size,z*size],[(x+1)*size,z*size],[(x+1)*size,(z+1)*size],[x*size,(z+1)*size],[x*size,z*size]]];
-  for(const polygon of clipping.intersection([[ring(area.points),...(area.holes??[]).map(ring)]],cell))tiles.get(id).water.push({points:back(polygon[0]),...(polygon.length>1?{holes:polygon.slice(1).map(back)}:{})});
+  for(const polygon of clipping.intersection([[ring(area.points),...(area.holes??[]).map(ring)]],cell))(tiles.get(id)[key]??=[]).push({points:back(polygon[0]),...(polygon.length>1?{holes:polygon.slice(1).map(back)}:{})});
  }
 }
 fs.rmSync(outputDir,{recursive:true,force:true});fs.mkdirSync(path.join(outputDir,'tiles'),{recursive:true});
 const refs=[];
 for(const payload of [...tiles.values()].sort((a,b)=>a.id.localeCompare(b.id))){
  if(!payload.water.length)delete payload.water;
+ if(payload.paved&&!payload.paved.length)delete payload.paved;
  const [x,z]=payload.id.split('_').map(Number),text=JSON.stringify(payload)+'\n';const file=`tiles/${payload.id}.json`;fs.writeFileSync(path.join(outputDir,file),text);
  refs.push({id:payload.id,file,bytes:Buffer.byteLength(text),bounds:{minX:x*size,maxX:(x+1)*size,minZ:z*size,maxZ:(z+1)*size}});
 }

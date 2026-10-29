@@ -1004,3 +1004,27 @@ test('the lower Veronese plain region streams, starts and drives offline across 
   console.log(`region ready in ${ready} ms`);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('Verona centro streams, starts by Palazzo Barbieri, drives offline and shows its squares in the atlas', {timeout:180000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-verona-test-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=verona',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const requests=[];page.on('request',r=>requests.push(r.url()));
+  const started=Date.now();
+  await page.getByRole('button',{name:'Start the engine'}).waitFor({timeout:120000});
+  const ready=Date.now()-started;
+  assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Verona centro');
+  await page.getByRole('button',{name:'Start the engine'}).click();
+  await settled(page);
+  await page.screenshot({path:'test-results/verona-start.png'});
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  assert.ok(await page.locator('.atlas-map path[fill="#e9e0c9"]').count()>=3,'Piazza Bra, Erbe and dei Signori are drawn');
+  await page.locator('[data-atlas-close]').click();await page.locator('.atlas-map').waitFor({state:'hidden'});
+  await page.keyboard.down('w');await page.waitForTimeout(2000);await page.keyboard.up('w');
+  assert.ok(Number(await page.locator('#speed').innerText())>0,'The taxi moves');
+  assert.ok(requests.every(url=>url.startsWith('cerea://')||url.startsWith('data:')||url.startsWith('devtools:')),'Offline: only local game assets are requested');
+  assert.deepEqual(errors,[]);
+  console.log(`verona ready in ${ready} ms`);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});

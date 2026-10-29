@@ -26,7 +26,7 @@ export class StreamingWorld {
   });
   this.updateDaylight(7);this.updateFrame(context.spawn);
  }
- private position(tile:RenderedTile){tile.group.position.set(tile.anchor.x-this.frame.origin.x,0,tile.anchor.z-this.frame.origin.z);tile.group.visible=distanceToBounds(this.near,tile.bounds)<=this.context.district.streaming!.loadRadius-45;}
+ private position(tile:RenderedTile){tile.group.position.set(tile.anchor.x-this.frame.origin.x,0,tile.anchor.z-this.frame.origin.z);const distance=distanceToBounds(this.near,tile.bounds);tile.group.visible=distance<=this.context.district.streaming!.loadRadius-45;tile.updatePlates(distance);}
  updateFrame(point:Point){this.near={x:point.x,z:point.z};this.frame.rebase(point);for(const tile of this.stream.resident.values())this.position(tile);this.stream.update(point);}
  readyAt(point:Point){return this.stream.readyAt(point);}
  setDetail(enabled:boolean){this.detail=enabled;for(const tile of this.stream.resident.values())tile.setDetail(enabled);}

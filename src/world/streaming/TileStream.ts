@@ -2,6 +2,9 @@ import type {Point,Bounds} from '../schema';
 import type {TileManifest,TileRef,TilePayload} from './schema';
 export const distanceToBounds=(p:Point,b:Bounds)=>Math.hypot(Math.max(b.minX-p.x,0,p.x-b.maxX),Math.max(b.minZ-p.z,0,p.z-b.maxZ));
 export interface TileResource {dispose():void}
+/** Street-name plates are readable only up close, so a tile builds them within `show` metres of the car
+ * and frees them beyond `hide`: their textures then depend on what is near, not on the load radius (#51). */
+export const PLATE_RADIUS={show:300,hide:400};
 /** Bounded asynchronous loading; stale completions are disposed rather than installed. */
 export class TileStream<T extends TileResource> {
  readonly resident=new Map<string,T>();

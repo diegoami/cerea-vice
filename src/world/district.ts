@@ -3,7 +3,7 @@ import { LayeredRouteGraph } from "../navigation/LayeredRouteGraph";
 import { Profiler } from "../diagnostics/Profiler";
 import { RouteGraph } from "../navigation/RouteGraph";
 import { SpatialGrid, rectBounds } from "./SpatialGrid";
-import type { DistrictDefinition, Point, Rect, Road, RoadNode, Landmark, MapBuilding } from "./schema";
+import type { DistrictDefinition, Point, Rect, Road, RoadNode, Landmark, MapBuilding, PavedArea } from "./schema";
 export type { Point, Rect, Road, RoadNode, ParkingZone, Landmark, DistrictDefinition } from "./schema";
 
 export const ROAD_WIDTH = 8;
@@ -49,6 +49,7 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   for (const feature of data.features) if (!(feature.width>0) || feature.points?.length<2 || feature.points.some((point) => !validPoint(point)) || !["water", "rail"].includes(feature.kind)) throw new Error("Invalid map feature");
   const ring=(points:unknown)=>Array.isArray(points)&&points.length>=3&&points.every(validPoint);
   if (data.waterAreas!==undefined && (!Array.isArray(data.waterAreas) || data.waterAreas.some(area=>!plainText(area.name)||!ring(area.points)||(area.holes!==undefined&&(!Array.isArray(area.holes)||!area.holes.every(ring)))||!Array.isArray(area.solid)||area.solid.some(piece=>!ring(piece.points)||![piece.x,piece.z,piece.width,piece.depth].every(Number.isFinite)||(piece.holes!==undefined&&!piece.holes.every(ring)))))) throw new Error("Invalid water area");
+  if (data.pavedAreas!==undefined && (!Array.isArray(data.pavedAreas) || data.pavedAreas.some(area=>!plainText(area.name)||!ring(area.points)||(area.holes!==undefined&&(!Array.isArray(area.holes)||!area.holes.every(ring)))))) throw new Error("Invalid paved area");
 }
 
 export function projectToSegment(point: Point, a: Point, b: Point): Point {
@@ -100,6 +101,16 @@ export class District {
  landmarkById=(id:string):Landmark=>this.landmarks.find(place=>place.id===id)!;
  areaAt=(point:Point):string=>this.district.areas.find(area=>inRect(point,area))?.name??this.district.name;
  roadRect=(road:Road):Rect=>{const a=this.nodeById(road.a),b=this.nodeById(road.b),width=roadWidth(road);return {x:(a.x+b.x)/2,z:(a.z+b.z)/2,width:Math.abs(a.x-b.x)+width,depth:Math.abs(a.z-b.z)+width};};
- isPaved=(point:Point):boolean=>this.roadGrid.at(point).some(road=>{const p=projectToSegment(point,this.nodeById(road.a),this.nodeById(road.b));return Math.hypot(point.x-p.x,point.z-p.z)<=roadWidth(road)/2;})||this.parkingZones.some(zone=>inRect(point,zone));
+ private squares?:SpatialGrid<PavedArea>;
+ isPaved=(point:Point):boolean=>this.roadGrid.at(point).some(road=>{const p=projectToSegment(point,this.nodeById(road.a),this.nodeById(road.b));return Math.hypot(point.x-p.x,point.z-p.z)<=roadWidth(road)/2;})||this.parkingZones.some(zone=>inRect(point,zone))||this.onSquare(point);
+ /** On a square (paved open ground, #25). */
+ onSquare=(point:Point):boolean=>{
+  const areas=this.district.pavedAreas;if(!areas?.length)return false;
+  this.squares??=new SpatialGrid(areas,area=>{const xs=area.points.map(p=>p.x),zs=area.points.map(p=>p.z);return {minX:Math.min(...xs),maxX:Math.max(...xs),minZ:Math.min(...zs),maxZ:Math.max(...zs)};},64);
+  return this.squares.at(point).some(area=>pointInPolygon(point,area.points)&&!(area.holes??[]).some(hole=>pointInPolygon(point,hole)));
+ };
+ /** Inside a river or lake area: its own collision shape (water minus road corridors) applies there, so a
+  * river's centreline drawn through it is not solid too (it used to block a bridge over the Adige, #25). */
+ inWaterArea=(point:Point):boolean=>(this.district.waterAreas??[]).some(area=>pointInPolygon(point,area.points)&&!(area.holes??[]).some(hole=>pointInPolygon(point,hole)));
  nearestRoad=(point:Point)=>this.roadGrid.nearest(point,edge=>{const p=projectToSegment(point,this.nodeById(edge.a),this.nodeById(edge.b));return {edge,point:p,distance:Math.hypot(point.x-p.x,point.z-p.z)};});
 }

@@ -26,7 +26,8 @@ const area=ring=>Math.abs(ring.reduce((sum,a,i)=>{const b=ring[(i+1)%ring.length
 const bounds=ring=>{const xs=ring.map(p=>p[0]),zs=ring.map(p=>p[1]);return {x:(Math.min(...xs)+Math.max(...xs))/2,z:(Math.min(...zs)+Math.max(...zs))/2,width:Math.max(...xs)-Math.min(...xs),depth:Math.max(...zs)-Math.min(...zs)};};
 const buildings=[],changed=[],removed=[];
 for(const building of data.buildings) {
-  const original=[building.points.map(p=>[p.x,p.z])];
+  // Courtyards (holes) come from multipolygon buildings (#25); clipping keeps them.
+  const original=[building.points.map(p=>[p.x,p.z]),...(building.holes??[]).map(hole=>hole.map(p=>[p.x,p.z]))];
   let difference=[original];
   for(const piece of pieces) {
     if(building.x+building.width/2<piece.minX||building.x-building.width/2>piece.maxX||building.z+building.depth/2<piece.minZ||building.z-building.depth/2>piece.maxZ)continue;
@@ -35,13 +36,14 @@ for(const building of data.buildings) {
   }
   const useful=difference.filter(polygon=>area(polygon[0])>4);
   if(!useful.length){removed.push(building.osmId);continue;}
-  if(Math.abs(useful.reduce((sum,p)=>sum+area(p[0])-p.slice(1).reduce((s,h)=>s+area(h),0),0)-area(original[0]))>.01)changed.push(building.osmId);
+  if(Math.abs(useful.reduce((sum,p)=>sum+area(p[0])-p.slice(1).reduce((s,h)=>s+area(h),0),0)-area(original[0])+original.slice(1).reduce((s,h)=>s+area(h),0))>.01)changed.push(building.osmId);
   for(const polygon of useful) {
     // Clipped rings repeat their first point at the end; a footprint no road touches was never clipped
     // and is still open, so drop the last point only when it closes the ring (it used to lose a corner).
     const open=r=>r.length>1&&r[0][0]===r.at(-1)[0]&&r[0][1]===r.at(-1)[1]?r.slice(0,-1):r;
     const ring=open(polygon[0]);
-    buildings.push({...building,...bounds(ring),points:ring.map(([x,z])=>({x,z})),...(polygon.length>1?{holes:polygon.slice(1).map(ring=>open(ring).map(([x,z])=>({x,z})))}:{})});
+    const {holes:_,...rest}=building;
+    buildings.push({...rest,...bounds(ring),points:ring.map(([x,z])=>({x,z})),...(polygon.length>1?{holes:polygon.slice(1).map(ring=>open(ring).map(([x,z])=>({x,z})))}:{})});
   }
 }
 data.buildings=buildings;
@@ -100,6 +102,12 @@ if(data.waterAreas){
     }
   }
   data.waterAreas=areas;
+}
+// Squares: clipped to the district; buildings are drawn over them and keep their own collision.
+if(data.pavedAreas){
+  const b=data.bounds,frame=[[[b.minX,b.minZ],[b.maxX,b.minZ],[b.maxX,b.maxZ],[b.minX,b.maxZ],[b.minX,b.minZ]]];
+  const ring=points=>[...points.map(p=>[p.x,p.z]),[points[0].x,points[0].z]],back=r=>r.slice(0,-1).map(([x,z])=>({x,z}));
+  data.pavedAreas=data.pavedAreas.flatMap(square=>snap(clipping.intersection([[ring(square.points),...(square.holes??[]).map(ring)]],frame)).filter(polygon=>polygon[0].length>3&&area(polygon[0])>4).map(polygon=>({name:square.name,points:back(polygon[0]),...(polygon.length>1?{holes:polygon.slice(1).map(back)}:{})})));
 }
 for(const landmark of data.landmarks) {
   const masses=data.buildings.filter(building=>building.osmId===landmark.osmId).sort((a,b)=>b.width*b.depth-a.width*a.depth);

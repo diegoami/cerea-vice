@@ -4,7 +4,7 @@ No network is needed. Coordinates preserve local metre scale and north. See docs
 
   python3 tools/import-town.py towns/cerea.town.json [--output path/to/district.json]
 """
-import argparse, json, math, os, subprocess
+import argparse, json, math, os, subprocess, tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 PRESETS={'sketch','town','full'}
@@ -24,6 +24,7 @@ def validate(spec):
     need(spec.get('specVersion')==1,'specVersion must be 1')
     for key in ['id','name','description','attribution','sourceUrl','output']:
         need(isinstance(spec.get(key),str) and spec[key],f'"{key}" must be a non-empty string')
+    need(spec.get('subtitle') is None or (isinstance(spec['subtitle'],str) and 0<len(spec['subtitle'])<=60 and '<' not in spec['subtitle'] and '>' not in spec['subtitle']),'"subtitle" must be plain text of at most 60 characters')
     need(isinstance(spec.get('dataVersion'),int) and spec['dataVersion']>=1,'"dataVersion" must be a positive integer')
     need(spec.get('stoppingPolicy') in ('anywhere','marked-bays'),'"stoppingPolicy" must be "anywhere" or "marked-bays"')
     need(spec.get('preset') in ('sketch','town','full'),'"preset" must be "sketch", "town" or "full"')
@@ -33,6 +34,8 @@ def validate(spec):
     need(all(isinstance(bbox.get(k),(int,float)) for k in ('south','west','north','east')),'"area.bbox" needs numeric south, west, north and east')
     need(bbox['south']<bbox['north'] and bbox['west']<bbox['east'],'"area.bbox" must have south < north and west < east')
     need(spec.get('kind','town') in ('town','village'),'"kind" must be "town" or "village"')
+    need(spec.get('delivery','single') in ('single','tiled'),'"delivery" must be "single" or "tiled"')
+    need(spec.get('delivery','single')=='single' or spec['output'].endswith('/manifest.json'),'a tiled town\'s "output" is its <folder>/manifest.json')
     if spec.get('kind')=='village':
         # A village on a region's corridors: real streets and buildings, no stops or shift of its own.
         need(not spec.get('landmarks') and not spec.get('stops') and not spec.get('content'),'a village has no landmarks, stops or content')
@@ -76,10 +79,36 @@ def build(spec,output):
         for a,b in zip(poly,poly[1:]+poly[:1]):
             if (a['z']>p['z'])!=(b['z']>p['z']) and p['x']<(b['x']-a['x'])*(p['z']-a['z'])/(b['z']-a['z'])+a['x']:result=not result
         return result
+    def join(parts):
+        # Chain member ways into closed rings (multipolygon relations).
+        rings=[];parts=[list(p) for p in parts if len(p)>1]
+        while parts:
+            ring=parts.pop(0)
+            while ring[0]!=ring[-1]:
+                nxt=next((i for i,p in enumerate(parts) if p[0]==ring[-1] or p[-1]==ring[-1]),None)
+                if nxt is None:break
+                part=parts.pop(nxt);ring+=(part if part[0]==ring[-1] else part[::-1])[1:]
+            if ring[0]==ring[-1] and len(ring)>=4:rings.append(ring)
+        return rings
+    key=lambda g:(g['lat'],g['lon'])
+    def polygons(e):
+        # (outer, inners) rings in lat/lon for a closed way or a multipolygon relation.
+        if e['type']=='way':return [(ring,[]) for ring in join([[key(g) for g in e.get('geometry',[])]])]
+        if e['type']!='relation':return []
+        inners=join([[key(g) for g in m.get('geometry',[])] for m in e.get('members',[]) if m.get('role')=='inner'])
+        result=[]
+        for outer in join([[key(g) for g in m.get('geometry',[])] for m in e.get('members',[]) if m.get('role')=='outer']):
+            ring=[point({'lat':a,'lon':b}) for a,b in outer[:-1]]
+            result.append((outer,[inner for inner in inners if inside(point({'lat':inner[0][0],'lon':inner[0][1]}),ring)]))
+        return result
+    features_on=spec.get('features',{})
     nodes={};roads=[]
     for element in source['elements']:
         tags=element.get('tags',{});geo=element.get('geometry',[])
         if not tags.get('highway') or tags.get('access') in ('private','no'):continue
+        if tags.get('highway') in ('construction','proposed'):continue
+        # With paved areas on, a square mapped as a highway area is ground to cross, not a road around its edge.
+        if features_on.get('pavedAreas') and tags.get('area')=='yes':continue
         if tags.get('highway')=='service' and not tags.get('name'):continue
         if not tags.get('name'):continue
         ids=element.get('nodes',[])
@@ -138,24 +167,37 @@ def build(spec,output):
     buildings=[];landmarks=[]
     # Confirmed landmarks that are buildings or named sites (ways), and mapped points (nodes).
     landmark_specs={item['osmId']:(item['id'],item['name'],item['road'],item['kind'],item['height']) for item in spec.get('landmarks',[]) if not item.get('point')}
-    for e in source['elements']:
-        tags=e.get('tags',{});geo=e.get('geometry',[])
-        if not tags.get('building') or len(geo)<4:continue
-        pts=[point(p) for p in geo[:-1]]
-        if not all(within(p) for p in pts):continue
+    def add_building(e,tags,pts,holes=()):
+        if not all(within(p) for p in pts):return
         if preset=='sketch' and e['id'] not in landmark_specs:
-            if ring_area(pts)<SKETCH_MIN_AREA:continue
-            pts=simplify(pts,SKETCH_TOLERANCE)
+            if ring_area(pts)<SKETCH_MIN_AREA:return
+            if not holes:pts=simplify(pts,SKETCH_TOLERANCE)
         footprint=rect(pts)
-        if footprint['width']<(1 if preset=='full' else 2) or footprint['depth']<(1 if preset=='full' else 2):continue
+        if footprint['width']<(1 if preset=='full' else 2) or footprint['depth']<(1 if preset=='full' else 2):return
         height=7+(e['id']%4)*1.2
         try:height=float(tags.get('height',str(float(tags.get('building:levels','2'))*3.3)).replace(' m',''))
         except ValueError:pass
         if e['id'] in landmark_specs:
+            if any(place['osmId']==e['id'] for place in landmarks):return
             id,name,road,kind,h=landmark_specs[e['id']]
             landmarks.append({'id':id,'name':name,'road':road,'kind':kind,'height':h,'osmId':e['id'],**footprint,'points':pts})
+            # A confirmed landmark keeps its height (Torre dei Lamberti is 84 m); other buildings are capped at 30 m.
             height=h
-        buildings.append({**footprint,'points':pts,'height':min(30,max(3,height)),'color':[0xb9a287,0xc7b08c,0xb8a58f,0xc2bda6,0xb79a83][e['id']%5],'osmId':e['id']})
+        buildings.append({**footprint,'points':pts,**({'holes':[list(h) for h in holes]} if holes else {}),'height':height if e['id'] in landmark_specs else min(30,max(3,height)),'color':[0xb9a287,0xc7b08c,0xb8a58f,0xc2bda6,0xb79a83][e['id']%5],'osmId':e['id']})
+    for e in source['elements']:
+        tags=e.get('tags',{});geo=e.get('geometry',[])
+        if not tags.get('building') or len(geo)<4 or e['type']!='way':continue
+        add_building(e,tags,[point(p) for p in geo[:-1]])
+    if features_on.get('buildingRelations'):
+        # Multipolygon buildings (#25): each outer ring with its courtyards as holes, largest first so a
+        # landmark takes its main mass. An outer member already tagged as a building is not doubled.
+        tagged={e['id'] for e in source['elements'] if e['type']=='way' and e.get('tags',{}).get('building')}
+        for e in source['elements']:
+            tags=e.get('tags',{})
+            if e['type']!='relation' or not tags.get('building'):continue
+            if any(m.get('type')=='way' and m.get('ref') in tagged and m.get('role')=='outer' for m in e.get('members',[])):continue
+            rings=[([point({'lat':a,'lon':b}) for a,b in outer[:-1]],[[point({'lat':a,'lon':b}) for a,b in inner[:-1]] for inner in inners]) for outer,inners in polygons(e)]
+            for pts,holes in sorted(rings,key=lambda r:-ring_area(r[0])):add_building(e,tags,pts,holes)
 
     # Some named POIs describe grounds rather than the building. Use a building on those
     # grounds for the landmark mass; do not turn the entire school/library site into a block.
@@ -180,9 +222,12 @@ def build(spec,output):
     for item in [item for item in spec.get('landmarks',[]) if item.get('point')]:
         element=next((e for e in source['elements'] if e['id']==item['osmId']),None)
         if element is None:raise RuntimeError(f'Mapped point {item["osmId"]} for landmark {item["id"]} is not in the extract')
-        location=point(element)
-        candidates=[building for building in buildings if inside(location,building['points'])]
-        chosen=min(candidates or buildings,key=lambda building:dist(building,location))
+        # A mapped way as a point (a gate the street runs through, which clearance removes) uses its centre.
+        geo=element.get('geometry') or []
+        location=point(element) if element['type']=='node' else {'x':round(sum(point(g)['x'] for g in geo[:-1])/max(1,len(geo)-1),2),'z':round(sum(point(g)['z'] for g in geo[:-1])/max(1,len(geo)-1),2)}
+        others=[building for building in buildings if building['osmId']!=item['osmId']]
+        candidates=[building for building in others if inside(location,building['points'])]
+        chosen=min(candidates or others,key=lambda building:dist(building,location))
         if dist(chosen,location)>45:raise RuntimeError('No close building for '+item['kind']+' '+item['id'])
         landmarks.append({'id':item['id'],'name':item.get('name',element['tags']['name']),'road':item['road'],'kind':item['kind'],'height':chosen['height'],'osmId':chosen['osmId'],**{key:chosen[key] for key in ['x','z','width','depth','points']}})
 
@@ -227,7 +272,9 @@ def build(spec,output):
                 p={'x':round(q['x']+nx*offset,2),'z':round(q['z']+nz*offset,2)}
                 for size in [14,10,6]:
                     samples=[{'x':p['x']+dx,'z':p['z']+dz} for dx in [-size/2,0,size/2] for dz in [-size/2,0,size/2]]
-                    if not within(p) or any(inside(sample,building['points']) for building in buildings for sample in samples):continue
+                    # Only buildings whose box reaches the bay can hold a sample (same answer, much faster).
+                    close=[building for building in buildings if abs(building['x']-p['x'])<=building['width']/2+size and abs(building['z']-p['z'])<=building['depth']/2+size]
+                    if not within(p) or any(inside(sample,building['points']) for building in close for sample in samples):continue
                     if not approach_clear(q,p,r,size):continue
                     candidates.append((dist(p,place)+abs(offset)*0.1+(14-size),p,r,size))
         if not candidates:raise RuntimeError('No accessible stopping bay for '+landmark_id)
@@ -236,12 +283,16 @@ def build(spec,output):
     bay_names={stop['landmark']:stop['bay'] for stop in spec.get('stops',[])}
     content=spec.get('content',{});start,target=(None,None) if village else (content['start'],content['mission']['target'])
     bays=[];stop_data=[]
+    unplaced=[]
     for place in landmarks:
         if place['id'] not in bay_names:continue
-        zone,road,node=bay_for(place['id'],bay_names[place['id']]);bays.append(zone)
+        try:zone,road,node=bay_for(place['id'],bay_names[place['id']])
+        except RuntimeError:unplaced.append(f"{place['id']} (on {place['road']})");continue
+        bays.append(zone)
         stop_data.append({'id':place['id'],'name':place['name'],'road':road['name'],'bayId':zone['id'],'nodeId':node,'description':'Stop in '+zone['name']+'.'})
         if place['id']==start:spawn_bay,spawn_road=zone,road
         if place['id']==target:target_node=node
+    if unplaced:raise RuntimeError('No accessible stopping bay for '+', '.join(unplaced)+'; name a wider street as the landmark\'s "road"')
     # Keep the starting bay first for legacy district tools.
     bays.sort(key=lambda zone:(zone['id']!=start,zone['id']))
     if not village:
@@ -278,38 +329,33 @@ def build(spec,output):
     # bounds and the collision shape (water minus road corridors) are done by prepare-town.mjs.
     water_areas=[]
     if feature_spec.get('waterAreas'):
-        def join(parts):
-            rings=[];parts=[list(p) for p in parts if len(p)>1]
-            while parts:
-                ring=parts.pop(0)
-                while ring[0]!=ring[-1]:
-                    nxt=next((i for i,p in enumerate(parts) if p[0]==ring[-1] or p[-1]==ring[-1]),None)
-                    if nxt is None:break
-                    part=parts.pop(nxt);ring+=(part if part[0]==ring[-1] else part[::-1])[1:]
-                if ring[0]==ring[-1] and len(ring)>=4:rings.append(ring)
-            return rings
-        key=lambda g:(g['lat'],g['lon'])
         unnamed_area=unnamed.get('waterArea','Acqua')
         for e in source['elements']:
             t=e.get('tags',{})
             if not (t.get('natural')=='water' or t.get('waterway')=='riverbank'):continue
-            if e['type']=='way':outers,inners=join([[key(g) for g in e.get('geometry',[])]]),[]
-            elif e['type']=='relation':
-                outers=join([[key(g) for g in m.get('geometry',[])] for m in e.get('members',[]) if m.get('role')=='outer'])
-                inners=join([[key(g) for g in m.get('geometry',[])] for m in e.get('members',[]) if m.get('role')=='inner'])
-            else:continue
-            for outer in outers:
+            for outer,inners in polygons(e):
                 ring=[point({'lat':a,'lon':b}) for a,b in outer[:-1]]
-                holes=[[point({'lat':a,'lon':b}) for a,b in inner[:-1]] for inner in inners if inside(point({'lat':inner[0][0],'lon':inner[0][1]}),ring)]
+                holes=[[point({'lat':a,'lon':b}) for a,b in inner[:-1]] for inner in inners]
                 water_areas.append({'name':t.get('name',unnamed_area),'points':ring,**({'holes':holes} if holes else {})})
+    # Squares as paved open ground (#25), when the spec asks: place=square outlines and highway areas.
+    # They are not roads: no routing, no plates; buildings are drawn over them; clipped by prepare-town.mjs.
+    paved_areas=[]
+    if feature_spec.get('pavedAreas'):
+        for e in source['elements']:
+            t=e.get('tags',{})
+            if not (t.get('place')=='square' or (t.get('highway') and t.get('area')=='yes')):continue
+            for outer,inners in polygons(e):
+                ring=[point({'lat':a,'lon':b}) for a,b in outer[:-1]]
+                holes=[[point({'lat':a,'lon':b}) for a,b in inner[:-1]] for inner in inners]
+                paved_areas.append({'name':t.get('name',unnamed.get('square','Piazza')),'points':ring,**({'holes':holes} if holes else {})})
 
     centre={'x':(bounds['minX']+bounds['maxX'])/2,'z':(bounds['minZ']+bounds['maxZ'])/2}
     areas=[{'name':item['name'],'x':item.get('x',centre['x']),'z':item.get('z',centre['z']),'width':bounds['maxX']-bounds['minX'],'depth':bounds['maxZ']-bounds['minZ']} for item in spec.get('areas',[])]
     if village:
-        district={'version':1,'kind':'village','id':spec['id'],'dataVersion':spec['dataVersion'],**({} if preset=='town' else {'preset':preset}),'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':[],'landmarks':[],'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
+        district={'version':1,'kind':'village','id':spec['id'],'dataVersion':spec['dataVersion'],**({} if preset=='town' else {'preset':preset}),'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':[],'landmarks':[],'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),**({'pavedAreas':paved_areas} if paved_areas else {}),'areas':areas,'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
     mission=content.get('mission',{})
     if not village:
-     district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],**({} if preset=='town' else {'preset':preset}),'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
+     district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],**({} if preset=='town' else {'preset':preset}),**({'subtitle':spec['subtitle']} if spec.get('subtitle') else {}),'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),**({'pavedAreas':paved_areas} if paved_areas else {}),'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
     output.parent.mkdir(parents=True,exist_ok=True)
     # Prepare a temporary file and rename it into place, so a reader (the game, a test, a region build)
     # never sees a district that has been written but not yet prepared.
@@ -346,7 +392,14 @@ def main(argv=None):
         if not (ROOT/spec['source']['extract']).is_file():raise SystemExit(f'{args.spec}: extract {spec["source"]["extract"]} is missing')
         print(f'{args.spec}: valid');return
     output=(args.output or ROOT/spec['output']).resolve()
-    build(spec,output)
+    if spec.get('delivery')=='tiled':
+        # Over the single-file budget (npm run town:check): build the district, then tile it into the
+        # output's folder (manifest and 250 m tiles), as a region is.
+        with tempfile.TemporaryDirectory() as scratch:
+            district=Path(scratch)/f"{spec['id']}.json"
+            build(spec,district)
+            subprocess.run(['node','--import','tsx',str(ROOT/'tools/tile-district.mjs'),str(district),str(output.parent)],check=True,cwd=ROOT)
+    else:build(spec,output)
     # Only a town's own map under public/maps/ is registered; builds written elsewhere (tests, spikes) are not.
     if args.output is None and output.is_relative_to(REGISTRY.parent):update_registry(spec,args.spec,output)
     elif args.output is None:print(f'Not registered: {output} is outside {REGISTRY.parent}')

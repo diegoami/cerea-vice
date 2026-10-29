@@ -11,7 +11,7 @@ const load=(map:string)=>JSON.parse(readFileSync(`public/maps/${map}`,'utf8'));
 test('the district list rejects malformed entries, naming the problem',()=>{
  const variant=(change:(data:any)=>void)=>{const data=structuredClone(registryData) as any;change(data);return ()=>validateRegistry(data);};
  assert.throws(variant(d=>{d.towns.push({...d.towns[0]});}),/"cerea" is listed twice/);
- assert.throws(variant(d=>{d.default='verona';}),/default district is not listed/);
+ assert.throws(variant(d=>{d.default='atlantis-centro';}),/default district is not listed/);
  assert.throws(variant(d=>{d.towns[0].map='../../secret.json';}),/needs a map file inside maps\//);
  assert.throws(variant(d=>{d.towns[0].map='/etc/cerea.json';}),/needs a map file inside maps\//);
  assert.throws(variant(d=>{delete d.towns[1].taxi;}),/"harbor" needs taxi and provenance flags/);
@@ -40,6 +40,7 @@ test('every listed district loads and matches its entry, map file and spec',()=>
    const spec=JSON.parse(readFileSync(town.spec,'utf8'));
    assert.deepEqual([spec.id,spec.name,spec.dataVersion,spec.attribution,spec.output],[town.id,town.name,town.dataVersion,town.attribution,`public/maps/${town.map}`],`${town.id}: the registry entry is the spec's`);
   }
+  if(data.streaming&&town.id!=='cerea-outskirts')assert.ok(data.subtitle,`${town.id}: a streamed district says what it is, not the outskirts prototype's subtitle`);
   for(const view of town.views??[])if(view.bay)assert.ok(context.parkingZones.some(b=>b.id===view.bay),`${town.id}: view ${view.name} names a bay`);
  }
 });
@@ -55,7 +56,7 @@ test('an unlisted or removed district falls back to the default without deleting
  const list:TownRegistry={...registry};
  assert.equal(requestedDistrict(list),'cerea','Nothing chosen: the default');
  location.hash='#district=harbor';assert.equal(requestedDistrict(list),'harbor','The URL choice wins');
- location.hash='#district=verona';storage.set('cerea-district','atlantis');
+ location.hash='#district=atlantis-centro';storage.set('cerea-district','atlantis');
  assert.equal(requestedDistrict(list),'cerea','Unlisted choices fall back to the default');
  assert.equal(storage.get('cerea-district'),'atlantis','The remembered choice is not overwritten');assert.equal(removed,0);
  storage.set('cerea-district','cerea-outskirts');location.hash='';assert.equal(requestedDistrict(list),'cerea-outskirts','A listed remembered choice is used');

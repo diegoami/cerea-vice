@@ -17,6 +17,8 @@ export interface TilePayload {
  plates:StreetPlatePlan[];boards:RoadsideBoard[];props:PropPlan[];
  /** The water areas clipped to this tile, for drawing; collision uses the district's resident water shapes. */
  water?:{points:Point[];holes?:Point[][]}[];
+ /** The squares (paved open ground) clipped to this tile, for drawing. */
+ paved?:{points:Point[];holes?:Point[][]}[];
  /** Ground for this tile: town paving colours or countryside fields. Defaults to the outskirts rule. */
  ground?:'town'|'rural';
 }

@@ -71,3 +71,16 @@ Crosare, Malcanton, Magarino and Dossi are on the corridors too but are not incl
 600 m of a town (or of Venera), and after compression their area would overlap it. San Pietro di Legnago is
 not included either (milestone review #69, #70): it sits about 1.5 km from Legnago, and with both placed
 rigidly the roads between them had to shrink to about a third and ran across the village's streets.
+
+## Verona centro
+
+`sources/verona-osm.json`, fetched 2026-10-29 from `https://overpass-api.de/api/interpreter` (OSM data
+timestamp 2026-10-29T18:08:36Z), box 45.4320, 10.9840, 45.4490, 11.0040: highways, buildings and building
+relations, waterways, railways, water areas, `area:highway`, amenity, tourism, historic, leisure and place
+features. The spec `towns/verona.town.json` keeps the Adige loop, 45.4355–45.4495 N, 10.9855–11.0040 E
+(about 1.9 km², owner's choice on 2026-10-29), with the 13 stops the owner confirmed the same day. It turns
+on building relations (courtyards as holes) and squares (`place=square` and highway areas as paved open
+ground). Porta Borsari and Porta Leoni are mapped points: the street runs through or beside each gate, so
+clearance removes the gate itself and the stop uses the nearest remaining building. Built with
+`npm run build:verona` into `public/maps/verona/` (tiled). Same ODbL 1.0 terms and attribution as above.
+

@@ -1,6 +1,6 @@
 # Map data notice
 
-The maps in this folder (`cerea.json`, `cerea-outskirts/`, `lower-verona/` and their tiles) contain
+The maps in this folder (`cerea.json`, `cerea-outskirts/`, `lower-verona/`, `verona/` and their tiles) contain
 information from **OpenStreetMap**, © OpenStreetMap contributors, made available under the
 **Open Database License (ODbL) 1.0**: https://opendatacommons.org/licenses/odbl/1-0/
 (see https://www.openstreetmap.org/copyright).

@@ -7,9 +7,10 @@ import {box,sign,signpost,streetNamePlate,releaseStreetNamePlate,material} from 
 import {createScenery} from '../Scenery';
 import type {Point,Rect,Bounds} from '../schema';
 import type {TileRef,TilePayload} from './schema';
+import {PLATE_RADIUS} from './TileStream';
 import {ground,paving,features as feature} from '../palette';
 export type Surfaces=ReturnType<ReturnType<typeof createScenery>['createFacadeMaterials']>;
-export interface RenderedTile {group:THREE.Group;anchor:Point;bounds:Bounds;setDetail(enabled:boolean):void;dispose():void}
+export interface RenderedTile {group:THREE.Group;anchor:Point;bounds:Bounds;setDetail(enabled:boolean):void;updatePlates(distance:number):void;dispose():void}
 /** Tile data is local and owner-assigned; all GPU vertices are relative to its centre. */
 export function renderTile(context:District,payload:TilePayload,ref:TileRef,surfaces:Surfaces,materials:TileMaterials):RenderedTile{
  const anchor={x:(ref.bounds.minX+ref.bounds.maxX)/2,z:(ref.bounds.minZ+ref.bounds.maxZ)/2};
@@ -34,6 +35,12 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
   shape.holes=(piece.holes??[]).map(ring=>new THREE.Path(ring.map(p=>{const q=local(p);return new THREE.Vector2(q.x,-q.z);})));
   const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);const mesh=new THREE.Mesh(geometry,material(feature.water));mesh.position.y=.02;group.add(mesh);
  }
+ for(const piece of payload.paved??[]){
+  if(!Array.isArray(piece.points)||piece.points.length<3||piece.points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.z)))throw new Error('Invalid tile square');
+  const shape=new THREE.Shape(piece.points.map(p=>{const q=local(p);return new THREE.Vector2(q.x,-q.z);}));
+  shape.holes=(piece.holes??[]).map(ring=>new THREE.Path(ring.map(p=>{const q=local(p);return new THREE.Vector2(q.x,-q.z);})));
+  const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);const mesh=new THREE.Mesh(geometry,material(paving.square));mesh.position.y=.03;group.add(mesh);
+ }
  for(const index of payload.features){const f=context.district.features[index];for(let i=0;i<f.points.length-1;i++){const a=local(f.points[i]),b=local(f.points[i+1]);strip(group,a,b,f.width,0,.05,f.kind==='water'?feature.water:feature.ballast);if(f.kind==='rail'){const length=Math.hypot(b.x-a.x,b.z-a.z)||1,nx=-(b.z-a.z)/length*.8,nz=(b.x-a.x)/length*.8;for(const side of [-1,1])strip(group,{x:a.x+side*nx,z:a.z+side*nz},{x:b.x+side*nx,z:b.z+side*nz},.12,.09,.1,feature.rail);}}}
  for(const index of payload.roads){const r=context.roads[index],a=local(context.nodeById(r.a)),b=local(context.nodeById(r.b)),w=roadWidth(r);strip(group,a,b,w+2.5,.01,.08,paving.verge);strip(group,a,b,w,.075,.06,paving.road);
   const cap=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,.06,12),material(paving.road));cap.position.set(a.x,.075,a.z);group.add(cap);
@@ -53,7 +60,6 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
   for(const s of [-1,1]){box(group,b.x+s*b.width/2,.2,b.z,.2,.03,b.depth,paving.bayLine);box(group,b.x,.2,b.z+s*b.depth/2,b.width,.03,.2,paving.bayLine);}
 
  }
- for(const p of payload.plates)streetNamePlate(group,{...p,position:local(p.position)});
  for(const p of payload.boards){const q=local(p.position);if(p.mounted)sign(group,q.x,p.height,q.z,p.rows,p.width,p.angle,p.color);else signpost(group,q.x,q.z,p.rows,p.angle,p.color,p.width,p.height);}
  scenery.dressStreets(detail,[],payload.props.map(p=>({...p,...local(p)})));
  group.traverse(o=>{if(o instanceof THREE.Mesh&&!Array.isArray(o.material))o.material=materials.use(o.material);});
@@ -65,5 +71,15 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
  };
  batch(group,[detail,simple]);batch(detail);batch(simple);
  let disposed=false;const tileMaterials=materials;
- return {group,anchor,bounds:ref.bounds,setDetail(enabled){detail.visible=enabled;simple.visible=!enabled;},dispose(){if(disposed)return;disposed=true;group.removeFromParent();for(const p of payload.plates){const face=releaseStreetNamePlate(p.name);if(face)tileMaterials.release(face);}const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();group.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.shared){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});for(const g of geometries)g.dispose();for(const t of textures)t.dispose();for(const m of materials)m.dispose();group.clear();}};
+ // Plates are built near the car and freed further away (PLATE_RADIUS); they are not batched.
+ const plates=new THREE.Group();plates.name='street-plates';group.add(plates);let platesShown=false;
+ const showPlates=(on:boolean)=>{
+  if(on===platesShown||disposed)return;platesShown=on;
+  if(on){for(const p of payload.plates)streetNamePlate(plates,{...p,position:local(p.position)});plates.traverse(o=>{if(o instanceof THREE.Mesh&&!Array.isArray(o.material))o.material=materials.use(o.material);});return;}
+  for(const p of payload.plates){const face=releaseStreetNamePlate(p.name);if(face)tileMaterials.release(face);}
+  plates.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});plates.clear();
+ };
+ return {group,anchor,bounds:ref.bounds,setDetail(enabled){detail.visible=enabled;simple.visible=!enabled;},
+  updatePlates(distance){if(distance<=PLATE_RADIUS.show)showPlates(true);else if(distance>PLATE_RADIUS.hide)showPlates(false);},
+  dispose(){if(disposed)return;showPlates(false);disposed=true;group.removeFromParent();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();group.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.shared){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});for(const g of geometries)g.dispose();for(const t of textures)t.dispose();for(const m of materials)m.dispose();group.clear();}};
 }
