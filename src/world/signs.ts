@@ -92,15 +92,17 @@ function planJunctionSigns():{signs:RoadSignPlan[];missing:string[]} {
   }
   return {signs,missing};
 }
+/** One P sign per bay where one fits; a bay with no clear spot (in a dense centre) keeps only its markings. */
 function planParkingSigns():{zoneId:string;position:Point;angle:number;width:number;height:number;label:string}[] {
-  return district.parkingZones.map(zone=>{
-    for(const extra of [1,2,4,6])for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2,Math.PI/4,-Math.PI/4,Math.PI*3/4,-Math.PI*3/4]) {
+  return district.parkingZones.flatMap(zone=>{
+    // Further rings only when the near ones are blocked (a bay in a dense centre, #25).
+    for(const extra of [1,2,4,6,9,12])for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2,Math.PI/4,-Math.PI/4,Math.PI*3/4,-Math.PI*3/4]) {
       const radius=Math.max(zone.width,zone.depth)/2+extra;
       const position={x:zone.x-Math.sin(angle)*radius,z:zone.z-Math.cos(angle)*radius};
       const plan={zoneId:zone.id,position,angle,width:1.8,height:2.6,label:zone.name};
-      if(boardIsClear(plan))return plan;
+      if(boardIsClear(plan))return [plan];
     }
-    throw new Error(`No clear parking sign position: ${zone.name}`);
+    return [];
   });
 }
 function planVittoriaNoEntrySign():{position:Point;angle:number;width:number;height:number}|undefined {

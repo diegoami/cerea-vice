@@ -31,3 +31,28 @@ test('a water area is solid except where a road crosses it, and is validated',{t
    assert.throws(()=>new District({...result,waterAreas:bad}),/Invalid water area/);
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+test('squares are paved, drivable ground drawn in the atlas, and invalid squares are refused',async()=>{
+ const {readFileSync}=await import('node:fs');const {District}=await import('../src/world/district');const {createAtlas}=await import('../src/ui/Atlas');
+ const verona=JSON.parse(readFileSync('public/maps/verona/manifest.json','utf8')),context=new District(verona);
+ const bra=verona.pavedAreas.find((a:any)=>a.name==='Piazza Bra');
+ // A point of the square well away from every road centreline is paved only because of the square.
+ const xs=bra.points.map((p:any)=>p.x),zs=bra.points.map((p:any)=>p.z);let found=false;
+ for(let x=Math.min(...xs);x<=Math.max(...xs)&&!found;x+=2)for(let z=Math.min(...zs);z<=Math.max(...zs)&&!found;z+=2){
+  const p={x,z};if(!context.onSquare(p)||context.nearestRoad(p).distance<6||context.parkingZones.some(b=>Math.hypot(b.x-p.x,b.z-p.z)<20))continue;
+  assert.ok(context.isPaved(p));found=true;
+ }
+ assert.ok(found,'Piazza Bra has open paved ground away from its streets');
+ assert.match(createAtlas(context).atlasMarkup('map'),/fill="#e9e0c9"/,'the atlas draws squares');
+ const cerea=JSON.parse(readFileSync('public/maps/cerea.json','utf8'));
+ assert.doesNotMatch(createAtlas(new District(cerea)).atlasMarkup('map'),/#e9e0c9/,'Cerea has none');
+ assert.throws(()=>new District({...cerea,pavedAreas:[{name:'<b>',points:[{x:0,z:0},{x:1,z:0},{x:0,z:1}]}]}),/Invalid paved area/);
+ assert.throws(()=>new District({...cerea,pavedAreas:[{name:'Piazza',points:[{x:0,z:0}]}]}),/Invalid paved area/);
+});
+
+test('a river centreline inside its mapped river area is not solid, so bridges stay open',async()=>{
+ const {readFileSync}=await import('node:fs');const {District}=await import('../src/world/district');const {streamingColliders}=await import('../src/world/streaming/colliders');
+ const context=new District(JSON.parse(readFileSync('public/maps/verona/manifest.json','utf8')));
+ const lines=streamingColliders(context).filter(r=>!(r as any).osmId&&r.points?.length===4&&!context.district.waterAreas!.some(a=>a.solid.includes(r)));
+ assert.ok(lines.every(r=>!context.inWaterArea(r)),'no Adige line piece inside the Adige area');
+});

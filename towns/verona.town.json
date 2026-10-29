@@ -1,0 +1,311 @@
+{
+  "specVersion": 1,
+  "id": "verona",
+  "name": "Verona centro",
+  "subtitle": "REAL STREETS / MODERN MAP",
+  "description": "The centre of Verona inside the Adige loop: real streets and squares from the Arena to the Duomo, named stops and simplified scenery.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/verona-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.4425,
+      "lon": 10.99475
+    },
+    "bbox": {
+      "south": 45.4355,
+      "west": 10.9855,
+      "north": 45.4495,
+      "east": 11.004
+    }
+  },
+  "output": "public/maps/verona/manifest.json",
+  "delivery": "tiled",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua",
+      "square": "Piazza"
+    },
+    "waterAreas": true,
+    "pavedAreas": true,
+    "buildingRelations": true
+  },
+  "areas": [
+    {
+      "name": "Verona"
+    }
+  ],
+  "landmarks": [
+    {
+      "osmId": 43858694,
+      "id": "arena",
+      "name": "Arena di Verona",
+      "road": "(nearest street)",
+      "kind": "theatre",
+      "frontage": "nearest",
+      "height": 30
+    },
+    {
+      "osmId": 1868908,
+      "id": "barbieri",
+      "name": "Palazzo Barbieri",
+      "road": "(nearest street)",
+      "kind": "civic",
+      "frontage": "nearest",
+      "height": 22
+    },
+    {
+      "osmId": 138812025,
+      "id": "filarmonico",
+      "name": "Teatro Filarmonico",
+      "road": "(nearest street)",
+      "kind": "theatre",
+      "frontage": "nearest",
+      "height": 20
+    },
+    {
+      "osmId": 138828394,
+      "id": "sanlorenzo",
+      "name": "Chiesa di San Lorenzo",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 22
+    },
+    {
+      "osmId": 138812787,
+      "id": "borsari",
+      "name": "Porta Borsari",
+      "road": "Corso Porta Borsari",
+      "kind": "gate",
+      "point": true
+    },
+    {
+      "osmId": 138829597,
+      "id": "lamberti",
+      "name": "Torre dei Lamberti",
+      "road": "Piazza delle Erbe",
+      "kind": "tower",
+      "height": 84
+    },
+    {
+      "osmId": 7120188585,
+      "id": "giulietta",
+      "name": "Casa di Giulietta",
+      "road": "(nearest street)",
+      "kind": "museum",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 694354426,
+      "id": "leoni",
+      "name": "Porta Leoni",
+      "road": "Via Leoni",
+      "kind": "gate",
+      "point": true
+    },
+    {
+      "osmId": 358970376,
+      "id": "sanfermo",
+      "name": "Chiesa di San Fermo Maggiore",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 28
+    },
+    {
+      "osmId": 138917931,
+      "id": "biblioteca",
+      "name": "Biblioteca Civica",
+      "road": "Via Cappello",
+      "kind": "library",
+      "height": 20
+    },
+    {
+      "osmId": 1193534140,
+      "id": "duomo",
+      "name": "Duomo di Verona",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 30
+    },
+    {
+      "osmId": 1193522172,
+      "id": "anastasia",
+      "name": "Chiesa di Sant'Anastasia",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 32
+    },
+    {
+      "osmId": 3210974287,
+      "id": "castelvecchio",
+      "name": "Museo di Castelvecchio",
+      "road": "(nearest street)",
+      "kind": "museum",
+      "frontage": "nearest",
+      "point": true
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "arena",
+      "bay": "Sosta Arena"
+    },
+    {
+      "landmark": "barbieri",
+      "bay": "Sosta Palazzo Barbieri"
+    },
+    {
+      "landmark": "filarmonico",
+      "bay": "Sosta Teatro Filarmonico"
+    },
+    {
+      "landmark": "sanlorenzo",
+      "bay": "Sosta San Lorenzo"
+    },
+    {
+      "landmark": "borsari",
+      "bay": "Sosta Porta Borsari"
+    },
+    {
+      "landmark": "lamberti",
+      "bay": "Sosta Piazza delle Erbe"
+    },
+    {
+      "landmark": "giulietta",
+      "bay": "Sosta Casa di Giulietta"
+    },
+    {
+      "landmark": "leoni",
+      "bay": "Sosta Porta Leoni"
+    },
+    {
+      "landmark": "sanfermo",
+      "bay": "Sosta San Fermo"
+    },
+    {
+      "landmark": "biblioteca",
+      "bay": "Sosta Biblioteca Civica"
+    },
+    {
+      "landmark": "duomo",
+      "bay": "Sosta Duomo"
+    },
+    {
+      "landmark": "anastasia",
+      "bay": "Sosta Sant'Anastasia"
+    },
+    {
+      "landmark": "castelvecchio",
+      "bay": "Sosta Castelvecchio"
+    }
+  ],
+  "content": {
+    "start": "barbieri",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "arena",
+        "sanlorenzo"
+      ],
+      [
+        "Marco",
+        "barbieri",
+        "sanfermo"
+      ],
+      [
+        "Giulia",
+        "filarmonico",
+        "arena"
+      ],
+      [
+        "Paolo",
+        "sanlorenzo",
+        "lamberti"
+      ],
+      [
+        "Sara",
+        "borsari",
+        "duomo"
+      ],
+      [
+        "Luca",
+        "lamberti",
+        "filarmonico"
+      ],
+      [
+        "Chiara",
+        "giulietta",
+        "leoni"
+      ],
+      [
+        "Andrea",
+        "leoni",
+        "castelvecchio"
+      ],
+      [
+        "Francesca",
+        "sanfermo",
+        "borsari"
+      ],
+      [
+        "Matteo",
+        "biblioteca",
+        "duomo"
+      ],
+      [
+        "Anna",
+        "duomo",
+        "barbieri"
+      ],
+      [
+        "Davide",
+        "anastasia",
+        "giulietta"
+      ],
+      [
+        "Laura",
+        "castelvecchio",
+        "anastasia"
+      ]
+    ],
+    "mission": {
+      "name": "Verona Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "duomo"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated.",
+    "Squares (place=square and highway areas) are paved open ground; buildings are drawn over them.",
+    "Porta Borsari and Porta Leoni are mapped points: the streets run through or beside the gates, so their stops use the nearest remaining building."
+  ]
+}

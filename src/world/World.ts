@@ -60,6 +60,13 @@ class World {
       const water=new THREE.Mesh(geometry,material(mapped.water));water.position.y=0.02;scene.add(water);
       this.colliders.push(...area.solid);
     }
+    // Squares: paved open ground under the buildings and below the road surface.
+    for(const area of district.pavedAreas??[]){
+      const shape=new THREE.Shape(area.points.map((p)=>new THREE.Vector2(p.x,-p.z)));
+      shape.holes=(area.holes??[]).map(ring=>new THREE.Path(ring.map(p=>new THREE.Vector2(p.x,-p.z))));
+      const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);
+      const square=new THREE.Mesh(geometry,material(paving.square));square.position.y=0.03;scene.add(square);
+    }
     for(const feature of district.features) {
       for(let i=0;i<feature.points.length-1;i++) {
         const a=feature.points[i],b=feature.points[i+1];
@@ -71,7 +78,7 @@ class World {
           for(let j=0;j<steps;j++) {
             const p={x:a.x+(b.x-a.x)*j/steps,z:a.z+(b.z-a.z)*j/steps};
             const q={x:a.x+(b.x-a.x)*(j+1)/steps,z:a.z+(b.z-a.z)*(j+1)/steps};
-            if(isPaved({x:(p.x+q.x)/2,z:(p.z+q.z)/2}))continue;
+            if(isPaved({x:(p.x+q.x)/2,z:(p.z+q.z)/2})||context.inWaterArea({x:(p.x+q.x)/2,z:(p.z+q.z)/2}))continue;
             this.colliders.push({x:(p.x+q.x)/2,z:(p.z+q.z)/2,width:Math.abs(q.x-p.x)+feature.width,depth:Math.abs(q.z-p.z)+feature.width,points:[{x:p.x+nx,z:p.z+nz},{x:q.x+nx,z:q.z+nz},{x:q.x-nx,z:q.z-nz},{x:p.x-nx,z:p.z-nz}]});
           }
         } else {

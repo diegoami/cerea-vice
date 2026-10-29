@@ -88,6 +88,31 @@
           "bay": "sanguinetto:castello"
         }
       ]
+    },
+    {
+      "id": "verona",
+      "name": "Verona centro",
+      "map": "verona/manifest.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "local",
+      "taxi": true,
+      "provenance": true,
+      "spec": "towns/verona.town.json",
+      "views": [
+        {
+          "name": "arena",
+          "bay": "arena"
+        },
+        {
+          "name": "erbe",
+          "bay": "lamberti"
+        },
+        {
+          "name": "duomo",
+          "bay": "duomo"
+        }
+      ]
     }
   ]
 }

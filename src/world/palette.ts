@@ -3,7 +3,8 @@
  * daylight multiplied by grey-green surfaces is what read as an olive town.
  * See docs/COLOUR_AND_RESOLUTION.md. Sign and plate colours stay in their builders. */
 export const ground={town:0x878479,meadow:0x7f875c,stubble:0xa69a64,crop:0x6f8650};
-export const paving={road:0x52535a,verge:0xb7aea0,dash:0xe3dbc1,bay:0x77767a,bayLine:0xf0d7a0,bridgeRail:0x6c6a66};
+/** Squares (paved open ground) are pale stone, lighter than the asphalt. */
+export const paving={road:0x52535a,square:0x9a8e84,verge:0xb7aea0,dash:0xe3dbc1,bay:0x77767a,bayLine:0xf0d7a0,bridgeRail:0x6c6a66};
 export const features={water:0x668e94,bank:0xaea996,ballast:0x8a8378,rail:0xaaa9a8};
 /** Four neighbourhood façades: ochre, cream, terracotta and grey stucco. */
 export const facades=[0xd2a878,0xdcc8a6,0xca9680,0xc4beb2];

@@ -35,12 +35,15 @@ function mapSvg() {
   const bays=parkingZones.map((zone)=>`<rect x="${zone.x-zone.width/2}" y="${zone.z-zone.depth/2}" width="${zone.width}" height="${zone.depth}" class="atlas-bay"/><text x="${zone.x}" y="${zone.z+2*u}" class="atlas-parking" data-map-label="parking" style="font-size:${6*u}px">P</text>`).join("");
   const places=landmarks.map((place)=>`<path d="${(place.points?[place.points,...(place.holes??[])]:[[{x:place.x-place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z+place.depth/2},{x:place.x-place.width/2,z:place.z+place.depth/2}]]).map(ring=>`M ${ring.map(p=>`${p.x} ${p.z}`).join(" L ")} Z`).join(" ")}" fill-rule="evenodd" class="atlas-building"/><text x="${place.x}" y="${place.z-place.depth/2-4*u}" class="atlas-place-label" data-map-label="place" style="font-size:${4.5*u}px">${xml((place.kind==="church"?"San Zeno":place.kind==="school"?"Scuola Visentini":place.name).toUpperCase())}</text>`).join("");
   const features=district.features.map((feature)=>`<polyline points="${points(feature.points)}" fill="none" stroke="${feature.kind==="water"?"#9cbfc1":"#756e5b"}" stroke-width="${feature.width}" ${feature.kind==="rail"?'stroke-dasharray="3 2"':""}/>`).join("");
+  // Rivers and squares as areas (#25): water in the key's colour, squares in pale stone, under the buildings.
+  const area=(rings:Point[][],fill:string)=>`<path d="${rings.map(ring=>`M ${ring.map(p=>`${p.x} ${p.z}`).join(" L ")} Z`).join(" ")}" fill-rule="evenodd" fill="${fill}"/>`;
+  const areas=[...(district.waterAreas??[]).map(water=>area([water.points,...(water.holes??[])],"#9cbfc1")),...(district.pavedAreas??[]).map(square=>area([square.points,...(square.holes??[])],"#e9e0c9"))].join("");
   const buildings=district.buildings.map((building)=>building.points?`<path d="${[building.points,...(building.holes??[])].map(ring=>`M ${ring.map(p=>`${p.x} ${p.z}`).join(" L ")} Z`).join(" ")}" fill-rule="evenodd" fill="#cdc3a8" stroke="#b6ab8e" stroke-width="${0.2*u}"/>`:"").join("");
   return `<svg class="atlas-map" viewBox="${minX-14*u} ${minZ-17*u} ${span+28*u} ${span+28*u}" role="img" aria-labelledby="atlas-map-title atlas-map-description">
     <title id="atlas-map-title">${xml(district.name)} street atlas, north at the top</title>
     <desc id="atlas-map-description">Streets, landmarks, water, railway and stopping bays in ${xml(district.name)}. P marks game stopping bays. Asking for information updates the position marker; manual placement records your own estimate. No live tracking or route line.</desc>
     <rect x="${minX}" y="${minZ}" width="${span}" height="${span}" fill="#dedfc7"/>
-    ${buildings}${features}<g class="atlas-grid">${grid}</g>
+    ${areas}${buildings}${features}<g class="atlas-grid">${grid}</g>
     <g fill="none" stroke="#8b8e76" stroke-linecap="round">${edges}</g><g fill="none" stroke="#f9f2df" stroke-linecap="round">${paths}</g>
     ${bays}${places}<g class="atlas-road-label">${labels}</g>
     <g class="atlas-grid-label" style="font-size:${5*u}px">${["A","B","C","D"].map((letter,i)=>`<text x="${minX+(i+0.5)*span/4}" y="${minZ-5*u}">${letter}</text>`).join("")}${[1,2,3,4].map((row,i)=>`<text x="${minX-7*u}" y="${minZ+(i+0.5)*span/4}">${row}</text>`).join("")}</g>

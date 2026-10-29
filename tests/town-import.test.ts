@@ -101,3 +101,28 @@ test('presets change buildings, plates and props, never the streets, and each pa
   assert.ok(variants(full)>variants(standard),'neighbouring buildings get different façades in full');
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+test('the Verona spec rebuilds and tiles to the shipped map, with courtyards, squares and its tall tower',{timeout:240000},async()=>{
+ const directory=await mkdtemp(path.join(tmpdir(),'verona-town-'));
+ try{
+  const tiles=path.join(directory,'verona');
+  const result=run('towns/verona.town.json','--output',path.join(tiles,'manifest.json'));assert.equal(result.status,0,result.stderr);
+  const {readdir}=await import('node:fs/promises');
+  assert.ok((await readFile(path.join(tiles,'manifest.json'))).equals(await readFile('public/maps/verona/manifest.json')),'manifest');
+  const files=(await readdir('public/maps/verona/tiles')).sort();assert.deepEqual((await readdir(path.join(tiles,'tiles'))).sort(),files);
+  for(const file of files)assert.ok((await readFile(path.join(tiles,'tiles',file))).equals(await readFile(`public/maps/verona/tiles/${file}`)),file);
+  const map=JSON.parse(await readFile('public/maps/verona/manifest.json','utf8')),source=JSON.parse(await readFile('data/sources/verona-osm.json','utf8'));
+  // Palazzo Barbieri is a multipolygon relation: its mass keeps a courtyard.
+  assert.ok(map.buildings.some((b:any)=>b.osmId===1868908&&b.holes?.length),'Palazzo Barbieri keeps its courtyard');
+  assert.equal(map.landmarks.find((l:any)=>l.id==='lamberti').height,84,'a landmark keeps its real height');
+  assert.ok(map.buildings.every((b:any)=>b.height<=30||map.landmarks.some((l:any)=>l.osmId===b.osmId)),'other buildings stay capped at 30 m');
+  // Squares are paved ground, and a highway mapped as an area is not also a loop of road around its edge.
+  for(const name of ['Piazza Bra','Piazza delle Erbe','Piazza dei Signori'])assert.ok(map.pavedAreas.some((a:any)=>a.name===name),name);
+  const areaWays=new Set(source.elements.filter((e:any)=>e.tags?.highway&&e.tags?.area==='yes').map((e:any)=>e.id));
+  const unbuilt=new Set(source.elements.filter((e:any)=>['construction','proposed'].includes(e.tags?.highway)).map((e:any)=>e.id));
+  assert.ok(areaWays.size>10&&unbuilt.size>0);
+  assert.ok(map.roads.every((r:any)=>!areaWays.has(r.osmId)&&!unbuilt.has(r.osmId)),'no road from a square outline or an unbuilt street');
+  // The gates are mapped points: the stop sits on the nearest remaining building, not the removed gate.
+  for(const [id,gate] of [['borsari',138812787],['leoni',694354426]] as const)assert.notEqual(map.landmarks.find((l:any)=>l.id===id).osmId,gate);
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

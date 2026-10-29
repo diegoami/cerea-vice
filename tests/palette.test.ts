@@ -49,6 +49,7 @@ test('roads, verges and stopping bays stay distinguishable under the new palette
  assert.ok(contrast(paving.verge,paving.road)>=3);
  assert.ok(contrast(paving.dash,paving.road)>=4.5);
  assert.ok(contrast(paving.bayLine,paving.bay)>=3);
+ assert.ok(contrast(paving.square,paving.road)>=1.8,'squares read as stone, not asphalt');
  assert.ok(contrast(paving.bay,paving.road)>=1.3,'bays are a different surface from the carriageway');
  assert.ok(contrast(ground.town,paving.road)>=2);
 });

@@ -68,9 +68,10 @@ Districts and runtime:
   outskirts prototype's own exporter. Rendering is tiled, but all logical geometry, collision and street
   plates stay resident (#51).
 - **The car** is a point with a 1.05 m collision margin; it needs a clear gap of 2.1 m. It moves in steps of
-  at most half a metre. A geometric drivability check is not implemented.
-- **Street plates:** one canvas texture per unique name at a 1024×192 aspect, up to about 1 MiB each with
-  mipmaps, in a module-level cache that is never disposed (`src/world/builders.ts`).
+  at most half a metre. The town doctor checks every centreline against it (`npm run town:check`).
+- **Street plates:** one 512×96 canvas texture per unique name, about 0.25 MiB with mipmaps, shared by the
+  plates showing it and freed when none does (`src/world/builders.ts`). Streamed tiles build plates within
+  300 m of the car only.
 
 Regions:
 - `tools/build-region.py` joins town districts into one region with the corridor model (see "Regions and
@@ -332,10 +333,13 @@ importer already refuses, and direction-board ownership, still checked for Cerea
 bay counts as accessible when a path at the car's 1.05 m margin leads from its street into it.
 
 **Budgets** (from the region spike): a single-file district up to 1.6 MB, 3,500 buildings, 2,000 road
-segments and 150 MiB of street-name textures (about 1 MiB per name). A tiled district keeps its manifest
-resident (up to 6 MB, 12,000 buildings, 9,000 road segments), tiles up to 250 kB, and at most 150 MiB of
-street-name textures for the tiles kept around any one place. The region today: 5.1 MB, 9,795
-buildings, 6,874 segments, largest tile 92 kB, at most 130 street names resident.
+segments and 150 MiB of street-name textures (about 0.25 MiB per name). A tiled district keeps its
+manifest resident (up to 6 MB, 12,000 buildings, 9,000 road segments), tiles up to 250 kB, and at most
+150 MiB of street-name textures for the tiles within 400 m of any one place (tiles build their plates
+within 300 m of the car and free them beyond 400 m). The region today: 5.1 MB, 9,795 buildings, 6,874
+segments, largest tile 92 kB, at most 102 street names resident (about 26 MiB). Verona centro: 2.1 MB,
+3,554 buildings, 2,695 segments, 48 tiles, largest 123 kB, at most 325 of its 417 street names resident
+(about 81 MiB).
 
 Fixed-pose screenshots go with each build; `tools/capture-views.mjs` reads its districts and poses from
 the registry and the spec instead of its own list (R14). The desktop suite already takes several
@@ -392,10 +396,11 @@ Since then: six villages on the corridors (#50), whole-network checks in the reg
 town doctor and size report (#24, `npm run town:check`), bay access checked in the importer (#73), and
 street-name textures freed when no resident tile shows them (#51).
 
-Since then, too: the `sketch` and `full` presets (#24).
+Since then, too: the `sketch` and `full` presets (#24), and the Verona centre (#25): building relations,
+squares as paved open ground, street plates built only within 300 m of the car, and half-size plate textures.
 
-Not done: paged collision (#51), detail zones (#28), runtime loading of
-town folders (#33), and the Verona core (#25). Gateway routing (#30) is not needed for this region: it routes over one graph.
+Not done: paged collision (#51), detail zones (#28), runtime loading of town folders (#33), and road
+widths fitted to narrow streets (#25). Gateway routing (#30) is not needed for this region: it routes over one graph.
 
 ## Risks and open questions
 

@@ -61,7 +61,7 @@ test('the doctor reports a street plate standing on another street',()=>{
 
 test('the size report measures delivery, and budgets fail with the figure and the limit',()=>{
  const single=measureSize('public/maps/cerea.json',new District(cerea()));
- assert.equal(single.delivery,'single');assert.equal(single.streetNames,51);assert.ok(single.plateMiB>50&&single.plateMiB<52);
+ assert.equal(single.delivery,'single');assert.equal(single.streetNames,51);assert.ok(single.plateMiB>12&&single.plateMiB<13,'51 street names at a quarter MiB each');
  const tiled=measureSize('public/maps/cerea-outskirts/manifest.json',new District(JSON.parse(readFileSync('public/maps/cerea-outskirts/manifest.json','utf8'))));
  assert.equal(tiled.delivery,'tiled');assert.equal(tiled.tiles,55);assert.ok(tiled.residentPlateNames!>0&&tiled.residentPlateNames!<=tiled.streetNames);
  const over=checkSize({...single,bytes:BUDGETS.single.bytes+1,buildings:BUDGETS.single.buildings+1});

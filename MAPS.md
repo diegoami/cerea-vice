@@ -176,3 +176,25 @@ npm run build:region     # tools/build-region.py, then tools/tile-district.mjs
 whose corridors are kept, `k`, and the shift content. The builder fails if towns overlap, if mapping
 creates a road crossing, or if a town-to-town bearing moves by more than 1°; it is deterministic. See
 [docs/TOWNS.md](docs/TOWNS.md) and the measurements in [docs/REGION_SPIKE.md](docs/REGION_SPIKE.md).
+
+## Verona centro
+
+The centre of Verona inside the Adige loop (about 1.9 km², #25), from `towns/verona.town.json` and
+`data/sources/verona-osm.json`: 417 named streets, 3,554 building masses and 13 stops, from the Arena and
+Piazza Bra to the Duomo and Castelvecchio. It is the first town with:
+- **Building relations** (`"buildingRelations": true` under `features`): multipolygon buildings such as
+  Palazzo Barbieri keep their courtyards as holes, through clearance and in collision.
+- **Squares** (`"pavedAreas": true`): `place=square` outlines and highway areas such as Piazza Bra,
+  Piazza delle Erbe and Piazza dei Signori are paved open ground (`pavedAreas` in the district) that the
+  car can drive across; they are not roads, so routing, directions and fares still follow the streets
+  through them. The atlas draws them, and the river areas, under the buildings.
+- **Tiled delivery for a single town**: over the single-file budget, it is built and tiled with
+
+```sh
+npm run build:verona     # tools/import-town.py, then tools/tile-district.mjs (no sidecar: one town)
+```
+
+Every named street is drivable, including pedestrian and limited-traffic streets (owner decision). Roads
+are still 8 m wide; clearance removes 12.3% of the footprint area (Legnago 10.5%), and fitting widths to
+narrow streets is a follow-up. A river centreline inside a mapped river area is drawn but not solid,
+since the area's own shape (water minus road corridors) applies there; it used to block Ponte Garibaldi.
