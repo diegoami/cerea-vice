@@ -23,6 +23,8 @@ export interface DistrictDefinition {
   id: string;
   /** Version of this district's map data; a save made for another version is refused with both numbers. */
   dataVersion?: number;
+  /** Short label under the district name (HUD) and in the atlas header, for example what is real and what is not. */
+  subtitle?: string;
   name: string;
   description: string;
   attribution: string;

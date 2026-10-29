@@ -67,3 +67,24 @@ test('an unlisted or removed district falls back to the default without deleting
  selectDistrict(list.towns,'atlantis');assert.equal(reloads,0,'An unlisted district is never selected');
  selectDistrict(list.towns,'harbor');assert.equal(reloads,1);assert.equal(storage.get('cerea-district'),'harbor');assert.equal(location.hash,'#district=harbor');
 });
+
+test('the region manifest is reproducible from its specs and keeps its towns at real scale',{timeout:120000},async()=>{
+ const {spawnSync}=await import('node:child_process');const {mkdtemp,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const path=await import('node:path');
+ const directory=await mkdtemp(path.join(tmpdir(),'cerea-region-'));
+ try{
+  const output=path.join(directory,'region.json');
+  const result=spawnSync('python3',['tools/build-region.py','regions/lower-verona.region.json','--output',output],{encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
+  const built=JSON.parse(readFileSync(output,'utf8')),shipped=load('lower-verona/manifest.json');
+  for(const key of ['nodes','roads','buildings','parkingZones','landmarks'] as const)assert.deepEqual(shipped[key],built[key],`${key} match a fresh build`);
+  assert.deepEqual(shipped.taxi,built.taxi);
+  // Each town moves rigidly: its own street geometry is its town map shifted by one offset.
+  const cerea=load('cerea.json'),placed=built.provenance.compression.towns.cerea.placed;
+  const first=cerea.nodes[0],shifted=built.nodes.find((n:any)=>n.id===first.id);
+  // The provenance records offsets to 0.1 m.
+  assert.ok(Math.abs(shifted.x-(first.x+placed[0]))<0.06&&Math.abs(shifted.z-(first.z+placed[1]))<0.06,'Cerea keeps its real streets');
+  const second=cerea.nodes[200],moved=built.nodes.find((n:any)=>n.id===second.id);
+  assert.ok(Math.abs((moved.x-shifted.x)-(second.x-first.x))<0.02&&Math.abs((moved.z-shifted.z)-(second.z-first.z))<0.02,'Distances inside a town are unchanged');
+  assert.equal(built.provenance.compression.k,0.6);
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

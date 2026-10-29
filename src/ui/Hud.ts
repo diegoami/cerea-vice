@@ -62,7 +62,7 @@ class Hud {
     ui.innerHTML = `
       <div class="vignette" aria-hidden="true"></div>
       <header class="topbar">
-        <div class="district-tag"><span class="live-dot"></span> ${district.name.toUpperCase()} <small>${district.streaming ? "REAL CEREA / FICTIONAL TEST LINK" : district.id === "cerea" ? "REAL STREETS / MODERN MAP" : "FICTIONAL PROTOTYPE"}</small></div>
+        <div class="district-tag"><span class="live-dot"></span> ${district.name.toUpperCase()} <small>${district.subtitle ?? (district.streaming ? "REAL CEREA / FICTIONAL TEST LINK" : district.id === "cerea" ? "REAL STREETS / MODERN MAP" : "FICTIONAL PROTOTYPE")}</small></div>
         <div class="compass-panel" aria-label="Compass">
           <div class="compass-window"><div class="compass-track">${Array.from({ length: 3 }, () => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"].map((s) => `<span>${s}</span>`).join("")).join("")}</div></div>
           <div class="compass-notch"></div><strong id="heading">E · 090°</strong>
