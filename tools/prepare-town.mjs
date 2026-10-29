@@ -45,6 +45,39 @@ for(const building of data.buildings) {
   }
 }
 data.buildings=buildings;
+// A sketch (#24) merges touching or overlapping footprints into blocks: fewer masses and no walls
+// between row houses. Landmarks keep their own mass. A block takes the area-weighted height and the
+// smallest member OSM id; courtyards become holes.
+let merged=0;
+if(data.preset==='sketch'){
+  const keep=new Set(data.landmarks.map(landmark=>landmark.osmId));
+  const loose=buildings.filter(building=>!keep.has(building.osmId)),fixed=buildings.filter(building=>keep.has(building.osmId));
+  const parent=loose.map((_,i)=>i),find=i=>{while(parent[i]!==i)i=parent[i]=parent[parent[i]];return i;};
+  const cells=new Map(),cell=20,box=b=>({minX:b.x-b.width/2-.05,maxX:b.x+b.width/2+.05,minZ:b.z-b.depth/2-.05,maxZ:b.z+b.depth/2+.05});
+  loose.forEach((building,i)=>{const b=box(building);for(let x=Math.floor(b.minX/cell);x<=Math.floor(b.maxX/cell);x++)for(let z=Math.floor(b.minZ/cell);z<=Math.floor(b.maxZ/cell);z++){const key=`${x},${z}`;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(i);}});
+  const ringOf=building=>[[...building.points.map(p=>[p.x,p.z])],...(building.holes??[]).map(hole=>hole.map(p=>[p.x,p.z]))];
+  // Touching means the outlines meet within 5 cm: test with each footprint grown by that much.
+  for(const ids of cells.values())for(let m=0;m<ids.length;m++)for(let n=m+1;n<ids.length;n++){
+    const i=ids[m],j=ids[n],a=box(loose[i]),b=box(loose[j]);
+    if(find(i)===find(j)||a.maxX<b.minX||b.maxX<a.minX||a.maxZ<b.minZ||b.maxZ<a.minZ)continue;
+    const near=loose[i].points.some(p=>loose[j].points.some((q,k)=>{const r=loose[j].points[(k+1)%loose[j].points.length],dx=r.x-q.x,dz=r.z-q.z,t=Math.max(0,Math.min(1,((p.x-q.x)*dx+(p.z-q.z)*dz)/((dx*dx+dz*dz)||1)));return Math.hypot(q.x+dx*t-p.x,q.z+dz*t-p.z)<=.05;}))||loose[j].points.some(p=>loose[i].points.some((q,k)=>{const r=loose[i].points[(k+1)%loose[i].points.length],dx=r.x-q.x,dz=r.z-q.z,t=Math.max(0,Math.min(1,((p.x-q.x)*dx+(p.z-q.z)*dz)/((dx*dx+dz*dz)||1)));return Math.hypot(q.x+dx*t-p.x,q.z+dz*t-p.z)<=.05;}))||clipping.intersection(ringOf(loose[i]),ringOf(loose[j])).length>0;
+    if(near)parent[find(i)]=find(j);
+  }
+  const groups=new Map();loose.forEach((building,i)=>{const root=find(i);if(!groups.has(root))groups.set(root,[]);groups.get(root).push(building);});
+  const blocks=[];
+  for(const members of groups.values()){
+    if(members.length===1){blocks.push(members[0]);continue;}
+    const union=snap(clipping.union(...members.map(member=>ringOf(member))));
+    const total=members.reduce((sum,member)=>sum+member.width*member.depth,0),height=Math.round(members.reduce((sum,member)=>sum+member.height*member.width*member.depth,0)/total*10)/10;
+    const first=members.reduce((a,b)=>a.osmId<b.osmId?a:b);
+    for(const polygon of union.filter(polygon=>area(polygon[0])>4)){
+      const open=r=>r.length>1&&r[0][0]===r.at(-1)[0]&&r[0][1]===r.at(-1)[1]?r.slice(0,-1):r,ring=open(polygon[0]);
+      blocks.push({...first,...bounds(ring),height,points:ring.map(([x,z])=>({x,z})),...(polygon.length>1?{holes:polygon.slice(1).map(hole=>open(hole).map(([x,z])=>({x,z})))}:{holes:undefined})});
+    }
+    merged+=members.length;
+  }
+  data.buildings=[...fixed,...blocks].map(({holes,...building})=>holes?{...building,holes}:building).sort((a,b)=>a.osmId-b.osmId||a.x-b.x||a.z-b.z);
+}
 // Water areas: clip to the district, then subtract every road corridor so bridges (and roads along the
 // bank) stay drivable. The drawn area keeps the whole water; `solid` is what the car collides with.
 if(data.waterAreas){
@@ -69,7 +102,7 @@ if(data.waterAreas){
   data.waterAreas=areas;
 }
 for(const landmark of data.landmarks) {
-  const masses=buildings.filter(building=>building.osmId===landmark.osmId).sort((a,b)=>b.width*b.depth-a.width*a.depth);
+  const masses=data.buildings.filter(building=>building.osmId===landmark.osmId).sort((a,b)=>b.width*b.depth-a.width*a.depth);
   if(!masses.length)throw new Error(`Clearance removed named landmark ${landmark.name}`);
   const {x,z,width,depth,points,holes}=masses[0];
   Object.assign(landmark,{x,z,width,depth,points,...(holes?{holes}:{})});
@@ -78,4 +111,4 @@ data.provenance.omittedConflictingFootprints=removed;
 data.provenance.trimmedFootprints=changed;
 data.provenance.roadClearance='Full road width plus 1.6m verge; includes junction caps and game parking bays. Trimmed polygons are used for scenery, collisions and atlas.';
 fs.writeFileSync(filename,JSON.stringify(data)+'\n');
-console.log(`Road clearance: ${changed.length} footprints trimmed, ${removed.length} removed, ${buildings.length} masses retained.`);
+console.log(`Road clearance: ${changed.length} footprints trimmed, ${removed.length} removed, ${buildings.length} masses retained.`+(data.preset==='sketch'?` Sketch: ${merged} merged into blocks, ${data.buildings.length} masses.`:''));

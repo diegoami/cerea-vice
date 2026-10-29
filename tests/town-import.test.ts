@@ -46,7 +46,7 @@ test('a town spec is validated before any work, naming the problem',async()=>{
    ['repeated landmark',spec=>{spec.landmarks.push({...spec.landmarks[0]});},/landmark id "library" is repeated/],
    ['fare to itself',spec=>{spec.content.fares.push(['Ugo','post','post']);},/fare .* must be \[passenger, pickup stop, different destination stop\]/],
    ['start not a stop',spec=>{spec.content.start='arena';},/"content.start" must be a stop/],
-   ['unimplemented preset',spec=>{spec.preset='sketch';},/preset "sketch" is not implemented yet/],
+   ['unknown preset',spec=>{spec.preset='ultra';},/"preset" must be "sketch", "town" or "full"/],
    ['unknown policy',spec=>{spec.stoppingPolicy='everywhere';},/"stoppingPolicy" must be/],
    ['inverted box',spec=>{spec.area.bbox.north=spec.area.bbox.south-0.01;},/south < north/],
    ['future spec',spec=>{spec.specVersion=2;},/specVersion must be 1/],
@@ -62,5 +62,42 @@ test('a town spec is validated before any work, naming the problem',async()=>{
   const file=path.join(directory,'missing-landmark.town.json');await writeFile(file,JSON.stringify(spec));
   const result=run(file,'--output',path.join(directory,'never.json'));
   assert.notEqual(result.status,0);assert.match(result.stderr,/Confirmed landmarks not found in the extract or outside the area: nowhere/);
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+test('presets change buildings, plates and props, never the streets, and each passes the town doctor',{timeout:240000},async()=>{
+ const {checkTown,measureSize}=await import('../tools/town-doctor');
+ const {District}=await import('../src/world/district');const {createScenery}=await import('../src/world/Scenery');const {createStreetPlates}=await import('../src/world/streetPlates');const {createSigns}=await import('../src/world/signs');
+ const directory=await mkdtemp(path.join(tmpdir(),'cerea-presets-'));
+ try{
+  const town=JSON.parse(await readFile('public/maps/cerea.json','utf8')),built:Record<string,any>={};
+  for(const preset of ['sketch','full']){
+   const spec={...await cereaSpec(),preset},specFile=path.join(directory,`cerea-${preset}.town.json`);
+   await writeFile(specFile,JSON.stringify(spec));
+   const result=run(specFile,'--output',path.join(directory,`cerea-${preset}.json`));assert.equal(result.status,0,result.stderr);
+   built[preset]=JSON.parse(await readFile(path.join(directory,`cerea-${preset}.json`),'utf8'));
+   assert.equal(built[preset].preset,preset);
+   assert.deepEqual([built[preset].nodes,built[preset].roads],[town.nodes,town.roads],`${preset}: every named street stays as in town`);
+   assert.deepEqual(built[preset].landmarks.map((l:any)=>l.id),town.landmarks.map((l:any)=>l.id),`${preset}: every confirmed landmark stays`);
+   for(const check of checkTown({id:`cerea-${preset}`,map:`cerea-${preset}.json`},directory))assert.deepEqual(check.problems,[],`${preset}: ${check.title}`);
+  }
+  assert.equal(town.preset,undefined,'town is the default and is not written');
+  // Sketch: small outbuildings dropped, touching footprints merged into blocks, landmarks kept whole.
+  const sketch=new District(built.sketch);
+  assert.ok(built.sketch.buildings.length<town.buildings.length*.6,`sketch keeps ${built.sketch.buildings.length} of ${town.buildings.length} masses`);
+  assert.ok(built.sketch.buildings.some((b:any)=>b.holes),'merged blocks keep their courtyards as holes');
+  for(const landmark of built.sketch.landmarks)assert.ok(built.sketch.buildings.some((b:any)=>b.osmId===landmark.osmId),`${landmark.id} keeps its own mass`);
+  const {isMajorRoad}=createSigns(sketch),plates=createStreetPlates(sketch).planStreetPlates().plates;
+  assert.ok(plates.length>0&&plates.every(p=>sketch.roads.some(r=>r.name===p.name&&isMajorRoad(r))),'sketch plates name major roads only');
+  assert.deepEqual(createScenery(sketch).planProps(),[],'no props in a sketch');
+  assert.equal(measureSize(path.join(directory,'cerea-sketch.json'),sketch).plateNames,new Set(plates.map(p=>p.name)).size);
+  // Full: the same masses as town here, with façades varying per building rather than per 65 m block.
+  const full=createScenery(new District(built.full)),standard=createScenery(new District(town));
+  assert.equal(built.full.buildings.length,town.buildings.length);
+  const blocks=new Map<string,any[]>();for(const b of town.buildings){const key=`${Math.floor(b.x/65)},${Math.floor(b.z/65)}`;blocks.set(key,[...(blocks.get(key)??[]),b]);}
+  const busiest=[...blocks.values()].sort((a,b)=>b.length-a.length)[0];
+  const variants=(scenery:typeof full)=>new Set(busiest.map((b:any)=>scenery.facadeVariant(b.x,b.z))).size;
+  assert.equal(variants(standard),1);
+  assert.ok(variants(full)>variants(standard),'neighbouring buildings get different façades in full');
  }finally{await rm(directory,{recursive:true,force:true});}
 });

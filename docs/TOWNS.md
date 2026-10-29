@@ -278,14 +278,17 @@ plate density only (R7).
 | | sketch | town | full |
 | --- | --- | --- | --- |
 | Roads | all named roads | all named roads | as town |
-| Buildings | merged into blocks, small ones dropped | footprints above a minimum area | all footprints, finer outlines |
-| Landmarks | as confirmed | as confirmed | as confirmed, with kinds |
-| Scenery | none | trees, lamps, parked cars (today) | as town plus façade variety |
-| Plates | major roads only | every street arm (today) | as town |
-| Delivery | single file | single file, tiled over a size budget | tiled |
+| Buildings | footprints under 40 m² dropped, outlines simplified to 1 m, touching footprints merged into blocks (courtyards kept as holes) | footprints at least 2 m across, as mapped | footprints at least 1 m across, as mapped |
+| Landmarks | as confirmed, each keeping its own mass | as confirmed | as confirmed |
+| Scenery | no props | trees, lamps, parked cars, bystanders | as town, façades varying per building instead of per 65 m block |
+| Plates | major roads only (primary, secondary, tertiary) | every street arm | as town |
 
-Thresholds come from the Verona spike's measurements of the fitted road model (Phases), not from
-guesses.
+Implemented in #24: `preset` in the spec; `tools/import-town.py` applies the building rules, and
+`tools/prepare-town.mjs` merges a sketch's blocks after clearance. The district records `preset` unless it
+is `town`, so Cerea's map is unchanged. Cerea as a sketch keeps 546 of 1,081 masses and 13 plated street
+names (0.34 MB); as full it has the same masses as town (no footprint there is between 1 and 2 m across).
+All three pass the town doctor. The runtime parts (plates, props, façades) apply to a whole district; in
+a region a town's preset changes its buildings only, until detail zones (#28).
 
 ## Detail zones and named areas
 
@@ -389,7 +392,9 @@ Since then: six villages on the corridors (#50), whole-network checks in the reg
 town doctor and size report (#24, `npm run town:check`), bay access checked in the importer (#73), and
 street-name textures freed when no resident tile shows them (#51).
 
-Not done: presets beyond `town` (#24), paged collision (#51), detail zones (#28), runtime loading of
+Since then, too: the `sketch` and `full` presets (#24).
+
+Not done: paged collision (#51), detail zones (#28), runtime loading of
 town folders (#33), and the Verona core (#25). Gateway routing (#30) is not needed for this region: it routes over one graph.
 
 ## Risks and open questions

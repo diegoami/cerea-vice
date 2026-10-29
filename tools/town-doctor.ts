@@ -151,14 +151,15 @@ export function checkPlates(context:District,plan?:ReturnType<ReturnType<typeof 
 
 export interface SizeReport {
  delivery:'single'|'tiled';bytes:number;buildings:number;roads:number;streetNames:number;
- tiles?:number;largestTile?:{id:string;bytes:number};residentPlateNames?:number;plateMiB:number;
+ tiles?:number;largestTile?:{id:string;bytes:number};plateNames?:number;residentPlateNames?:number;plateMiB:number;
 }
 
 /** Measure a listed map's files: one district file, or a manifest and its tiles. */
 export function measureSize(mapFile:string,context:District):SizeReport{
  const base={bytes:statSync(mapFile).size,buildings:context.district.buildings.length,roads:context.roads.length,streetNames:new Set(context.roads.map(r=>r.name)).size};
  const streaming=context.district.streaming;
- if(!streaming)return {delivery:'single',...base,plateMiB:base.streetNames*PLATE_TEXTURE_BYTES/2**20};
+ // A single file shows all its plates at once: one texture per street name that has a plate.
+ if(!streaming){const plated=new Set(createStreetPlates(context).planStreetPlates().plates.map(p=>p.name)).size;return {delivery:'single',...base,plateNames:plated,plateMiB:plated*PLATE_TEXTURE_BYTES/2**20};}
  // Street-name textures are freed when no resident tile uses them, so the peak is the most
  // distinct names among the tiles kept around any one place (sampled at every tile centre).
  const dir=path.dirname(mapFile),names=new Map<string,Set<string>>();let largest={id:'',bytes:0};

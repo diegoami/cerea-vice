@@ -23,6 +23,9 @@ export interface DistrictDefinition {
   id: string;
   /** Version of this district's map data; a save made for another version is refused with both numbers. */
   dataVersion?: number;
+  /** Detail preset it was built with (#24); absent means "town". "sketch" shows plates on major roads
+   * only and no props; "full" varies façades per building. Streets are the same in every preset. */
+  preset?: 'sketch'|'town'|'full';
   /** Short label under the district name (HUD) and in the atlas header, for example what is real and what is not. */
   subtitle?: string;
   name: string;

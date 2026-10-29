@@ -43,6 +43,7 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
     if(taxi.fares.some(fare=>!plainText(fare.passenger)||!stops.has(fare.pickupId)||!stops.has(fare.destinationId)||fare.pickupId===fare.destinationId))throw new Error("Invalid taxi itinerary");
   }
   if (data.subtitle!==undefined&&!plainText(data.subtitle)) throw new Error("Invalid district subtitle");
+  if (data.preset!==undefined&&!['sketch','town','full'].includes(data.preset)) throw new Error("Invalid district preset");
   if (data.dataVersion!==undefined&&!(Number.isSafeInteger(data.dataVersion)&&data.dataVersion>=1)) throw new Error("Invalid map data version");
   validateStreaming(data);
   for (const feature of data.features) if (!(feature.width>0) || feature.points?.length<2 || feature.points.some((point) => !validPoint(point)) || !["water", "rail"].includes(feature.kind)) throw new Error("Invalid map feature");
