@@ -1,0 +1,218 @@
+{
+  "specVersion": 1,
+  "id": "legnago",
+  "name": "Legnago",
+  "description": "Legnago: real streets, named stops and simplified scenery, part of the lower Veronese plain region.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/legnago-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1925,
+      "lon": 11.3111
+    },
+    "bbox": {
+      "south": 45.1847,
+      "west": 11.3001,
+      "north": 45.2003,
+      "east": 11.3221
+    }
+  },
+  "output": "build/towns/legnago.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "landmarks": [
+    {
+      "osmId": 208229463,
+      "id": "comune",
+      "name": "Comune di Legnago",
+      "road": "(nearest street)",
+      "kind": "civic",
+      "frontage": "nearest",
+      "height": 14
+    },
+    {
+      "osmId": 208220756,
+      "id": "teatro",
+      "name": "Teatro Salieri",
+      "road": "(nearest street)",
+      "kind": "theatre",
+      "frontage": "nearest",
+      "height": 16
+    },
+    {
+      "osmId": 208228081,
+      "id": "biblioteca",
+      "name": "Biblioteca Bellinato-Fioroni",
+      "road": "(nearest street)",
+      "kind": "library",
+      "frontage": "nearest",
+      "height": 10
+    },
+    {
+      "osmId": 259352898,
+      "id": "sanmartino",
+      "name": "Chiesa di San Martino Vescovo",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 24
+    },
+    {
+      "osmId": 208230886,
+      "id": "museo",
+      "name": "Museo Fondazione Fioroni",
+      "road": "(nearest street)",
+      "kind": "museum",
+      "frontage": "nearest",
+      "height": 11
+    },
+    {
+      "osmId": 1513338872,
+      "id": "poste",
+      "name": "Poste Italiane",
+      "road": "(nearest street)",
+      "kind": "post",
+      "frontage": "nearest",
+      "height": 9
+    },
+    {
+      "osmId": 3811462584,
+      "id": "assunta",
+      "name": "Chiesa dell'Assunta",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 8084281160,
+      "id": "salus",
+      "name": "Cinema Teatro Salus",
+      "road": "(nearest street)",
+      "kind": "cinema",
+      "frontage": "nearest",
+      "point": true
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "comune",
+      "bay": "Sosta Comune di Legnago"
+    },
+    {
+      "landmark": "teatro",
+      "bay": "Sosta Teatro Salieri"
+    },
+    {
+      "landmark": "biblioteca",
+      "bay": "Sosta Biblioteca Bellinato-Fioroni"
+    },
+    {
+      "landmark": "sanmartino",
+      "bay": "Sosta San Martino Vescovo"
+    },
+    {
+      "landmark": "museo",
+      "bay": "Sosta Museo Fondazione Fioroni"
+    },
+    {
+      "landmark": "poste",
+      "bay": "Sosta Poste Italiane"
+    },
+    {
+      "landmark": "assunta",
+      "bay": "Sosta Chiesa dell'Assunta"
+    },
+    {
+      "landmark": "salus",
+      "bay": "Sosta Cinema Teatro Salus"
+    }
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    },
+    "waterAreas": true
+  },
+  "areas": [
+    {
+      "name": "Legnago"
+    }
+  ],
+  "content": {
+    "start": "comune",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "comune",
+        "biblioteca"
+      ],
+      [
+        "Marco",
+        "teatro",
+        "sanmartino"
+      ],
+      [
+        "Giulia",
+        "biblioteca",
+        "museo"
+      ],
+      [
+        "Paolo",
+        "sanmartino",
+        "poste"
+      ],
+      [
+        "Sara",
+        "museo",
+        "assunta"
+      ],
+      [
+        "Luca",
+        "poste",
+        "salus"
+      ],
+      [
+        "Anna",
+        "assunta",
+        "comune"
+      ],
+      [
+        "Davide",
+        "salus",
+        "teatro"
+      ]
+    ],
+    "mission": {
+      "name": "Legnago Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "teatro"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}

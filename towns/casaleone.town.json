@@ -1,0 +1,181 @@
+{
+  "specVersion": 1,
+  "id": "casaleone",
+  "name": "Casaleone",
+  "description": "Casaleone: real streets, named stops and simplified scenery, part of the lower Veronese plain region.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/casaleone-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.1707,
+      "lon": 11.1994
+    },
+    "bbox": {
+      "south": 45.1662,
+      "west": 11.193,
+      "north": 45.1752,
+      "east": 11.2058
+    }
+  },
+  "output": "build/towns/casaleone.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "landmarks": [
+    {
+      "osmId": 307113507,
+      "id": "chiesa",
+      "name": "Chiesa di Casaleone",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 20
+    },
+    {
+      "osmId": 10904704122,
+      "id": "santantonio",
+      "name": "Chiesa di Sant'Antonio",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 8219730864,
+      "id": "biblioteca",
+      "name": "Biblioteca di Casaleone",
+      "road": "(nearest street)",
+      "kind": "library",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 8219733892,
+      "id": "scuola",
+      "name": "Scuola Secondaria di Casaleone",
+      "road": "(nearest street)",
+      "kind": "school",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 9317716262,
+      "id": "poste",
+      "name": "Poste Italiane",
+      "road": "(nearest street)",
+      "kind": "post",
+      "frontage": "nearest",
+      "point": true
+    },
+    {
+      "osmId": 307120543,
+      "id": "sanbiagio",
+      "name": "Chiesa di San Biagio",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 14
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "chiesa",
+      "bay": "Sosta Casaleone"
+    },
+    {
+      "landmark": "santantonio",
+      "bay": "Sosta Sant'Antonio"
+    },
+    {
+      "landmark": "biblioteca",
+      "bay": "Sosta Biblioteca di Casaleone"
+    },
+    {
+      "landmark": "scuola",
+      "bay": "Sosta Scuola Secondaria di Casaleone"
+    },
+    {
+      "landmark": "poste",
+      "bay": "Sosta Poste Italiane"
+    },
+    {
+      "landmark": "sanbiagio",
+      "bay": "Sosta San Biagio"
+    }
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Casaleone"
+    }
+  ],
+  "content": {
+    "start": "chiesa",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "chiesa",
+        "biblioteca"
+      ],
+      [
+        "Marco",
+        "santantonio",
+        "scuola"
+      ],
+      [
+        "Giulia",
+        "biblioteca",
+        "poste"
+      ],
+      [
+        "Paolo",
+        "scuola",
+        "sanbiagio"
+      ],
+      [
+        "Sara",
+        "poste",
+        "chiesa"
+      ],
+      [
+        "Luca",
+        "sanbiagio",
+        "santantonio"
+      ]
+    ],
+    "mission": {
+      "name": "Casaleone Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "santantonio"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}

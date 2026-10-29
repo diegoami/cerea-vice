@@ -7,3 +7,4 @@ release/
 .desktop-stage/
 .claude/worktrees/
 data/region-spike/
+build/

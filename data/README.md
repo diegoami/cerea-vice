@@ -42,3 +42,21 @@ above. No separate licence is assigned here to original authored game content.
 All rendering/audio assets are local code-generated assets as described in
 `docs/PRESENTATION.md`; no new external textures, audio or live services are used.
 The game shows OSM credit in the prototype's driving view, briefing and atlas.
+
+## Lower Veronese plain towns and corridors
+
+Extracts for the first region (issue #41), fetched 2026-10-29 from `https://overpass-api.de/api/interpreter`
+(OSM data timestamp 2026-10-29T09:59:35Z; each file's `osm3s.timestamp_osm_base` records its own):
+
+| File | Area (south, west, north, east) | Contents |
+| --- | --- | --- |
+| `sources/legnago-osm.json` | 45.1847, 11.3001, 45.2003, 11.3221 | highways, buildings and building relations, waterways, railways, water areas, `area:highway`, amenity, tourism, historic and leisure features |
+| `sources/bovolone-osm.json` | 45.2523, 11.1126, 45.2633, 11.1282 | as above |
+| `sources/sanguinetto-osm.json` | 45.1777, 11.1453, 45.1867, 11.1581 | as above |
+| `sources/casaleone-osm.json` | 45.1662, 11.1930, 45.1752, 11.2058 | as above |
+| `sources/nogara-osm.json` | 45.1740, 11.0547, 45.1830, 11.0675 | as above |
+| `sources/lower-verona-main-roads.json` | 45.14, 11.03, 45.29, 11.34 | places and `trunk`/`primary`/`secondary`/`tertiary` roads, for the corridors between towns |
+
+Each town has a spec in `towns/<id>.town.json` with the stops the owner confirmed on 2026-10-29. The same
+ODbL 1.0 terms and attribution apply as for Cerea. Building heights, colours, stopping bays and passenger
+content are game interpretations, as for Cerea.
