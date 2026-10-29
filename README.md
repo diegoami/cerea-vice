@@ -225,7 +225,7 @@ src/
     World.ts                  Data-driven Cerea roads, footprints and landmarks
     HarborWorld.ts            Original handcrafted Harbor scenery
     schema.ts                 Loadable district format
-    load.ts                   Local JSON loading and district selection
+    load.ts                   District registry, local JSON loading and selection
   ui/
     Hud.ts                    Compass, mission, dashboard, briefing/pause/results
     Atlas.ts                  Printed map and place index, without live tracking

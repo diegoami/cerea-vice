@@ -14,10 +14,9 @@ const pictures=(process.argv[3]??['sharp','retro-fine','retro'].join(',')).split
 const hours=(process.env.CEREA_HOURS??'8,16.5').split(',').map(Number);
 const size={width:1280,height:720};
 const out=path.join('test-results','views',label);
-const districts=[
- {id:'cerea',map:'public/maps/cerea.json',poses:[{name:'municipio',bay:'municipio'},{name:'san-zeno',bay:'church'},{name:'teatro',bay:'teatro'}]},
- {id:'cerea-outskirts',map:'public/maps/cerea-outskirts/manifest.json',poses:[{name:'city',bay:'municipio'},{name:'countryside',z:-1150},{name:'hamlet',bay:'test-hamlet'}]},
-];
+// Every registered district with fixed poses (`views` in public/maps/towns.json) is captured.
+const districts=JSON.parse(await readFile('public/maps/towns.json','utf8')).towns.filter(town=>town.views?.length)
+ .map(town=>({id:town.id,map:`public/maps/${town.map}`,poses:town.views}));
 
 /** Heading along the nearest road (forward is +sin(h), -cos(h)), for a stable look down a street. */
 function pose(map,spec){

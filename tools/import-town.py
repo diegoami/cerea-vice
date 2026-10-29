@@ -224,6 +224,16 @@ def build(spec,output):
     prepared=json.loads(output.read_text())
     print(f'{spec["name"]}:',len(nodes),'road shape/junction nodes,',len(roads),'segments,',len({r['name'] for r in roads}),'streets,',len(prepared['buildings']),'prepared building masses')
 
+REGISTRY=ROOT/'public/maps/towns.json'
+def update_registry(spec,spec_path,output):
+    """Record a spec-built town in public/maps/towns.json, keeping other entries and extra fields such as views."""
+    registry=json.loads(REGISTRY.read_text())
+    entry={'id':spec['id'],'name':spec['name'],'map':output.relative_to(REGISTRY.parent).as_posix(),'dataVersion':spec['dataVersion'],'attribution':spec['attribution'],'frame':'local','taxi':True,'provenance':True,'spec':spec_path.resolve().relative_to(ROOT).as_posix()}
+    existing=next((town for town in registry['towns'] if town['id']==spec['id']),None)
+    if existing is None:registry['towns'].append(entry)
+    else:existing.update(entry)
+    REGISTRY.write_text(json.dumps(registry,ensure_ascii=False,indent=2)+'\n')
+
 def main(argv=None):
     parser=argparse.ArgumentParser(description='Build a district from a town spec.')
     parser.add_argument('spec',type=Path,help='towns/<id>.town.json')
@@ -232,6 +242,10 @@ def main(argv=None):
     spec=json.loads(args.spec.read_text())
     try:validate(spec)
     except SpecError as error:raise SystemExit(f'{args.spec}: {error}')
-    build(spec,(args.output or ROOT/spec['output']).resolve())
+    output=(args.output or ROOT/spec['output']).resolve()
+    build(spec,output)
+    # Only a town's own map under public/maps/ is registered; builds written elsewhere (tests, spikes) are not.
+    if args.output is None and output.is_relative_to(REGISTRY.parent):update_registry(spec,args.spec,output)
+    elif args.output is None:print(f'Not registered: {output} is outside {REGISTRY.parent}')
 
 if __name__=='__main__':main()

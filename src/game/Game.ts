@@ -4,7 +4,7 @@ import { Sound, musicGain } from "../presentation/Sound";
 import { Radio } from "../presentation/Radio";
 import { BodyMotion } from "../presentation/Motion";
 import { Retro } from "../presentation/Retro";
-import { availableDistricts, selectDistrict } from "../world/load";
+import { selectDistrict, type TownEntry } from "../world/load";
 import { WebGLRenderer } from "three";
 import { createCar } from "../driving/Car";
 import { CockpitCamera } from "../driving/CockpitCamera";
@@ -20,14 +20,14 @@ import {PassengerPresence} from '../world/People';
 import {ControlsPanel} from '../input/ControlsPanel';
 import {bindingLabel} from '../input/Bindings';
 import {decodeSave,mapSignature,saveKey,SAVE_VERSION,type SaveData} from './Save';
-export function createGame(context:District){
+export function createGame(context:District,towns:readonly Pick<TownEntry,"id"|"name">[]=[{id:context.district.id,name:context.district.name}]){
 const {district}=context;
 const {Car}=createCar(context);
 const {directionHint,locationHint}=createNavigation(context);
 const {Parking}=createParking(context);
 const {Mission}=createMission(context);
 const makeWorld=()=>district.streaming?new StreamingWorld(context):new (createWorld(context).World)();
-const {Hud}=createHud(context);
+const {Hud}=createHud(context,towns);
 class Game {
   private readonly timingPanel=context.profile.enabled?document.createElement("pre"):undefined;
   private timingRefresh=0;
@@ -303,8 +303,8 @@ class Game {
     if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
       this.districtSwitchReady = false;
-      const index=availableDistricts.findIndex((map)=>map.id===district.id);
-      selectDistrict(availableDistricts[(index+availableDistricts.length+Math.sign(actions.atlasPage))%availableDistricts.length].id);
+      const index=towns.findIndex((map)=>map.id===district.id);
+      if(towns.length>1)selectDistrict(towns,towns[(index+towns.length+Math.sign(actions.atlasPage))%towns.length].id);
       return;
     }
     if (this.input.controllerDisconnected) {

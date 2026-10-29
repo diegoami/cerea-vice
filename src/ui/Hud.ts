@@ -4,7 +4,7 @@ import { createAtlas, type AtlasPage } from "./Atlas";
 import { type Car } from "../driving/Car";
 import { type Mission } from "../mission/Mission";
 import { type Parking } from "../navigation/Parking";
-import { selectDistrict, availableDistricts } from "../world/load";
+import { selectDistrict, type TownEntry } from "../world/load";
 import { type Point } from "../world/district";
 import { createNavigation } from "../navigation/Navigation";
 import { District } from "../world/district";
@@ -12,7 +12,7 @@ import type {AtlasSnapshot} from '../navigation/AtlasNotes';
 import {bindingLabel,defaultBindings,type Bindings} from '../input/Bindings';
 export type Screen = "briefing" | "running" | "paused" | "result" | "atlas" | "fares";
 export type FareChoice = "select" | "accept" | "refresh" | "close";
-export function createHud(context:District){
+export function createHud(context:District,towns:readonly Pick<TownEntry,"id"|"name">[]=[{id:context.district.id,name:context.district.name}]){
 const {district,areaAt}=context;
 const {AtlasView}=createAtlasView(context);
 const {AtlasNotes}=createAtlasNotes(context);
@@ -114,7 +114,7 @@ class Hud {
       if(button.hasAttribute("data-atlas-overview")){this.resetAtlasView();return;}
       if(button.dataset.atlasStreet){this.focusAtlasStreet(button.dataset.atlasStreet);return;}
       if (button.dataset.district) {
-        selectDistrict(button.dataset.district);
+        selectDistrict(towns,button.dataset.district);
       } else if (button.dataset.atlasPage) {
         this.setAtlasPage(button.dataset.atlasPage as AtlasPage);
       } else if (button.hasAttribute("data-atlas-place")) this.placeAtlasMarker();
@@ -386,11 +386,13 @@ class Hud {
           <p class="intro">${mission.taxiMode ? `Collect passengers and earn as much as you can before ${mission.shiftLabel.split("–")[1]}.` : district.mission.objective}</p>
           <button type="button">Start the engine <span aria-hidden="true">&gt;</span></button><span class="button-note">${mission.taxiMode ? "A / ENTER TO START" : `A / ENTER TO BEGIN · ${Math.round(district.mission.duration/60)} MINUTE DRIVE`}</span>
         </div>
-        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop and press ${label('requestFares',true)} / ${label('requestFares')} for the fare list and accept one. Stop in the pickup's named bay and press ${label('interact',true)} / ${label('interact')} to collect them, and again at their destination.`:district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${availableDistricts.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${map.name}</button>`).join("")}</div><small class="controller-note">LB / RB or Q / E: change district before starting.</small><small class="controller-note">${district.attribution}</small>
+        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop and press ${label('requestFares',true)} / ${label('requestFares')} for the fare list and accept one. Stop in the pickup's named bay and press ${label('interact',true)} / ${label('interact')} to collect them, and again at their destination.`:district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${towns.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${map.name}</button>`).join("")}</div><small class="controller-note">LB / RB or Q / E: change district before starting.</small><small class="controller-note">${district.attribution}</small>
           <div class="briefing-tip">${mission.taxiMode ? `<b>${mission.shiftLabel} in about ${Math.ceil(mission.duration/60)} active minutes.</b><p>Faster rides earn a bigger bonus; slow rides still pay the base fare. The clock runs while you drive and stops while paused or reading the atlas or fare list.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere. Use ${label('atlas',true)} / ${label('atlas')} for the atlas, or ${label('information',true)} / ${label('information')} for information. Marked P bays are legal stopping places.</p></div>
           ${controls}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
       </section>`;
+      // With many districts the list scrolls; keep the current one in view.
+      this.overlay.querySelector<HTMLElement>('.district-switch [aria-pressed="true"]')?.scrollIntoView({block:"nearest"});
     } else if (screen === "paused") {
       this.overlay.innerHTML = `<section class="pause modal" aria-labelledby="screen-title"><span class="eyebrow accent">TIMER PAUSED</span><h1 id="screen-title">Paused</h1>${controls}<small class="controller-note" id="controller-status" role="status"></small><button type="button">Back to the road <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER / START TO RESUME</span></section>`;
     } else if(mission.taxiMode) {

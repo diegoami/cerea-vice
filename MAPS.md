@@ -28,7 +28,10 @@ Map controls: RT / LT or + / − zoom, right stick / I J K L / mouse drag pan, R
 - `public/maps/harbor.json`: original handcrafted district data.
 - `src/world/schema.ts`: the district data structure.
 - `src/world/district.ts`: validation, explicit District contexts and shared spatial helpers.
-- `src/world/load.ts`: local selection and JSON loading.
+- `public/maps/towns.json`: the district registry: every playable district's menu name, map file,
+  data version, attribution and capabilities (`frame`, `taxi`, `provenance`, `spec`), plus fixed
+  screenshot poses. `tools/import-town.py` keeps spec-built entries up to date.
+- `src/world/load.ts`: registry validation, local selection and JSON loading.
 - `towns/cerea.town.json`: Cerea's town spec: area, extract, confirmed landmarks and stops, fares and
   mission text (see [docs/TOWNS.md](docs/TOWNS.md)).
 - `tools/import-town.py`: deterministic offline conversion of a town spec and its checked-in extract;
@@ -50,7 +53,9 @@ The planned spec-driven pipeline for real towns, starting with Verona, is in
 3. Supply road widths, `roadClass` and one-way direction where needed. `primary`, `secondary` and `tertiary` receive major-road direction boards where they meet other major roads; other classes use name plates. A one-way segment runs from `a` to `b`. Road-rule enforcement is not simulated, but route hints and onward signs honour this direction.
 4. Supply bounds, building polygons, water/rail polylines, named landmarks and rectangular game stopping areas.
 5. Set the starting position, heading and name. A basic district can define one mission destination bay and road node. For taxi mode, add `taxi.stops` and `taxi.fares`, start/end hours, clock rate and fare parameters; every referenced stop needs an accessible bay and a reachable road node.
-6. Put the file in `public/maps/` and register its ID and name in `availableDistricts` in `src/world/load.ts`.
+6. Put the file in `public/maps/` and add its entry to `public/maps/towns.json` (built from a town spec,
+   `tools/import-town.py` adds it). The briefing, LB / RB cycling and `--district` then offer it; no code
+   change is needed. `tests/registry.test.ts` checks every entry against its map and spec.
 7. Check validation, connectivity, road/footprint clearance, legal stopping and arrival. Run unit and desktop tests, inspect both the atlas and driving view, then playtest the journey.
 
 Generic map rendering supports angled segments, shared junction caps, polygon building collisions, local landmark signs and source attribution. Signage now has two levels. Larger arrow boards are limited to junctions connecting major roads (mapped primary, secondary and tertiary roads). Small, arrow-free street-name plates identify each physical street arm at a crossing, including one-way streets. A plate runs along and faces into the street it names; corner façades therefore carry the name of their own frontage. Nearby façades are preferred, otherwise small posts are used, with repeat plates along longer stretches. Checks cover ownership, orientation, street-facing visibility and clearance, including the first Via Dante / Via Venticinque Aprile junction. Its west end has an explicit one-way/no-entry warning. Parking and boundary signs use the same clearance checks. Static geometry, including shared canvas-textured façades and roofs, is batched by material to keep the denser district economical. The original Harbor scenery and its familiar navigation wording are retained in dedicated legacy builders, rather than requiring the new renderer to reproduce its handcrafted decorations.
