@@ -3,7 +3,7 @@
   "id": "cerea",
   "name": "Cerea Centro",
   "description": "Modern Cerea taxi district, from Sommariva and Via Paride to the post office and Oratorio dello Spasimo. Real street connections, named destinations and simplified scenery.",
-  "dataVersion": 1,
+  "dataVersion": 2,
   "source": {
     "extract": "data/sources/cerea-osm.json",
     "label": "OpenStreetMap / Overpass API"

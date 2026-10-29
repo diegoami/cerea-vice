@@ -7,7 +7,7 @@ import {District} from '../src/world/district';
 import {createMission,guaranteedFare,migrateSnapshot,BOARDING_SECONDS,DEPARTURE_SECONDS,FARE_BOARD_SIZE} from '../src/mission/Mission';
 import {createNavigation} from '../src/navigation/Navigation';
 import {createAtlasNotes} from '../src/navigation/AtlasNotes';
-import {decodeSave,mapSignature,type SaveData} from '../src/game/Save';
+import {decodeSave,mapDataVersion,mapSignature,MapVersionError,type SaveData} from '../src/game/Save';
 import {PassengerPresence,createPerson,carPoint,clearPath,crossesTaxi,kerbOrigin,walkToDoor,DOOR} from '../src/world/People';
 import {inRect} from '../src/world/district';
 import {LocalFrame} from '../src/world/LocalFrame';
@@ -81,6 +81,12 @@ test('save/load preserves free driving, listed fares, accepted rides, boarding, 
  const boarding=new Mission({seed:75});take(boarding);boarding.serveAtStop(boarding.target!.bay,true);
  assert.throws(()=>decodeSave(context,JSON.stringify(saved(boarding,{speed:-2,gear:'R'}))),'A boarding save must have a stationary taxi');
  assert.equal(decodeSave(context,JSON.stringify(saved(new Mission({seed:75}),{speed:60,gear:'D'}))).car.speed,60,'A save above the old top speed loads');
+ // A save made for an earlier version of this map is refused with both versions named; others stay generic.
+ const older={...saved(),map:'0',dataVersion:undefined};
+ assert.throws(()=>decodeSave(context,JSON.stringify(older)),(e:unknown)=>e instanceof MapVersionError&&e.saved===1&&e.current===mapDataVersion(context));
+ assert.equal(mapDataVersion(context),2,'Cerea is at map data version 2');
+ assert.throws(()=>decodeSave(context,JSON.stringify({...saved(),map:'0',dataVersion:2})),(e:unknown)=>!(e instanceof MapVersionError),'Same version, different map: the generic refusal');
+ assert.equal(decodeSave(context,JSON.stringify({...saved(),dataVersion:2})).dataVersion,2);
  assert.throws(()=>decodeSave(context,JSON.stringify(saved(new Mission({seed:75}),{speed:5000,gear:'D'}))),'An absurd speed is treated as damaged');
 });
 test('0.8 saves migrate: a pending offer becomes a one-fare list with the same quote, an accepted ride stays accepted',()=>{

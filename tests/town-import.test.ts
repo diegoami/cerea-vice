@@ -19,6 +19,17 @@ test('the Cerea town spec rebuilds the checked-in district byte for byte',{timeo
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
+test('footprints that no road touches keep every corner',async()=>{
+ const source=JSON.parse(await readFile('data/sources/cerea-osm.json','utf8')),map=JSON.parse(await readFile('public/maps/cerea.json','utf8'));
+ const {lat,lon}=map.provenance.origin,k=111320*Math.cos(lat*Math.PI/180),round=(v:number)=>Math.round(v*100)/100;
+ const rings=new Map<number,string>();
+ for(const e of source.elements)if(e.tags?.building&&e.geometry?.length>=4)rings.set(e.id,JSON.stringify(e.geometry.slice(0,-1).map((g:any)=>[round((g.lon-lon)*k),round(-(g.lat-lat)*111320)])));
+ const trimmed=new Set(map.provenance.trimmedFootprints);let lostCorner=0,checked=0;
+ for(const b of map.buildings){const ring=rings.get(b.osmId);if(!ring||trimmed.has(b.osmId))continue;checked++;
+  const points=JSON.parse(ring);if(JSON.stringify(b.points.map((p:any)=>[p.x,p.z]))===JSON.stringify(points.slice(0,-1)))lostCorner++;}
+ assert.ok(checked>500);assert.equal(lostCorner,0,'An unclipped footprint used to lose its last corner');
+});
+
 test('a town spec is validated before any work, naming the problem',async()=>{
  const directory=await mkdtemp(path.join(tmpdir(),'cerea-town-spec-'));
  try{

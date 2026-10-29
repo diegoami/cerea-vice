@@ -19,7 +19,7 @@ import { District } from "../world/district";
 import {PassengerPresence} from '../world/People';
 import {ControlsPanel} from '../input/ControlsPanel';
 import {bindingLabel} from '../input/Bindings';
-import {decodeSave,mapSignature,saveKey,SAVE_VERSION,type SaveData} from './Save';
+import {decodeSave,mapDataVersion,mapSignature,MapVersionError,saveKey,SAVE_VERSION,type SaveData} from './Save';
 export function createGame(context:District,towns:readonly Pick<TownEntry,"id"|"name">[]=[{id:context.district.id,name:context.district.name}]){
 const {district}=context;
 const {Car}=createCar(context);
@@ -243,7 +243,7 @@ class Game {
     if(!this.hasStarted||this.mission.finished)return;
     try{
       const {x,z,heading,speed,gear,steering,collisions}=this.car;
-      const value:SaveData={version:SAVE_VERSION,district:district.id,map:mapSignature(context),savedAt:new Date().toISOString(),
+      const value:SaveData={version:SAVE_VERSION,district:district.id,map:mapSignature(context),dataVersion:mapDataVersion(context),savedAt:new Date().toISOString(),
         car:{x,z,heading,speed,gear,steering,collisions},unsafeStops:this.parking.unsafeStops,mission:this.mission.snapshot(),atlas:this.hud.saveAtlas()};
       decodeSave(context,JSON.stringify(value));
       localStorage.setItem(saveKey(context),JSON.stringify(value));
@@ -262,7 +262,11 @@ class Game {
       this.cockpit.reset();this.motion.reset();this.cockpit.update(1,this.car,0);
       this.hasStarted=true;this.screen='paused';this.accumulator=0;this.waitForDrivingRelease=true;this.releaseMouseLook();
       this.saveStatus.textContent=`Loaded ${this.mission.clockText}. Paused.`;
-    }catch{this.saveStatus.textContent='Could not load this save: it is unavailable, damaged or belongs to an older map. Your current shift and stored save have been kept.';}
+    }catch(error){
+      this.saveStatus.textContent=error instanceof MapVersionError
+        ?`This save is for version ${error.saved} of the ${district.name} map; this game has version ${error.current}, so it cannot be loaded. The save and your current shift are kept.`
+        :'Could not load this save: it is unavailable, damaged or belongs to an older map. Your current shift and stored save have been kept.';
+    }
   }
 
   /** Dashboard sound state: level or mute, whether the platform is blocking audio, and the radio. */

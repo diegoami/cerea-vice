@@ -29,6 +29,7 @@ test('every listed district loads and matches its entry, map file and spec',()=>
   const data=load(town.map),context=new District(data);
   assert.equal(context.district.id,town.id,`${town.id}: the map's id matches`);
   assert.equal(data.attribution,town.attribution,`${town.id}: attribution matches`);
+  assert.equal(data.dataVersion??1,town.dataVersion,`${town.id}: data version matches`);
   assert.equal(Boolean(data.taxi),town.taxi,`${town.id}: taxi flag matches`);
   assert.equal(Boolean(data.provenance),town.provenance,`${town.id}: provenance flag matches`);
   assert.equal(town.frame==='authored',!town.provenance,`${town.id}: only authored districts lack provenance`);
