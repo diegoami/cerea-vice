@@ -1,13 +1,14 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { chooseDistrict, districtIds } from './districts.mjs';
 
 const root=path.resolve(import.meta.dirname,'..');
 const bundle=path.join(root,'release','Cerea Vice-win32-x64');
 const version=JSON.parse(readFileSync(path.join(root,'package.json'),'utf8')).version;
 if(!existsSync(path.join(bundle,'cerea-vice.exe'))) throw new Error('Build the Windows bundle with npm run desktop:package:win first.');
-const requested=process.argv[2]??'cerea';
-if(!['cerea','harbor','cerea-outskirts'].includes(requested))throw new Error('Choose cerea, harbor or cerea-outskirts.');
+// Any district in the registry the bundle was built from (public/maps/towns.json).
+const requested=chooseDistrict(process.argv[2]??'cerea',districtIds(path.join(root,'public','maps','towns.json')));
 const source=process.platform==='win32'?bundle:execFileSync('wslpath',['-w',bundle],{encoding:'utf8'}).trim();
 const literal=(text)=>`'${text.replaceAll("'","''")}'`;
 const script=`$ErrorActionPreference = 'Stop'
