@@ -6,6 +6,7 @@ import { roadWidth, inRect, projectToSegment, pointInPolygon, type Point, type R
 import { createScenery } from "./Scenery";
 import { createHarborWorld } from "./HarborWorld";
 import { box, sign, signpost, material, streetNamePlate } from "./builders";
+import { signRows } from "./placeNames";
 import { createStreetPlates } from "./streetPlates";
 import { createSigns } from "./signs";
 import { District } from "./district";
@@ -147,7 +148,7 @@ class World {
         const dx=wall.nearest.x-wall.mid.x,dz=wall.nearest.z-wall.mid.z;
         let nx=-(wall.b.z-wall.a.z)/wall.length,nz=(wall.b.x-wall.a.x)/wall.length;
         if(nx*dx+nz*dz<0){nx=-nx;nz=-nz;}
-        const text=place.kind==="church"?["SAN ZENO"]:place.kind==="civic"?["MUNICIPIO"]:place.kind==="library"?["BIBLIOTECA","DI CEREA"]:place.kind==="school"?["SCUOLA","OLGA VISENTINI"]:place.kind==="post"?["POSTE"]:place.kind==="oratory"?["ORATORIO","DELLO SPASIMO"]:place.name.length>24?place.name.toUpperCase().split(/ (.+)/).filter(Boolean):[place.name.toUpperCase()];
+        const text=signRows(place);
         sign(scene,wall.mid.x+nx*0.12,h,wall.mid.z+nz*0.12,text,Math.min(6.5,wall.length-1),Math.atan2(-(wall.b.z-wall.a.z),wall.b.x-wall.a.x),place.kind==="church"?"#774e3c":"#31594e");
       }
     }

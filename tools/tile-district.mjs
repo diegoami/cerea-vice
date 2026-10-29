@@ -58,7 +58,9 @@ for(const [list,key] of [[data.waterAreas??[],'water'],[data.pavedAreas??[],'pav
   for(const polygon of clipping.intersection([[ring(area.points),...(area.holes??[]).map(ring)]],cell))(tiles.get(id)[key]??=[]).push({points:back(polygon[0]),...(polygon.length>1?{holes:polygon.slice(1).map(back)}:{})});
  }
 }
-fs.rmSync(outputDir,{recursive:true,force:true});fs.mkdirSync(path.join(outputDir,'tiles'),{recursive:true});
+// Replace only this tool's own output (the tiles folder; manifest.json is overwritten below), never
+// anything else in the folder (#81).
+fs.rmSync(path.join(outputDir,'tiles'),{recursive:true,force:true});fs.mkdirSync(path.join(outputDir,'tiles'),{recursive:true});
 const refs=[];
 for(const payload of [...tiles.values()].sort((a,b)=>a.id.localeCompare(b.id))){
  if(!payload.water.length)delete payload.water;

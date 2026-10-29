@@ -1,5 +1,6 @@
 import { createNavigation } from "../navigation/Navigation";
 import { District } from "./district";
+import { directionsName } from "./placeNames";
 export type SignDirection = "left" | "straight" | "right";
 export interface DirectionRow {
   text: string;
@@ -17,7 +18,7 @@ function nearbyDestinations(nodeId:string) {
     const entries=landmarks.map((place)=>{
       const target=[...nodes].sort((a,b)=>Math.hypot(a.x-place.x,a.z-place.z)-Math.hypot(b.x-place.x,b.z-place.z))[0];
       const route=shortestRoute(nodeId,target.id);
-      return {exit:route.path[1],name:place.kind==="church"?"San Zeno":place.kind==="library"?"Biblioteca":place.kind==="civic"?"Municipio":place.name,cost:route.cost};
+      return {exit:route.path[1],name:directionsName(place),cost:route.cost};
     }).filter((entry)=>entry.exit&&entry.cost<220).sort((a,b)=>a.cost-b.cost);
     localDestinations.set(nodeId,entries);
   }

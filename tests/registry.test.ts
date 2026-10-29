@@ -130,3 +130,24 @@ test('the region builder rejects settings it would ignore, and rebuilds a town o
   result=run(oneFile,'--towns-only');assert.match(result.stdout,/sanguinetto-inputs-test: building \(inputs changed\)/);
  }finally{await rm(directory,{recursive:true,force:true});await rm('build/towns/sanguinetto-inputs-test.inputs.sha256',{force:true});}
 });
+
+test('every listed district labels its places with their own names; only Cerea keeps its short forms (#80)',async()=>{
+ const {createAtlas}=await import('../src/ui/Atlas');const {atlasLabel,directionsName}=await import('../src/world/placeNames');
+ for(const town of registry.towns){
+  const context=new District(load(town.map)),html=createAtlas(context).atlasMarkup('map');
+  const shown=[...html.matchAll(/class="atlas-place-label"[^>]*>([^<]*)<\/text>/g)].map(m=>m[1]);
+  const xml=(s:string)=>s.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+  assert.deepEqual(shown,context.landmarks.map(place=>xml(atlasLabel(place).toUpperCase())),`${town.id}: atlas labels`);
+  // Distinct places never share a label.
+  const byLabel=new Map<string,Set<string>>();for(const place of context.landmarks){const label=atlasLabel(place);byLabel.set(label,(byLabel.get(label)??new Set()).add(place.name));}
+  for(const [label,names] of byLabel)assert.equal(names.size,1,`${town.id}: ${label} names ${[...names].join(', ')}`);
+  // The same for directions, which also write the direction boards in streamed tiles.
+  const byDirection=new Map<string,Set<string>>();for(const place of context.landmarks){const name=directionsName(place);byDirection.set(name,(byDirection.get(name)??new Set()).add(place.name));}
+  for(const [name,names] of byDirection)assert.equal(names.size,1,`${town.id}: directions call ${[...names].join(', ')} "${name}"`);
+ }
+ const verona=new District(load('verona/manifest.json')),churches=verona.landmarks.filter(p=>p.kind==='church');
+ assert.deepEqual(churches.map(atlasLabel),churches.map(p=>p.name));assert.ok(churches.length>=4);
+ assert.ok(churches.every(p=>directionsName(p)===p.name),'directions name Verona\'s churches too');
+ const cerea=new District(load('cerea.json')),church=cerea.landmarks.find(p=>p.kind==='church')!;
+ assert.deepEqual([atlasLabel(church),directionsName(church)],['San Zeno','San Zeno'],'Cerea keeps its familiar short form');
+});
