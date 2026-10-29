@@ -17,7 +17,8 @@ town should be able to mix detail levels by area.
   towns are about **5 minutes** apart; inside its zone every town stays at real scale (owner,
   2026-10-29). A town outside any region is a district chosen from the menu, as today.
 - The **first region** is Cerea with Legnago, Bovolone, Sanguinetto, Nogara and Casaleone and the
-  villages in between; the first **bigger town is about 3 km²** (owner, 2026-10-29).
+  villages in between (the villages are not built yet, #50); the first **bigger town is about 3 km²**
+  (owner, 2026-10-29).
 - **Script first, runtime loading later.** Towns are added by a build-time script now; the town
   format is designed so a finished town can later be loaded by the running game from a folder.
 - **Every named street is drivable**, including pedestrian streets, as today, in every preset. The
@@ -31,58 +32,54 @@ atlas marker reflects knowledge only.
 
 ## What exists today
 
-Read from `MAPS.md`, `data/README.md`, `docs/TILED_PROTOTYPE.md`, `docs/SCALABILITY.md`,
-`src/world/schema.ts`, `src/game/Save.ts` and the tools. Independently checked in the PR #31 review;
-`python3 tools/import-cerea.py` reproduces `public/maps/cerea.json` byte for byte today.
+As of 0.11.0-rc.1 (2026-10-29). See `MAPS.md` and `data/README.md` for the files and their provenance.
 
-Generic and reusable:
-- Named-road filtering, one-way and roundabout tags, OSM node ids kept so real junctions connect and
-  overpasses do not, and the largest connected network kept.
-- Building footprints clipped against road corridors, junction caps and bays
-  (`tools/prepare-town.mjs`, formerly `prepare-cerea.mjs`, using `polygon-clipping`). The importer reads only each building way's
-  outer ring and has no relation handling, so the holes in `cerea.json` come from clipping only;
-  Cerea's extract contains no relations (R8).
-- Bay placement beside a landmark's street (`bay_for` in `tools/import-cerea.py`).
-- Water and rail lines clipped to the bounds.
-- The `District` context, directed routing, sign and street-plate generation, and the tests for
-  ownership and reachability.
+Town pipeline:
+- **Town specs** (`towns/<id>.town.json`): area, extract, confirmed landmarks and stops, fares, mission
+  text, `dataVersion`, and opt-in water areas. `tools/import-town.py` builds a district from a spec;
+  `--check` validates a spec only. `tools/import-cerea.py` is a wrapper that keeps the `--tiles` options.
+  Cerea rebuilds byte for byte, and a test proves it.
+- **Roads:** every named `highway` except private or no-access ways and unnamed service roads, with one-way
+  and roundabout tags; OSM node ids are kept, so real junctions connect and overpasses do not; the largest
+  connected network is kept. Named footways, steps, pedestrian streets and cycleways are drivable (owner
+  decision). Widths: an OSM `width` clamped to 6–10 m, otherwise 8 m; width fitting is not implemented.
+- **Buildings:** each building way's outer ring (multipolygon building relations are not assembled yet).
+  `tools/prepare-town.mjs` clips footprints against road corridors (`width / 2 + 1.6 m` each side),
+  junction caps and bays; rings keep every corner (fixed in 0.11, previously about 40% of Cerea's
+  buildings lost one). A confirmed site with no building inside uses its own outline.
+- **Water:** lines (3 m; the Menago 7 m) and, when a spec opts in, water areas from `natural=water` and
+  `waterway=riverbank` ways and multipolygons, clipped to the district; their collision shape is the water
+  minus every road corridor, so bridges stay drivable. Paved open areas (squares) are not implemented; a
+  named pedestrian square becomes road segments along its outline.
+- **Bays** beside each confirmed stop's street (`bay_for`).
 
-Specific to Cerea and hardcoded (until #23 step 1, which moved the importer's choices into
-`towns/cerea.town.json`, read by `tools/import-town.py`; Cerea still rebuilds byte for byte):
-- Bounds, projection origin (`lat0, lon0`) and the extract path in the importer;
-  `prepare-cerea.mjs` read and wrote `public/maps/cerea.json` directly.
-- Nine landmarks and stops: seven building ways chosen by OSM id plus two cinemas found by node
-  lookup; bay names, passenger names, fare pairs and the mission hint text (R15).
-- The district list in `src/world/load.ts` (`availableDistricts`) and its outskirts special case.
-- The tile exporter `tools/export-tiles.mjs` is the outskirts fixture, not a general tiler: it reads
-  `cerea.json`, hardcodes the entry node and absolute coordinates for the fictional link and hamlet,
-  and adds their fares and stop (R11, R12).
-- `tools/capture-views.mjs` lists the districts and poses it captures (R14).
-- Tests import `cerea.json`, `harbor.json` and the outskirts manifest directly (R2).
-
-Behaviour that matters for Verona:
-- **Which roads are kept:** every named `highway` except private or no-access ways and unnamed service
-  roads. Named footways, steps and pedestrian streets are kept as drivable roads. Cerea has none: its
-  583 segments are primary, secondary, tertiary, unclassified and residential.
-- **Road width and clearance:** an OSM `width` clamped to 6–10 m, otherwise 8 m (every Cerea segment is
-  8 or 9 m). Clearance removes `width / 2 + 1.6 m` on each side of the centreline from building
-  footprints (`prepare-town.mjs`, the corridor radius); in Cerea that trimmed 137 footprints, removed 5 and left 1,081
-  masses. Validation requires a road wider than 2 m (`src/world/district.ts:24`).
-- **The car** is a point with a 1.05 m collision margin (`src/driving/Car.ts:61`): it needs a clear gap
-  of 2.1 m and has no body width or turning footprint. There is no reusable driving autopilot; the
-  only test driver follows fixed Harbor waypoints (R5).
-- **Water:** polylines only, 3 m wide (the Menago is hardcoded at 7 m), and colliders except where
-  paved. There are no water areas or paved open areas in the schema (R9).
-- **Projection:** a local equirectangular approximation around each town's own origin.
-- **Saves:** `mapSignature` (`src/game/Save.ts:13`) hashes `JSON.stringify` of the whole parsed district,
-  including taxi names, fares, mission text and provenance, so any content change, including a text or
-  fare edit, makes that district's saves refuse to load (formatting alone does not). `SaveData` and the
-  schema have no data version, and a refused save gets a generic message (R6).
+Districts and runtime:
+- **Registry** (`public/maps/towns.json`): every playable district's name, map file, data version,
+  attribution and capabilities (`frame`, `taxi`, `provenance`, `spec`), plus screenshot poses. The game,
+  the briefing selector, LB / RB cycling, the desktop `--district` switch, the WSL launcher and
+  `tools/capture-views.mjs` read it; `tests/registry.test.ts` checks every entry against its map and spec
+  and every directed taxi stop pair.
+- **Saves:** `mapSignature` (`src/game/Save.ts`) hashes the whole parsed district, so any content change
+  makes that district's saves refuse to load; districts and saves carry `dataVersion`, and a save for an
+  earlier version is refused with both versions named and kept. The signature is not narrowed to geometry
+  and ids yet.
+- **Streaming:** `tools/tile-district.mjs` is a general tiler (250 m tiles, one routing region, town or
+  countryside ground per tile, clipped water, place plaques and signs); `tools/export-tiles.mjs` remains the
+  outskirts prototype's own exporter. Rendering is tiled, but all logical geometry, collision and street
+  plates stay resident (#51).
+- **The car** is a point with a 1.05 m collision margin; it needs a clear gap of 2.1 m. It moves in steps of
+  at most half a metre. A geometric drivability check is not implemented.
 - **Street plates:** one canvas texture per unique name at a 1024×192 aspect, up to about 1 MiB each with
-  mipmaps, kept in a module-level cache that is never disposed (`src/world/builders.ts:168`).
+  mipmaps, in a module-level cache that is never disposed (`src/world/builders.ts`).
 
-Scale reference: Cerea Centro is about 1.0 × 1.1 km, 1,081 building masses, 51 streets, 480 KB of JSON
-from a 1.9 MB raw extract. All geometry loads at startup. Ten-town performance, memory and loading are
+Regions:
+- `tools/build-region.py` joins town districts into one region with the corridor model (see "Regions and
+  compression"); `npm run build:region` builds and tiles the first region, the lower Veronese plain.
+  Villages on the corridors are not included yet (#50).
+
+Scale reference: Cerea Centro is about 1.0 × 1.1 km, 1,081 building masses, 51 streets and 480 KB of JSON
+from a 1.9 MB extract. The first region is 13.6 × 7.7 km with six towns, 9,163 buildings and 353 street
+names, in a 4.9 MB manifest plus 1,760 tiles (5 MB). Windows performance, memory and loading are
 unmeasured.
 
 ## Coordinate frame
@@ -171,7 +168,7 @@ Cerea–Casaleone 2.3 ([REGION_SPIKE.md](REGION_SPIKE.md)).
 
 The box also contains 30 more villages (among them Asparetto, Aselogna, San Pietro di Legnago, Concamarise,
 Salizzole, Roverchiara, San Pietro di Morubio, Venera), 85 hamlets and about 527 km of main road. "The
-villages in between" therefore means the villages on the chosen corridors, as sketch zones; the rest
+villages in between" therefore means the villages on the chosen corridors, as rigid zones (#50); the rest
 stays countryside. The town centres span 19.6 km east–west (Nogara to Legnago) and 9.7 km north–south
 (Bovolone to Casaleone); at k = 0.6 that is 11.8 × 5.8 km between centres, roughly 14 × 8 km with the
 outer town zones.
@@ -324,11 +321,10 @@ minutes, so a new town adds one smoke scenario rather than a copy of every scena
 
 ## Runtime
 
-- The registry (for example `public/maps/towns.json`) replaces the `availableDistricts` constant and the
-  outskirts special case; adding a town needs no code edit. It comes before presets and the Verona core
-  so they can use it (R2).
-- The briefing's district buttons need a list or picker for many towns, usable from keyboard and
-  controller.
+- The registry (`public/maps/towns.json`, done in #26) replaced the `availableDistricts` constant and the
+  outskirts special case; adding a town needs no code edit.
+- The briefing's district buttons wrap and scroll for many towns and keep the current one in view; LB / RB
+  cycle through them.
 - **Runtime-ready format (decided: later).** A built town is one folder: registry entry, district file or
   manifest, tiles, provenance, data version and attribution. Data only, validated on load. Loading such
   folders from a player-chosen directory (#33) uses the same narrow desktop bridge as the radio. Switching
@@ -356,8 +352,8 @@ minutes, so a new town adds one smoke scenario rather than a copy of every scena
 6. **Licence and provenance decision** (#27), a gate before the first new town ships.
 7. **Compression mapping** (#40), **general tiler and paged collision** (#29), and gateway routing for
    connected towns (#30).
-8. **First region** (#41): Cerea, Legnago, Bovolone, Sanguinetto, Nogara, Casaleone and the villages on
-   their corridors.
+8. **First region** (#41): Cerea, Legnago, Bovolone, Sanguinetto, Nogara and Casaleone, shipped in
+   0.11.0-rc.1; the villages on their corridors follow in #50.
 9. **Later:** the Verona core (#25), detail zones and named areas (#28), runtime loading from a folder
    (#33).
 
