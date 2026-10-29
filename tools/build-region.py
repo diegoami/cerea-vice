@@ -14,7 +14,7 @@ Design: docs/TOWNS.md ("Regions and compression"), measured in docs/REGION_SPIKE
 Writes the merged district (unstreamed) plus a sidecar with town zones and direction boards for
 tools/tile-district.mjs, which produces the streamed manifest and tiles.
 """
-import argparse, heapq, itertools, json, math, subprocess, sys
+import argparse, hashlib, heapq, itertools, json, math, subprocess, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -28,17 +28,46 @@ def utm(lat,lon):
     return x,y
 def convergence(lat,lon):return math.atan(math.tan(math.radians(lon)-LON0)*math.sin(math.radians(lat)))
 
+REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','k','zoneMargin','towns','corridors','content','views'}
+def check_spec(region):
+    """Reject unknown or missing settings, so a value the builder ignores cannot look meaningful."""
+    unknown=set(region)-REGION_KEYS
+    if unknown:raise SystemExit(f'Unknown region settings: {", ".join(sorted(unknown))}')
+    for key in ('id','name','k','zoneMargin','towns','corridors','content','output'):
+        if key not in region:raise SystemExit(f'Region spec is missing "{key}"')
+    if not isinstance(region['zoneMargin'],(int,float)) or region['zoneMargin']<0:raise SystemExit('"zoneMargin" must be a non-negative number of metres')
+    for entry in region['towns']:
+        if set(entry)!={'spec'}:raise SystemExit(f'A town entry takes only "spec"; got {sorted(entry)} (zones are each town\'s area plus "zoneMargin")')
+
+def town_inputs(spec_path,spec):
+    """Hash of everything a town build depends on: its spec, its extract and the import tools."""
+    digest=hashlib.sha256()
+    for path in (spec_path,ROOT/spec['source']['extract'],ROOT/'tools/import-town.py',ROOT/'tools/prepare-town.mjs'):digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+def ensure_town(spec_path):
+    """Build a town unless its output exists and was built from the same inputs."""
+    spec=json.loads(spec_path.read_text());output=ROOT/spec['output'];stamp=ROOT/'build/towns'/f'{spec["id"]}.inputs.sha256'
+    wanted=town_inputs(spec_path,spec)
+    if output.is_file() and stamp.is_file() and stamp.read_text().strip()==wanted:
+        print(f'{spec["id"]}: up to date');return spec
+    print(f'{spec["id"]}: building ({"inputs changed" if output.is_file() else "no output yet"})')
+    subprocess.run([sys.executable,str(ROOT/'tools/import-town.py'),str(spec_path)],check=True)
+    stamp.parent.mkdir(parents=True,exist_ok=True);stamp.write_text(wanted+'\n')
+    return spec
+
 def main(argv=None):
     parser=argparse.ArgumentParser(description='Build a region from its town districts.')
     parser.add_argument('spec',type=Path);parser.add_argument('--output',type=Path,help='merged district, before tiling (default build/regions/<id>.json)')
+    parser.add_argument('--towns-only',action='store_true',help='bring the town builds up to date, then stop')
     args=parser.parse_args(argv)
-    region=json.loads(args.spec.read_text());k=region['k']
+    region=json.loads(args.spec.read_text());check_spec(region);k=region['k'];zone_margin=region['zoneMargin']
     if not (0<k<=1):raise SystemExit('k must be in (0, 1]')
     towns=[]
     for entry in region['towns']:
-        spec=json.loads((ROOT/entry['spec']).read_text());output=ROOT/spec['output']
-        if not output.is_file():subprocess.run([sys.executable,str(ROOT/'tools/import-town.py'),str(ROOT/entry['spec'])],check=True)
-        towns.append({'spec':spec,'data':json.loads(output.read_text())})
+        spec=ensure_town((ROOT/entry['spec']).resolve())
+        towns.append({'spec':spec,'data':json.loads((ROOT/spec['output']).read_text())})
+    if args.towns_only:return
     ids=[t['spec']['id'] for t in towns]
     # Regional frame: false origin and rotation at the centre of the town origins.
     origins=[(t['spec']['area']['origin']['lat'],t['spec']['area']['origin']['lon']) for t in towns]
@@ -53,7 +82,7 @@ def main(argv=None):
         rx,rz=frame(lat,lon);t['real']=(rx,rz);t['offset']=(k*rx,k*rz)
         b=t['data']['bounds'];ox,oz=t['offset'];t['box']=(b['minX']+ox,b['maxX']+ox,b['minZ']+oz,b['maxZ']+oz)
         t['nodes']={n['id']:n for n in t['data']['nodes']}
-    zone_margin=region.get('zoneMargin',200)
+    # A town's zone is its map's area plus zoneMargin: everything in it moves rigidly with the town.
     for a,b in itertools.combinations(towns,2):
         A_,B_=[(x[0]-zone_margin,x[1]+zone_margin,x[2]-zone_margin,x[3]+zone_margin) for x in (a['box'],b['box'])]
         if A_[0]<B_[1] and B_[0]<A_[1] and A_[2]<B_[3] and B_[2]<A_[3]:raise SystemExit(f'Town zones overlap after compression: {a["spec"]["id"]} and {b["spec"]["id"]}; raise k or lower zoneMargin')
@@ -126,7 +155,7 @@ def main(argv=None):
         # The town's own projection (as tools/import-town.py), so corridor nodes line up exactly with its streets.
         o=t['spec']['area']['origin'];g=geo[n]
         return (round((g['lon']-o['lon'])*111320*math.cos(math.radians(o['lat'])),2),round(-(g['lat']-o['lat'])*111320,2))
-    margin=region.get('zoneMargin',200)
+    margin=zone_margin
     def zone_town(n):
         # A town's zone is its area plus a margin, so roundabouts and junctions at its edge move with it.
         x,z=coord[n]
@@ -253,7 +282,7 @@ def main(argv=None):
     output=(args.output or ROOT/'build/regions'/f'{region["id"]}.json').resolve();output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')
     sidecar=output.with_suffix('.tiling.json')
-    sidecar.write_text(json.dumps({'zones':zones,'boards':boards,'regionName':region['name']},ensure_ascii=False)+'\n')
+    sidecar.write_text(json.dumps({'zones':zones,'zoneMargin':zone_margin,'boards':boards,'regionName':region['name']},ensure_ascii=False)+'\n')
     corridor_km=sum(math.dist(mapped[u],mapped[v]) for u,v in edges)/1000;real_corridor_km=sum(math.dist(coord[u],coord[v]) for u,v in edges)/1000
     print(f'{region["name"]}: {len(towns)} towns, {len(stops)} stops, {len(nodes)} nodes, {len(roads)} road segments ({len(edges)} corridor segments, {real_corridor_km:.1f} km real -> {corridor_km:.1f} km driven), {len(buildings)} buildings, {len(boards)} direction boards; worst bearing change {worst:.2f} deg; extent {(bounds["maxX"]-bounds["minX"])/1000:.1f} x {(bounds["maxZ"]-bounds["minZ"])/1000:.1f} km')
     print(f'Wrote {output} and {sidecar.name}')

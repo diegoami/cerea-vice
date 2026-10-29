@@ -9,13 +9,14 @@
   "sourceUrl": "https://www.openstreetmap.org/copyright",
   "output": "public/maps/lower-verona/manifest.json",
   "k": 0.6,
+  "zoneMargin": 200,
   "towns": [
-    {"spec": "towns/cerea.town.json", "zone": 550},
-    {"spec": "towns/legnago.town.json", "zone": 870},
-    {"spec": "towns/bovolone.town.json", "zone": 650},
-    {"spec": "towns/sanguinetto.town.json", "zone": 500},
-    {"spec": "towns/nogara.town.json", "zone": 500},
-    {"spec": "towns/casaleone.town.json", "zone": 500}
+    {"spec": "towns/cerea.town.json"},
+    {"spec": "towns/legnago.town.json"},
+    {"spec": "towns/bovolone.town.json"},
+    {"spec": "towns/sanguinetto.town.json"},
+    {"spec": "towns/nogara.town.json"},
+    {"spec": "towns/casaleone.town.json"}
   ],
   "corridors": {
     "extract": "data/sources/lower-verona-main-roads.json",

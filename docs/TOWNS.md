@@ -116,9 +116,11 @@ Consequences (revised 2026-10-29, when the first region was built):
 **Mapping: the corridor model** (chosen after the region spike, [REGION_SPIKE.md](REGION_SPIKE.md)).
 Only the roads that connect towns are mapped, not the whole plane. Let `C` be the region centre and `k`
 the compression factor (0 < k ≤ 1).
-- Each town zone moves rigidly to `C + k (c_i − C)`, so its streets are unchanged. Junctions between
-  corridor roads outside towns become tiny rigid zones placed the same way; villages on the corridors are
-  rigid zones with the `sketch` preset.
+- Each town zone moves rigidly to `C + k (c_i − C)`, so its streets are unchanged. A town's **zone** is
+  its map's rectangular area plus `zoneMargin` (200 m in the first region), so roundabouts and junctions
+  at its edge move with it; corridor nodes inside a zone use the town's own projection. Junctions between
+  corridor roads outside zones become small rigid points placed at `C + k (p − C)`. Villages on the
+  corridors (#50) are to be rigid zones too.
 - Each chain of corridor road between two fixed points is mapped by one similarity transform (scale and
   turn) that takes its two real ends to their new positions, so its shape is kept and it shortens by about
   `k`. Real nodes, junctions, one-way tags and names are kept.
@@ -134,15 +136,16 @@ of close towns overlap (Cerea and Casaleone are 2.6 km apart), at every k and ba
   town-to-town bearings within 1°. The spike found none of these problems at k = 0.6 or 0.7.
 - Fares, the speed bonus and timing use the driven, compressed distance, so pay per minute stays
   consistent. The paper atlas shows the same compressed map; no GPS, route line or live marker.
-- **For the owner:** direction boards between towns should show the distance you will actually drive
-  (recommended), not the real-world kilometres.
-- Outside the zones the region is no longer at true UTM positions; the frame, false origin, `k`, `C` and
-  the zones are recorded in the region spec and provenance.
+- Direction boards between towns show the **real** road distance (owner decision, 2026-10-29).
+- Outside the zones the region is no longer at true UTM positions. The frame, false origin, rotation, `k`
+  and each town's real and placed position are recorded in the provenance; `zoneMargin` is in the region
+  spec. Return routes (the other carriageway, the other side of a junction) take the similarity of the
+  nearest primary corridor chain, so they stay parallel to it.
 
-**Region spec.** One file per region, for example `regions/lower-verona.region.json`: the town specs and
-their zone polygons, village zones, the corridor roads to keep (as OSM way ids or a rule such as "the
-main roads connecting these towns"), `k`, `C` and the countryside filler preset. A
-region is delivered tiled, with paged collision (#29), since it is several kilometres across.
+**Region spec.** One file per region, for example `regions/lower-verona.region.json`: the town specs, the
+town pairs whose corridors are kept, `k`, `zoneMargin` and the shift content. The builder rejects any
+other setting, so a value it would ignore cannot look meaningful. `C` is computed from the town origins.
+A region is delivered in 250 m tiles; its logical geometry and collision stay resident for now (#51).
 
 ## First region: the lower Veronese plain
 
