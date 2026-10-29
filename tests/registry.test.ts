@@ -137,3 +137,17 @@ test('the region builder rejects settings it would ignore, and rebuilds a town o
   result=run(oneFile,'--towns-only');assert.match(result.stdout,/sanguinetto-inputs-test: building \(inputs changed\)/);
  }finally{await rm(directory,{recursive:true,force:true});await rm('build/towns/sanguinetto-inputs-test.inputs.sha256',{force:true});}
 });
+
+test('every road in the region is drivable past buildings and water by the car\'s margin',async()=>{
+ // Regression for #70: a shortened corridor ran into a village building while still on paved road.
+ const {streamingColliders}=await import('../src/world/streaming/colliders');const {SpatialGrid,rectBounds}=await import('../src/world/SpatialGrid');const {inRect}=await import('../src/world/district');
+ const context=new District(load('lower-verona/manifest.json')),grid=new SpatialGrid(streamingColliders(context),rectBounds);
+ const blocked:string[]=[];let samples=0;
+ for(const road of context.roads){
+  const a=context.nodeById(road.a),b=context.nodeById(road.b),length=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.max(1,Math.ceil(length/2));
+  for(let i=0;i<=steps;i++){const p={x:a.x+(b.x-a.x)*i/steps,z:a.z+(b.z-a.z)*i/steps};samples++;
+   if(grid.at(p,1.05).some(r=>inRect(p,r,-1.05))){blocked.push(`${road.name} ${road.a}-${road.b}`);break;}}
+ }
+ assert.ok(samples>50000);
+ assert.deepEqual(blocked,[],'The car can follow every road centreline');
+});
