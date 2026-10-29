@@ -63,6 +63,31 @@
           "bay": "test-hamlet"
         }
       ]
+    },
+    {
+      "id": "lower-verona",
+      "name": "Lower Veronese plain",
+      "map": "lower-verona/manifest.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "regional",
+      "taxi": true,
+      "provenance": true,
+      "spec": "regions/lower-verona.region.json",
+      "views": [
+        {
+          "name": "cerea",
+          "bay": "cerea:municipio"
+        },
+        {
+          "name": "legnago",
+          "bay": "legnago:comune"
+        },
+        {
+          "name": "sanguinetto",
+          "bay": "sanguinetto:castello"
+        }
+      ]
     }
   ]
 }

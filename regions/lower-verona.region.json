@@ -1,0 +1,57 @@
+{
+  "specVersion": 1,
+  "id": "lower-verona",
+  "name": "Lower Veronese plain",
+  "description": "Cerea, Legnago, Bovolone, Sanguinetto, Nogara and Casaleone at real scale, joined by their real main roads, shortened so neighbouring towns are a few minutes apart.",
+  "dataVersion": 1,
+  "subtitle": "REAL TOWNS / SHORTENED ROADS",
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "output": "public/maps/lower-verona/manifest.json",
+  "k": 0.6,
+  "towns": [
+    {"spec": "towns/cerea.town.json", "zone": 550},
+    {"spec": "towns/legnago.town.json", "zone": 870},
+    {"spec": "towns/bovolone.town.json", "zone": 650},
+    {"spec": "towns/sanguinetto.town.json", "zone": 500},
+    {"spec": "towns/nogara.town.json", "zone": 500},
+    {"spec": "towns/casaleone.town.json", "zone": 500}
+  ],
+  "corridors": {
+    "extract": "data/sources/lower-verona-main-roads.json",
+    "pairs": [
+      ["cerea", "casaleone"],
+      ["casaleone", "sanguinetto"],
+      ["cerea", "sanguinetto"],
+      ["nogara", "sanguinetto"],
+      ["legnago", "cerea"],
+      ["cerea", "bovolone"],
+      ["bovolone", "sanguinetto"],
+      ["legnago", "casaleone"]
+    ]
+  },
+  "content": {
+    "start": "cerea:municipio",
+    "taxi": {"startHour": 7, "endHour": 17, "clockRate": 30, "baseCents": 400, "perKmCents": 120, "maxBonusCents": 600},
+    "fares": [
+      ["Elena", "cerea:municipio", "legnago:teatro"],
+      ["Marco", "legnago:comune", "casaleone:chiesa"],
+      ["Giulia", "sanguinetto:castello", "cerea:church"],
+      ["Paolo", "bovolone:municipio", "nogara:chiesa"],
+      ["Sara", "nogara:municipio", "sanguinetto:grazie"],
+      ["Luca", "casaleone:poste", "bovolone:biblioteca"]
+    ],
+    "mission": {
+      "name": "Lower Veronese plain taxi shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00 across six towns. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "cerea:library"
+    }
+  },
+  "views": [
+    {"name": "cerea", "bay": "cerea:municipio"},
+    {"name": "legnago", "bay": "legnago:comune"},
+    {"name": "sanguinetto", "bay": "sanguinetto:castello"}
+  ]
+}

@@ -983,3 +983,24 @@ test('the briefing lists every registered district, and a damaged map offers the
   assert.match(page.url(),/#district=cerea$/);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('the lower Veronese plain region streams, starts and drives offline across its six towns', {timeout:240000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-region-test-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=lower-verona',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const requests=[];page.on('request',r=>requests.push(r.url()));
+  const started=Date.now();
+  await page.getByRole('button',{name:'Start the engine'}).waitFor({timeout:180000});
+  const ready=Date.now()-started;
+  assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Lower Veronese plain');
+  await page.getByRole('button',{name:'Start the engine'}).click();
+  await settled(page);
+  await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
+  assert.ok(Number(await page.locator('#speed').innerText())>0,'The taxi moves');
+  await page.screenshot({path:'test-results/region-cerea-start.png'});
+  assert.ok(requests.every(url=>url.startsWith('cerea://')||url.startsWith('data:')||url.startsWith('devtools:')),'Offline: only local game assets are requested');
+  assert.deepEqual(errors,[]);
+  console.log(`region ready in ${ready} ms`);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
