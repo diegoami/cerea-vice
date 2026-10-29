@@ -4,6 +4,8 @@
 
 **Cerea Centro** now offers a [taxi shift](TAXI.md): work from 07:00 to 17:00, collect passengers and follow their requests to nine real places across an expanded neighbourhood with 51 named streets. Completed rides pay a base fare plus a speed bonus. The accelerated day takes about 20 active minutes; the atlas and pause screens stop the clock. Start at the Municipio free to drive. When you want work, stop and request fares to compare a list of randomized pickups, destinations and guaranteed payments, accept one, then collect the passenger, who walks from a nearby doorway into the seat beside you. The library is now just one of several places to learn.
 
+**Verona centro** is the centre of Verona inside the Adige loop: 417 real streets, its squares to drive across, and a taxi shift with 13 stops from the Arena to the Duomo. **Lower Veronese plain** joins Cerea, Legnago, Bovolone, Sanguinetto, Nogara and Casaleone at real scale with shortened roads between them.
+
 **Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline. Small street-name plates identify lateral streets at crossings and repeat along longer stretches; larger arrow boards are reserved for major thoroughfares.
 
 [Previously hosted Harbor prototype](https://cerea-vice-harbor-drive.brownclock131.chatgpt.site) (private; may lag the current desktop build).
@@ -67,12 +69,12 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 
 ## Release candidate
 
-The next portable playtest is **0.12.0-rc.2**. See
-[release notes](docs/releases/0.12.0-rc.2.md) for what changed, saves and
+The next portable playtest is **0.13.0-rc.1**. See
+[release notes](docs/releases/0.13.0-rc.1.md) for what changed, saves and
 remaining playtest checks. It is built from `main` at the milestone candidate and,
 when a milestone review is run, tagged at exactly the reviewed commit
 (`docs/milestone-review.md`). The previous candidate's notes remain in
-[0.11.0-rc.1](docs/releases/0.11.0-rc.1.md).
+[0.12.0-rc.2](docs/releases/0.12.0-rc.2.md).
 
 From a clean, committed checkout in WSL/Linux with Node 22.12+, Python 3 and
 `npm ci` completed:
@@ -82,7 +84,7 @@ npm run release:win
 ```
 
 This rebuilds the Windows app and writes a portable ZIP, `release-info.json`,
-release notes and `SHA256SUMS.txt` under `release/v0.12.0-rc.2/`. The ZIP has one
+release notes and `SHA256SUMS.txt` under `release/v0.13.0-rc.1/`. The ZIP has one
 versioned root folder and contains the entire offline app. The source commit
 and hashes of all bundled files are recorded. Changed source must be committed
 first; using a different commit for an existing version requires a new version.
@@ -90,7 +92,7 @@ Generated bundles stay out of git. This command prepares local artifacts; the
 GitHub release is created separately as a draft for review.
 
 Verify the downloaded files on WSL/Linux with `sha256sum -c SHA256SUMS.txt`.
-On Windows, `Get-FileHash .\Cerea-Vice-0.12.0-rc.2-win32-x64.zip -Algorithm SHA256`
+On Windows, `Get-FileHash .\Cerea-Vice-0.13.0-rc.1-win32-x64.zip -Algorithm SHA256`
 prints the ZIP hash for comparison with the checksums file. Extract all files
 before opening `cerea-vice.exe`.
 
