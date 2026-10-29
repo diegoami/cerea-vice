@@ -110,38 +110,35 @@ Consequences:
 
 **Decided:** towns keep their real streets at real scale; only the space between them is shortened.
 
-**Mapping.** Work in the regional frame. Let `C` be the region centre, `k` the compression factor
-(0 < k ≤ 1), and `c_i` the centre of town zone `i`. The global contraction is `g(p) = C + k (p − C)`.
-Inside zone `i` the town only moves, by `T_i = (k − 1)(c_i − C)`, so its streets are unchanged.
-Between towns:
+**Mapping: the corridor model** (chosen after the region spike, [REGION_SPIKE.md](REGION_SPIKE.md)).
+Only the roads that connect towns are mapped, not the whole plane. Let `C` be the region centre and `k`
+the compression factor (0 < k ≤ 1).
+- Each town zone moves rigidly to `C + k (c_i − C)`, so its streets are unchanged. Junctions between
+  corridor roads outside towns become tiny rigid zones placed the same way; villages on the corridors are
+  rigid zones with the `sketch` preset.
+- Each chain of corridor road between two fixed points is mapped by one similarity transform (scale and
+  turn) that takes its two real ends to their new positions, so its shape is kept and it shortens by about
+  `k`. Real nodes, junctions, one-way tags and names are kept.
+- The countryside between corridors is generated filler (fields, trees, farmhouses), not warped real
+  geometry, so nothing visibly distorts.
 
-```
-f(p) = g(p) − Σ_i w_i(p) · (k − 1)(p − c_i)
-```
-
-where `w_i` is 1 inside zone `i` and falls to 0 across a transition band around it (a smoothstep on the
-distance from the zone boundary). Inside a zone this reduces to `p + T_i`; far from every zone it is
-`g(p)`. Town centres keep their exact compass bearings to each other, and the distance between their
-zones shrinks by `k`.
+A smooth 2D warp (rigid zones, a contraction between them and blending bands) was the first design. The
+spike showed it cannot work here: narrow bands fold the plane near Legnago, and wide bands make the bands
+of close towns overlap (Cerea and Casaleone are 2.6 km apart), at every k and band width tried.
 
 **Rules.**
-- Corridor roads keep their real nodes, junctions, one-way tags and names; their geometry is mapped by
-  `f`, so they shorten by about `k` outside the bands and bend slightly inside them. Village zones are
-  rigid like towns but use the `sketch` preset.
-- No buildings in transition bands, which distort; the bands get only countryside filler (fields,
-  trees), so nothing visibly warps.
-- Checks on a grid over the region: `f` has a positive Jacobian everywhere (no folds), no two zones
-  overlap after mapping, bands do not overlap each other, and town-to-town bearings are unchanged.
+- Checks: no new road crossings between mapped corridor segments, no overlapping zones after mapping, and
+  town-to-town bearings within 1°. The spike found none of these problems at k = 0.6 or 0.7.
 - Fares, the speed bonus and timing use the driven, compressed distance, so pay per minute stays
   consistent. The paper atlas shows the same compressed map; no GPS, route line or live marker.
 - **For the owner:** direction boards between towns should show the distance you will actually drive
   (recommended), not the real-world kilometres.
-- A compressed region is no longer at true UTM positions outside the zones; the frame, false origin,
-  `k`, `C` and the zones are recorded in the region spec and provenance.
+- Outside the zones the region is no longer at true UTM positions; the frame, false origin, `k`, `C` and
+  the zones are recorded in the region spec and provenance.
 
 **Region spec.** One file per region, for example `regions/lower-verona.region.json`: the town specs and
 their zone polygons, village zones, the corridor roads to keep (as OSM way ids or a rule such as "the
-main roads connecting these towns"), `k`, `C`, the band width and the countryside filler preset. A
+main roads connecting these towns"), `k`, `C` and the countryside filler preset. A
 region is delivered tiled, with paged collision (#29), since it is several kilometres across.
 
 ## First region: the lower Veronese plain
@@ -165,7 +162,9 @@ tags; drive times assume 17 m/s, a little under the car's paved top speed of abo
 The "at k" column scales the whole road distance and is an upper bound on the saving, since town zones
 are not shortened. So the compression this region needs is **mild, about k = 0.6**, not the 1:4 to 1:5 a
 generic 20 km example suggests; the nearest pairs are already about 5 minutes apart uncompressed. `k` is
-set from measured in-game drive times (#41), with the 5-minute target for typical neighbours.
+set from measured in-game drive times (#41), with the 5-minute target for typical neighbours. The spike measured the
+corridor model at k = 0.6: Cerea–Legnago 5.1 min, Cerea–Bovolone 6.3, Nogara–Sanguinetto 4.6,
+Cerea–Casaleone 2.3 ([REGION_SPIKE.md](REGION_SPIKE.md)).
 
 The box also contains 30 more villages (among them Asparetto, Aselogna, San Pietro di Legnago, Concamarise,
 Salizzole, Roverchiara, San Pietro di Morubio, Venera), 85 hamlets and about 527 km of main road. "The

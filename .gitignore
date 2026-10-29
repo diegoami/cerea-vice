@@ -6,3 +6,4 @@ test-results/
 release/
 .desktop-stage/
 .claude/worktrees/
+data/region-spike/
