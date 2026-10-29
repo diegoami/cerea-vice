@@ -178,6 +178,18 @@ district definition, so editing that text would make every existing save
 | Controls messages | capture, invalid key, conflict, saved, defaults restored, storage unavailable | KEEP | State and error |
 | Binding rows | action names and bindings | KEEP | Bindings |
 
+### Added by #20 and #22, audited after their merge
+
+| Surface | Current text | Decision | Reason |
+| --- | --- | --- | --- |
+| Settings options | Volume steps, Radio, Radio source, Music level | KEEP | Settings |
+| Picture notes | one line per mode, e.g. `Default. Pixel look at a modest cost.`, plus `Drawing W×H for a W×H window.` | KEEP | Needed to choose a mode and see its cost |
+| Radio actions | `Choose music folder…`, `Previous track`, `Next track` | KEEP | Controls |
+| Radio status, no folder | `No music folder chosen. Choose one to play your own music.` | SHORTEN → `No music folder chosen.` | The button beside it says the rest |
+| Radio status, other | folder track count, missing, unreadable, empty, skipped track, all tracks failed, desktop app needed, dialog cancelled (`Kept “…”`) | KEEP | State and error; each says what plays instead |
+| Dashboard sound line | `SOUND 75% · RADIO OFF`, `SOUND MUTED`, `SOUND BLOCKED · CLICK OR PRESS A KEY`, track summary | KEEP | State; the blocked case says how to unblock |
+| Help rows | `Radio: next track (music folder)` with bindings; `Volume, mute and radio` → `Picture & Sound panel` | KEEP | Bindings; where the sound settings are |
+
 ## Start-up (`src/main.ts`, `index.html`)
 
 | Surface | Current text | Decision | Reason |

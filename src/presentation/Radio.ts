@@ -23,7 +23,7 @@ export class Radio {
   message='';
   onChange:()=>void=()=>{};
   constructor(private readonly api:MusicApi|undefined=(globalThis as {cereaMusic?:MusicApi}).cereaMusic,private readonly createPlayer:()=>Player=()=>new Audio()){
-    this.message=api?'No music folder chosen. Choose one to play your own music.':'A music folder needs the desktop app; the built-in tune plays instead.';
+    this.message=api?'No music folder chosen.':'A music folder needs the desktop app; the built-in tune plays instead.';
   }
   get available(){return Boolean(this.api);}
   /** True when a folder track can be played; otherwise the built-in tune stands in. */
@@ -45,7 +45,7 @@ export class Radio {
       :this.library.status==='missing'?`${folder} is not available (moved, renamed or on a disconnected drive). Choose it again or another folder.${fallback}`
       :this.library.status==='unreadable'?`${folder} cannot be read; check its permissions or choose another.${fallback}`
       :this.library.status==='empty'||this.library.status==='ok'?`${folder} has no supported music (MP3, OGG, Opus, WAV, FLAC, M4A/AAC, WebM).${fallback}`
-      :'No music folder chosen. Choose one to play your own music.';
+      :'No music folder chosen.';
     if(this.library.status==='ok'&&!valid.length)this.library.status='empty';
     this.onChange();
   }

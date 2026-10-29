@@ -67,11 +67,13 @@ The desktop smoke test covers offline startup, sandbox settings, controller-only
 
 ## Release candidate
 
-The next portable playtest is **0.9.0-rc.1**. See
-[release notes](docs/releases/0.9.0-rc.1.md) for installation, controls, saves and
-remaining playtest checks. Its draft release is prepared from the
-`task/free-driving-fare-board` pull request rather than a merged stable version.
-The previous candidate's notes remain in [0.8.0-rc.3](docs/releases/0.8.0-rc.3.md).
+The next portable playtest is **0.10.0-rc.1**. See
+[release notes](docs/releases/0.10.0-rc.1.md) for installation, controls, saves and
+remaining playtest checks. It is built from `main` at the milestone candidate and,
+when a milestone review is run, tagged at exactly the reviewed commit
+(`docs/milestone-review.md`). It includes the unpublished
+[0.9.0-rc.1](docs/releases/0.9.0-rc.1.md) changes; the last published candidate's
+notes remain in [0.8.0-rc.3](docs/releases/0.8.0-rc.3.md).
 
 From a clean, committed checkout in WSL/Linux with Node 22.12+, Python 3 and
 `npm ci` completed:
@@ -81,7 +83,7 @@ npm run release:win
 ```
 
 This rebuilds the Windows app and writes a portable ZIP, `release-info.json`,
-release notes and `SHA256SUMS.txt` under `release/v0.9.0-rc.1/`. The ZIP has one
+release notes and `SHA256SUMS.txt` under `release/v0.10.0-rc.1/`. The ZIP has one
 versioned root folder and contains the entire offline app. The source commit
 and hashes of all bundled files are recorded. Changed source must be committed
 first; using a different commit for an existing version requires a new version.
@@ -89,7 +91,7 @@ Generated bundles stay out of git. This command prepares local artifacts; the
 GitHub release is created separately as a draft for review.
 
 Verify the downloaded files on WSL/Linux with `sha256sum -c SHA256SUMS.txt`.
-On Windows, `Get-FileHash .\Cerea-Vice-0.9.0-rc.1-win32-x64.zip -Algorithm SHA256`
+On Windows, `Get-FileHash .\Cerea-Vice-0.10.0-rc.1-win32-x64.zip -Algorithm SHA256`
 prints the ZIP hash for comparison with the checksums file. Extract all files
 before opening `cerea-vice.exe`.
 
