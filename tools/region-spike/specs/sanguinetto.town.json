@@ -1,0 +1,157 @@
+{
+ "specVersion": 1,
+ "id": "sanguinetto",
+ "name": "Sanguinetto",
+ "description": "Sanguinetto spike build, not a confirmed town.",
+ "dataVersion": 1,
+ "source": {
+  "extract": "data/region-spike/sanguinetto.json",
+  "label": "OpenStreetMap / Overpass API"
+ },
+ "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+ "sourceUrl": "https://www.openstreetmap.org/copyright",
+ "area": {
+  "origin": {
+   "lat": 45.1822,
+   "lon": 11.1517
+  },
+  "bbox": {
+   "south": 45.1777,
+   "west": 11.1453,
+   "north": 45.1867,
+   "east": 11.1581
+  }
+ },
+ "output": "test-results/region-spike/sanguinetto.json",
+ "stoppingPolicy": "anywhere",
+ "preset": "town",
+ "landmarks": [
+  {
+   "osmId": 289695392,
+   "id": "grazie",
+   "name": "grazie",
+   "road": "(nearest)",
+   "kind": "church",
+   "height": 20,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 167185427,
+   "id": "castello",
+   "name": "castello",
+   "road": "(nearest)",
+   "kind": "castle",
+   "height": 14,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 289696295,
+   "id": "poste",
+   "name": "poste",
+   "road": "(nearest)",
+   "kind": "post",
+   "height": 9,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 9781556293,
+   "id": "sangiorgio",
+   "road": "(nearest)",
+   "kind": "church",
+   "point": true,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 9781556281,
+   "id": "municipio",
+   "road": "(nearest)",
+   "kind": "civic",
+   "point": true,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 9781556306,
+   "id": "teatro",
+   "road": "(nearest)",
+   "kind": "theatre",
+   "point": true,
+   "frontage": "nearest"
+  }
+ ],
+ "stops": [
+  {
+   "landmark": "grazie",
+   "bay": "Sosta grazie"
+  },
+  {
+   "landmark": "castello",
+   "bay": "Sosta castello"
+  },
+  {
+   "landmark": "poste",
+   "bay": "Sosta poste"
+  },
+  {
+   "landmark": "sangiorgio",
+   "bay": "Sosta sangiorgio"
+  },
+  {
+   "landmark": "municipio",
+   "bay": "Sosta municipio"
+  },
+  {
+   "landmark": "teatro",
+   "bay": "Sosta teatro"
+  }
+ ],
+ "features": {
+  "waterWidth": 3,
+  "railWidth": 3,
+  "waterWidths": {},
+  "unnamed": {
+   "water": "Canale",
+   "rail": "Ferrovia"
+  }
+ },
+ "areas": [
+  {
+   "name": "Sanguinetto"
+  }
+ ],
+ "content": {
+  "start": "municipio",
+  "taxi": {
+   "startHour": 7,
+   "endHour": 17,
+   "clockRate": 30,
+   "baseCents": 400,
+   "perKmCents": 120,
+   "maxBonusCents": 600
+  },
+  "fares": [
+   [
+    "Elena",
+    "municipio",
+    "castello"
+   ],
+   [
+    "Marco",
+    "grazie",
+    "teatro"
+   ]
+  ],
+  "mission": {
+   "name": "Cerea Taxi Shift",
+   "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+   "hint": "Spike build.",
+   "duration": 360,
+   "target": "castello"
+  }
+ },
+ "notes": [
+  "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+  "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+  "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+  "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+ ]
+}

@@ -1,0 +1,189 @@
+{
+ "specVersion": 1,
+ "id": "legnago",
+ "name": "Legnago",
+ "description": "Legnago spike build, not a confirmed town.",
+ "dataVersion": 1,
+ "source": {
+  "extract": "data/region-spike/legnago.json",
+  "label": "OpenStreetMap / Overpass API"
+ },
+ "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+ "sourceUrl": "https://www.openstreetmap.org/copyright",
+ "area": {
+  "origin": {
+   "lat": 45.1925,
+   "lon": 11.3111
+  },
+  "bbox": {
+   "south": 45.1847,
+   "west": 11.3001,
+   "north": 45.2003,
+   "east": 11.3221
+  }
+ },
+ "output": "test-results/region-spike/legnago.json",
+ "stoppingPolicy": "anywhere",
+ "preset": "town",
+ "landmarks": [
+  {
+   "osmId": 208229463,
+   "id": "comune",
+   "name": "comune",
+   "road": "(nearest)",
+   "kind": "civic",
+   "height": 14,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 208228081,
+   "id": "biblioteca",
+   "name": "biblioteca",
+   "road": "(nearest)",
+   "kind": "library",
+   "height": 12,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 208220756,
+   "id": "teatro",
+   "name": "teatro",
+   "road": "(nearest)",
+   "kind": "theatre",
+   "height": 16,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 259352898,
+   "id": "sanmartino",
+   "name": "sanmartino",
+   "road": "(nearest)",
+   "kind": "church",
+   "height": 24,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 208230886,
+   "id": "museo",
+   "name": "museo",
+   "road": "(nearest)",
+   "kind": "museum",
+   "height": 12,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 1513338872,
+   "id": "poste",
+   "name": "poste",
+   "road": "(nearest)",
+   "kind": "post",
+   "height": 9,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 3811462584,
+   "id": "assunta",
+   "road": "(nearest)",
+   "kind": "church",
+   "point": true,
+   "frontage": "nearest"
+  },
+  {
+   "osmId": 8084281160,
+   "id": "salus",
+   "road": "(nearest)",
+   "kind": "cinema",
+   "point": true,
+   "frontage": "nearest"
+  }
+ ],
+ "stops": [
+  {
+   "landmark": "comune",
+   "bay": "Sosta comune"
+  },
+  {
+   "landmark": "biblioteca",
+   "bay": "Sosta biblioteca"
+  },
+  {
+   "landmark": "teatro",
+   "bay": "Sosta teatro"
+  },
+  {
+   "landmark": "sanmartino",
+   "bay": "Sosta sanmartino"
+  },
+  {
+   "landmark": "museo",
+   "bay": "Sosta museo"
+  },
+  {
+   "landmark": "poste",
+   "bay": "Sosta poste"
+  },
+  {
+   "landmark": "assunta",
+   "bay": "Sosta assunta"
+  },
+  {
+   "landmark": "salus",
+   "bay": "Sosta salus"
+  }
+ ],
+ "features": {
+  "waterWidth": 3,
+  "railWidth": 3,
+  "waterWidths": {},
+  "unnamed": {
+   "water": "Canale",
+   "rail": "Ferrovia"
+  }
+ },
+ "areas": [
+  {
+   "name": "Legnago"
+  }
+ ],
+ "content": {
+  "start": "comune",
+  "taxi": {
+   "startHour": 7,
+   "endHour": 17,
+   "clockRate": 30,
+   "baseCents": 400,
+   "perKmCents": 120,
+   "maxBonusCents": 600
+  },
+  "fares": [
+   [
+    "Elena",
+    "comune",
+    "teatro"
+   ],
+   [
+    "Marco",
+    "salus",
+    "sanmartino"
+   ],
+   [
+    "Giulia",
+    "poste",
+    "museo"
+   ]
+  ],
+  "mission": {
+   "name": "Cerea Taxi Shift",
+   "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+   "hint": "Spike build.",
+   "duration": 360,
+   "target": "teatro"
+  }
+ },
+ "notes": [
+  "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+  "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+  "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+  "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+ ]
+}
