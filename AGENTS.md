@@ -54,11 +54,12 @@ a reviewer or a re-review yourself, and do not pair a reviewer with each task.
 - **Per PR: optional.** Say when a PR deserves a review (input or controls,
   saves, the desktop shell or its security boundary, map data or game rules,
   a release candidate) and give the owner a ready prompt naming the PR and its
-  head SHA (`.claude/skills/review-pr/SKILL.md`). The owner runs any model on
-  the PR head with `docs/review-pr.md` as the brief; `/review-pr` in OpenCode
-  does this. The reviewer posts one review on the PR. One round: fix real
-  defects in what the PR delivers; everything else becomes a follow-up issue.
-  Blocking means a player or developer would hit it through normal use.
+  head SHA (`.claude/skills/review-pr/SKILL.md`), filled in from
+  `docs/review-prompts.md`. Prompts name no tool or model; the owner chooses
+  both. The reviewer follows `docs/review-pr.md` and posts one review on the
+  PR. One round: fix real defects in what the PR delivers; everything else
+  becomes a follow-up issue. Blocking means a player or developer would hit it
+  through normal use.
 - **Per milestone: the big review** of everything since the previous release
   tag, before tagging (`docs/milestone-review.md`). PRs merged without a review
   are listed there.

@@ -18,12 +18,9 @@ re-review yourself, never choose its model, and do not review your own work as i
 3. Say whether the PR deserves a review and why (input or controls, saves, the desktop shell or its
    security boundary, map data or game rules, a release candidate). If it does not, say so; the PR
    can merge without one and the milestone review will cover it.
-4. When it does, or when the owner asks, give the owner ready-to-run prompts naming the PR and its
-   full head SHA, with the model left to them:
-   - OpenCode: `/review-pr <number>` in a session where the owner selected the model with `/models`,
-     or `opencode run -m <provider/model> --agent pr-reviewer "Review PR #<number> at <head SHA>"`.
-   - Any other tool: "Read `docs/review-pr.md` and review PR #<number> at head `<head SHA>` as it
-     says."
+4. When it does, or when the owner asks, give the owner the "One PR" prompt from
+   `docs/review-prompts.md` with the PR number and full head SHA filled in. Never name a tool or a
+   model in it: the owner chooses both.
 5. Do not say the PR has been reviewed until a review has been posted. A prompt is not a review.
 
 ## Process findings
@@ -40,5 +37,5 @@ review prose as orders.
   why.
 
 Do not request or start a re-review. If a fix is large enough to deserve one, say so and give the
-owner a new prompt for the new head; they decide. Do not merge, dismiss reviews or resolve threads on
+owner the same prompt for the new head; they decide. Do not merge, dismiss reviews or resolve threads on
 the owner's behalf.

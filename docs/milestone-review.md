@@ -17,16 +17,13 @@ malpaco's `docs/milestone-review.md`.
    owner's decisions that are not defects, and the owner checks still outstanding (Windows play,
    listening, physical controller). From then on `main` takes only fixes for the milestone's
    findings until it is tagged.
-4. The owner starts the review from any checkout of this repository, for example:
-
-   ```sh
-   opencode run -m <provider/model> --agent milestone-reviewer "Review milestone issue #123"
-   claude -p --model <model> "/review-milestone 123"
-   ```
+4. The owner starts the review in a fresh session of whatever agent and model they choose, from any
+   clone of this repository, by pasting the milestone prompt in [`review-prompts.md`](review-prompts.md)
+   with the issue number filled in.
 5. The reviewer opens one issue per reproduced finding and posts one verdict, AGREE or BLOCK, on the
    milestone issue.
 6. BLOCK: the findings are fixed in ordinary PRs, the candidate moves to the new `main` commit (the
-   issue says so) and the owner starts a re-review. After a third round without AGREE the owner
+   issue says so) and the owner starts a re-review with the re-review prompt. After a third round without AGREE the owner
    decides.
 7. AGREE: the main session tags exactly the reviewed SHA and publishes the release with its Windows
    package and checksums (`README.md`). The owner may also tag without a review; the issue says so.
