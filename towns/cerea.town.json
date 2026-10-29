@@ -1,0 +1,80 @@
+{
+  "specVersion": 1,
+  "id": "cerea",
+  "name": "Cerea Centro",
+  "description": "Modern Cerea taxi district, from Sommariva and Via Paride to the post office and Oratorio dello Spasimo. Real street connections, named destinations and simplified scenery.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/cerea-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {"lat": 45.1943, "lon": 11.2112},
+    "bbox": {"south": 45.1888, "west": 11.2055, "north": 45.1985, "east": 11.2185}
+  },
+  "output": "public/maps/cerea.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "landmarks": [
+    {"osmId": 125815115, "id": "library", "name": "Biblioteca di Cerea", "road": "Viale della Vittoria", "kind": "library", "height": 9},
+    {"osmId": 208200123, "id": "church", "name": "San Zeno in Santa Maria Assunta", "road": "Via Cordioli", "kind": "church", "height": 22},
+    {"osmId": 208200127, "id": "municipio", "name": "Municipio di Cerea", "road": "Via Venticinque Aprile", "kind": "civic", "height": 13},
+    {"osmId": 327164664, "id": "school", "name": "Scuola Olga Visentini", "road": "Via Canonica", "kind": "school", "height": 9},
+    {"osmId": 208200136, "id": "post", "name": "Ufficio Postale di Cerea", "road": "Via Dante", "kind": "post", "height": 8, "frontage": "nearest"},
+    {"osmId": 208200130, "id": "oratory", "name": "Oratorio dello Spasimo", "road": "Via Cesare Battisti", "kind": "oratory", "height": 12, "frontage": "nearest"},
+    {"osmId": 194101723, "id": "teatro", "name": "Teatro del Gusto", "road": "Via Quattro Novembre", "kind": "restaurant", "height": 9, "frontage": "nearest"},
+    {"osmId": 3214419210, "id": "principe", "road": "Via Roma", "kind": "cinema", "point": true},
+    {"osmId": 1402598138, "id": "mignon", "road": "Via Cordioli", "kind": "cinema", "point": true}
+  ],
+  "stops": [
+    {"landmark": "municipio", "bay": "Sosta Municipio"},
+    {"landmark": "library", "bay": "Sosta Biblioteca"},
+    {"landmark": "church", "bay": "Sosta San Zeno"},
+    {"landmark": "school", "bay": "Sosta Olga Visentini"},
+    {"landmark": "post", "bay": "Sosta Poste"},
+    {"landmark": "oratory", "bay": "Sosta Spasimo"},
+    {"landmark": "teatro", "bay": "Sosta Teatro del Gusto"},
+    {"landmark": "principe", "bay": "Sosta Cinema Principe"},
+    {"landmark": "mignon", "bay": "Sosta Cinema Mignon"}
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {"Menago": 7},
+    "unnamed": {"water": "Canale", "rail": "Ferrovia"}
+  },
+  "areas": [
+    {"name": "Centro di Cerea", "z": 0}
+  ],
+  "content": {
+    "start": "municipio",
+    "taxi": {"startHour": 7, "endHour": 17, "clockRate": 30, "baseCents": 400, "perKmCents": 120, "maxBonusCents": 600},
+    "fares": [
+      ["Elena", "municipio", "post"],
+      ["Marco", "principe", "church"],
+      ["Giulia", "school", "teatro"],
+      ["Paolo", "oratory", "municipio"],
+      ["Sara", "teatro", "principe"],
+      ["Luca", "post", "school"],
+      ["Anna", "church", "oratory"],
+      ["Davide", "library", "mignon"],
+      ["Chiara", "municipio", "teatro"],
+      ["Carlo", "mignon", "post"]
+    ],
+    "mission": {
+      "name": "Cerea Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Your first passenger is Elena at Sosta Municipio. Stop and press A / Enter to pick her up, then follow her destination request. Faster completed rides earn a larger bonus.",
+      "duration": 360,
+      "target": "library"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated."
+  ]
+}

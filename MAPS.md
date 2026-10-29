@@ -29,8 +29,11 @@ Map controls: RT / LT or + / − zoom, right stick / I J K L / mouse drag pan, R
 - `src/world/schema.ts`: the district data structure.
 - `src/world/district.ts`: validation, explicit District contexts and shared spatial helpers.
 - `src/world/load.ts`: local selection and JSON loading.
-- `tools/import-cerea.py`: deterministic offline conversion of the checked-in source extract.
-- `tools/prepare-cerea.mjs`: build-time polygon clipping for road, sidewalk, junction and bay clearance.
+- `towns/cerea.town.json`: Cerea's town spec: area, extract, confirmed landmarks and stops, fares and
+  mission text (see [docs/TOWNS.md](docs/TOWNS.md)).
+- `tools/import-town.py`: deterministic offline conversion of a town spec and its checked-in extract;
+  `tools/import-cerea.py` runs it for Cerea and keeps the `--tiles` options.
+- `tools/prepare-town.mjs`: build-time polygon clipping for road, sidewalk, junction and bay clearance.
 - `src/world/signs.ts`: major-road direction boards and other roadside signs.
 - `src/world/streetPlates.ts`: façade/post street-name plates, crossing coverage and between-junction repeaters.
 - `data/README.md`: source, projection, attribution and simplification notes.
@@ -55,7 +58,7 @@ Generic map rendering supports angled segments, shared junction caps, polygon bu
 ## Rebuild
 
 ```sh
-python3 tools/import-cerea.py
+python3 tools/import-cerea.py          # same as: python3 tools/import-town.py towns/cerea.town.json
 npm test
 npm run build
 npm run desktop:package:win

@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import clipping from 'polygon-clipping';
 
-const filename=path.resolve(import.meta.dirname,'../public/maps/cerea.json');
+// The district written by tools/import-town.py, prepared in place.
+if(!process.argv[2]){console.error('usage: node tools/prepare-town.mjs <district.json>');process.exit(2);}
+const filename=path.resolve(process.argv[2]);
 const data=JSON.parse(fs.readFileSync(filename,'utf8'));
 const nodes=new Map(data.nodes.map(node=>[node.id,node]));
 const discs=(p,r)=>Array.from({length:16},(_,i)=>[p.x+Math.cos(i*Math.PI/8)*r,p.z+Math.sin(i*Math.PI/8)*r]);

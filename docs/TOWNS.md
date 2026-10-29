@@ -35,7 +35,7 @@ Generic and reusable:
 - Named-road filtering, one-way and roundabout tags, OSM node ids kept so real junctions connect and
   overpasses do not, and the largest connected network kept.
 - Building footprints clipped against road corridors, junction caps and bays
-  (`tools/prepare-cerea.mjs`, using `polygon-clipping`). The importer reads only each building way's
+  (`tools/prepare-town.mjs`, formerly `prepare-cerea.mjs`, using `polygon-clipping`). The importer reads only each building way's
   outer ring and has no relation handling, so the holes in `cerea.json` come from clipping only;
   Cerea's extract contains no relations (R8).
 - Bay placement beside a landmark's street (`bay_for` in `tools/import-cerea.py`).
@@ -43,9 +43,10 @@ Generic and reusable:
 - The `District` context, directed routing, sign and street-plate generation, and the tests for
   ownership and reachability.
 
-Specific to Cerea and hardcoded:
+Specific to Cerea and hardcoded (until #23 step 1, which moved the importer's choices into
+`towns/cerea.town.json`, read by `tools/import-town.py`; Cerea still rebuilds byte for byte):
 - Bounds, projection origin (`lat0, lon0`) and the extract path in the importer;
-  `prepare-cerea.mjs` reads and writes `public/maps/cerea.json` directly.
+  `prepare-cerea.mjs` read and wrote `public/maps/cerea.json` directly.
 - Nine landmarks and stops: seven building ways chosen by OSM id plus two cinemas found by node
   lookup; bay names, passenger names, fare pairs and the mission hint text (R15).
 - The district list in `src/world/load.ts` (`availableDistricts`) and its outskirts special case.
@@ -61,7 +62,7 @@ Behaviour that matters for Verona:
   583 segments are primary, secondary, tertiary, unclassified and residential.
 - **Road width and clearance:** an OSM `width` clamped to 6–10 m, otherwise 8 m (every Cerea segment is
   8 or 9 m). Clearance removes `width / 2 + 1.6 m` on each side of the centreline from building
-  footprints (`prepare-cerea.mjs:13`); in Cerea that trimmed 137 footprints, removed 5 and left 1,081
+  footprints (`prepare-town.mjs`, the corridor radius); in Cerea that trimmed 137 footprints, removed 5 and left 1,081
   masses. Validation requires a road wider than 2 m (`src/world/district.ts:24`).
 - **The car** is a point with a 1.05 m collision margin (`src/driving/Car.ts:61`): it needs a clear gap
   of 2.1 m and has no body width or turning footprint. There is no reusable driving autopilot; the
