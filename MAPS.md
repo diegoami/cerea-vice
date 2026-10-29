@@ -60,7 +60,13 @@ The planned spec-driven pipeline for real towns, starting with Verona, is in
 6. Put the file in `public/maps/` and add its entry to `public/maps/towns.json` (built from a town spec,
    `tools/import-town.py` adds it). The briefing, LB / RB cycling and `--district` then offer it; no code
    change is needed. `tests/registry.test.ts` checks every entry against its map and spec.
-7. Check validation, connectivity, road/footprint clearance, legal stopping and arrival. Run unit and desktop tests, inspect both the atlas and driving view, then playtest the journey.
+7. Run `npm run town:check -- <id>` (all listed districts when no id is given). The town doctor
+   (`tools/town-doctor.ts`, the same checks `tests/town-doctor.test.ts` runs on every registry entry)
+   fails a district on a road network in pieces, a stop unreachable in either direction, a bay that is
+   covered or that the car cannot get into from its street, a building on a road or bay, a road the car
+   cannot follow by its 1.05 m margin, a street plate on the wrong street, or a size over budget. It
+   lists junction arms left without a plate. Then run unit and desktop tests, inspect both the atlas and
+   driving view, and playtest the journey.
 
 Generic map rendering supports angled segments, shared junction caps, polygon building collisions, local landmark signs and source attribution. Signage now has two levels. Larger arrow boards are limited to junctions connecting major roads (mapped primary, secondary and tertiary roads). Small, arrow-free street-name plates identify each physical street arm at a crossing, including one-way streets. A plate runs along and faces into the street it names; corner façades therefore carry the name of their own frontage. Nearby façades are preferred, otherwise small posts are used, with repeat plates along longer stretches. Checks cover ownership, orientation, street-facing visibility and clearance, including the first Via Dante / Via Venticinque Aprile junction. Its west end has an explicit one-way/no-entry warning. Parking and boundary signs use the same clearance checks. Static geometry, including shared canvas-textured façades and roofs, is batched by material to keep the denser district economical. The original Harbor scenery and its familiar navigation wording are retained in dedicated legacy builders, rather than requiring the new renderer to reproduce its handcrafted decorations.
 
@@ -68,6 +74,7 @@ Generic map rendering supports angled segments, shared junction caps, polygon bu
 
 ```sh
 python3 tools/import-cerea.py          # same as: python3 tools/import-town.py towns/cerea.town.json
+npm run town:check -- cerea
 npm test
 npm run build
 npm run desktop:package:win

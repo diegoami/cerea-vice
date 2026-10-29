@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {existsSync,readFileSync} from 'node:fs';
 import registryData from '../public/maps/towns.json';
 import {District} from '../src/world/district';
-import {createNavigation} from '../src/navigation/Navigation';
 import {validateRegistry,requestedDistrict,selectDistrict,type TownRegistry} from '../src/world/load';
 
 const registry=validateRegistry(registryData);
@@ -45,14 +44,7 @@ test('every listed district loads and matches its entry, map file and spec',()=>
  }
 });
 
-test('in every taxi district, every stop has a bay and every directed stop pair is reachable',()=>{
- for(const town of registry.towns.filter(t=>t.taxi)){
-  const context=new District(load(town.map)),nav=createNavigation(context),stops=context.district.taxi!.stops;
-  for(const stop of stops)assert.ok(context.parkingZones.some(b=>b.id===stop.bayId),`${town.id}: ${stop.id} has its bay`);
-  for(const a of stops)for(const b of stops)if(a!==b)
-   assert.ok(Number.isFinite(nav.shortestRoute(a.nodeId,b.nodeId).cost),`${town.id}: ${a.id} → ${b.id} is reachable`);
- }
-});
+// Stops, bays, drivability and the rest are checked for every listed district in town-doctor.test.ts.
 
 test('an unlisted or removed district falls back to the default without deleting anything',()=>{
  const storage=new Map<string,string>();let removed=0,reloads=0;
@@ -136,18 +128,4 @@ test('the region builder rejects settings it would ignore, and rebuilds a town o
   town.content.mission.name='Changed';await writeFile(townFile,JSON.stringify(town));
   result=run(oneFile,'--towns-only');assert.match(result.stdout,/sanguinetto-inputs-test: building \(inputs changed\)/);
  }finally{await rm(directory,{recursive:true,force:true});await rm('build/towns/sanguinetto-inputs-test.inputs.sha256',{force:true});}
-});
-
-test('every road in the region is drivable past buildings and water by the car\'s margin',async()=>{
- // Regression for #70: a shortened corridor ran into a village building while still on paved road.
- const {streamingColliders}=await import('../src/world/streaming/colliders');const {SpatialGrid,rectBounds}=await import('../src/world/SpatialGrid');const {inRect}=await import('../src/world/district');
- const context=new District(load('lower-verona/manifest.json')),grid=new SpatialGrid(streamingColliders(context),rectBounds);
- const blocked:string[]=[];let samples=0;
- for(const road of context.roads){
-  const a=context.nodeById(road.a),b=context.nodeById(road.b),length=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.max(1,Math.ceil(length/2));
-  for(let i=0;i<=steps;i++){const p={x:a.x+(b.x-a.x)*i/steps,z:a.z+(b.z-a.z)*i/steps};samples++;
-   if(grid.at(p,1.05).some(r=>inRect(p,r,-1.05))){blocked.push(`${road.name} ${road.a}-${road.b}`);break;}}
- }
- assert.ok(samples>50000);
- assert.deepEqual(blocked,[],'The car can follow every road centreline');
 });

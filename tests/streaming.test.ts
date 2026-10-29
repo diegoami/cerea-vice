@@ -114,3 +114,23 @@ test('tile ids/bounds are canonical and the prototype grid has no overlaps or mi
  const alias=structuredClone(data),tile=alias.streaming!.tiles.find(t=>t.id==='0_0')!;tile.id='-0_0';tile.file='tiles/-0_0.json';assert.throws(()=>new District(alias),/canonical grid/);
  const missing=structuredClone(data);missing.streaming!.tiles.pop();assert.throws(()=>new District(missing),/coverage/);
 });
+
+test('street-name textures are shared by their plates and freed when the last tile using them unloads (#51)',async()=>{
+ const {Group,MeshBasicMaterial}=await import('three');const {streetNamePlate,releaseStreetNamePlate,streetNameTextures}=await import('../src/world/builders');const {TileMaterials}=await import('../src/world/streaming/TileMaterials');
+ const context2d=new Proxy({},{get:()=>()=>{},set:()=>true});
+ (globalThis as {document?:unknown}).document={createElement:()=>({width:0,height:0,getContext:()=>context2d})};
+ try{
+  const plan=(name:string)=>({name,position:{x:0,z:0},angle:0,width:2,height:3,mount:'post' as const});
+  const before=streetNameTextures(),first=new Group(),second=new Group();
+  streetNamePlate(first,plan('Via Prova'));streetNamePlate(second,plan('Via Prova'));streetNamePlate(second,plan('Via Altra'));
+  assert.equal(streetNameTextures(),before+2,'one texture per street name');
+  const face=(first.children[0].children[0] as import('three').Mesh).material as InstanceType<typeof MeshBasicMaterial>;
+  let freed=0;face.map!.addEventListener('dispose',()=>freed++);
+  const materials=new TileMaterials(),copy=materials.use(face);
+  assert.equal(releaseStreetNamePlate('Via Prova'),undefined,'another plate still shows Via Prova');assert.equal(freed,0);
+  assert.equal(releaseStreetNamePlate('Via Prova'),face);assert.equal(freed,1);
+  let copyFreed=0;copy.addEventListener('dispose',()=>copyFreed++);materials.release(face);assert.equal(copyFreed,1);
+  assert.equal(releaseStreetNamePlate('Via Altra')!==undefined,true);assert.equal(streetNameTextures(),before);
+  assert.equal(releaseStreetNamePlate('Via Prova'),undefined,'releasing an unknown name is harmless');
+ }finally{delete (globalThis as {document?:unknown}).document;}
+});

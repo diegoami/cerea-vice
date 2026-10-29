@@ -165,14 +165,15 @@ export function building(
   }
 }
 
-const streetFaces = new Map<string, THREE.MeshBasicMaterial>();
+/** One face per street name, shared by its plates and freed when none uses it (#51). */
+const streetFaces = new Map<string, {face:THREE.MeshBasicMaterial;users:number}>();
 
 /** Small, arrow-free street identification plate, mounted on a façade or its own post. */
 export function streetNamePlate(
   parent: THREE.Object3D,
   plan: {name:string;position:{x:number;z:number};angle:number;width:number;height:number;mount:'wall'|'post'},
 ) {
-  let face=streetFaces.get(plan.name);
+  let face=streetFaces.get(plan.name)?.face;
   if(!face) {
     const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=192;
     const ctx=canvas.getContext('2d')!;
@@ -184,8 +185,9 @@ export function streetNamePlate(
     texture.magFilter=THREE.LinearFilter;texture.anisotropy=4;
     face=new THREE.MeshBasicMaterial({map:texture});
     face.userData.shared=true;
-    streetFaces.set(plan.name,face);
+    streetFaces.set(plan.name,{face,users:0});
   }
+  streetFaces.get(plan.name)!.users++;
   const geometry=new THREE.PlaneGeometry(plan.width,plan.width*192/1024);
   const group=new THREE.Group();group.name=`street-name:${plan.name}`;
   for(const side of plan.mount==='post'?[0,1]:[0]){
@@ -198,3 +200,14 @@ export function streetNamePlate(
   group.position.set(plan.position.x,0,plan.position.z);group.rotation.y=plan.angle;parent.add(group);
   return group;
 }
+
+/** A streamed tile releases its plates when it unloads; the last plate of a name frees its texture
+ * and returns the face so per-world material copies can be dropped too. */
+export function releaseStreetNamePlate(name:string):THREE.MeshBasicMaterial|undefined {
+  const entry=streetFaces.get(name);
+  if(!entry||--entry.users>0)return;
+  streetFaces.delete(name);entry.face.map?.dispose();entry.face.dispose();
+  return entry.face;
+}
+/** Street-name textures currently held. */
+export const streetNameTextures=()=>streetFaces.size;

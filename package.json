@@ -15,6 +15,7 @@
     "desktop:package:win": "npm run desktop:setup && npm run build && node desktop/package.mjs --platform=win32 --arch=x64",
     "desktop:win": "npm run desktop:package:win && node desktop/run-windows.mjs",
     "release:win": "node desktop/release-windows.mjs",
+    "town:check": "node --import tsx tools/town-check.ts",
     "build:region": "python3 tools/build-region.py regions/lower-verona.region.json && node --import tsx tools/tile-district.mjs build/regions/lower-verona.json public/maps/lower-verona build/regions/lower-verona.tiling.json"
   },
   "dependencies": {

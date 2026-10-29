@@ -16,5 +16,7 @@ export class TileMaterials {
   }
   return result;
  }
+ /** Drop this world's copy of a shared material that has been freed. */
+ release(source:Material){const clone=this.clones.get(source);if(clone){clone.dispose();this.clones.delete(source);}}
  dispose(){for(const material of this.clones.values())material.dispose();this.clones.clear();}
 }

@@ -173,6 +173,26 @@ def build(spec,output):
     # Building/road clearance is applied by the polygon preparation step after export.
     omitted=[]
 
+    def edge_distance(p,poly):
+        return min(dist(p,project(p,a,b)) for a,b in zip(poly,poly[1:]+poly[:1]))
+    def approach_clear(q,p,road,size):
+        # The car (a point with a 1.05 m margin) must get from the street into the bay, not only find the
+        # bay empty (#73). Try straight approaches from the street beside the bay, up to 20 m either side,
+        # checked outside what clearance will cut away anyway: the road plus its 1.6 m verge, and the bay
+        # plus 0.5 m. Footprints are still untrimmed here, so this errs strict.
+        a,b=nodes[road['a']],nodes[road['b']];length=dist(a,b);half=road['width']/2+1.6
+        near=[x for x in buildings if abs(x['x']-p['x'])<x['width']/2+60 and abs(x['z']-p['z'])<x['depth']/2+60]
+        def clear(start):
+            steps=max(1,math.ceil(dist(start,p)/.5))
+            for i in range(steps+1):
+                s={'x':start['x']+(p['x']-start['x'])*i/steps,'z':start['z']+(p['z']-start['z'])*i/steps}
+                if dist(s,project(s,a,b))<=half or (abs(s['x']-p['x'])<=size/2+.5 and abs(s['z']-p['z'])<=size/2+.5):continue
+                if any(inside(s,x['points']) or edge_distance(s,x['points'])<=1.05 for x in near):return False
+            return True
+        for shift in [0,5,-5,10,-10,15,-15,20,-20]:
+            start={'x':q['x']+(b['x']-a['x'])/length*shift,'z':q['z']+(b['z']-a['z'])/length*shift}
+            if dist(project(start,a,b),start)<.01 and clear(start):return True
+        return False
     def bay_for(landmark_id,name):
         place=next(p for p in landmarks if p['id']==landmark_id)
         candidates=[]
@@ -185,6 +205,7 @@ def build(spec,output):
                 for size in [14,10,6]:
                     samples=[{'x':p['x']+dx,'z':p['z']+dz} for dx in [-size/2,0,size/2] for dz in [-size/2,0,size/2]]
                     if not within(p) or any(inside(sample,building['points']) for building in buildings for sample in samples):continue
+                    if not approach_clear(q,p,r,size):continue
                     candidates.append((dist(p,place)+abs(offset)*0.1+(14-size),p,r,size))
         if not candidates:raise RuntimeError('No accessible stopping bay for '+landmark_id)
         _,p,r,size=min(candidates,key=lambda item:item[0]);node=min((r['a'],r['b']),key=lambda id:dist(nodes[id],p))
