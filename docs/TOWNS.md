@@ -99,12 +99,15 @@ UTM grid north differs from true north by about 1.4° at Verona and 1.6° at Cer
 and atlas treat negative Z as north, so rotate the frame by the convergence at the regional origin;
 the remaining error is under 0.2° across the region. Record the rotation with the false origin.
 
-Consequences:
-- Cerea's coordinates change once, as its own step after the spec refactor has proved identical
-  output. The outskirts prototype is regenerated with its fictional link placed relative to the entry
-  node and the regional bounds instead of absolute coordinates (R12). **Saves for both Cerea and the
-  outskirts stop loading at that point**, with a message that names the map version (see Saves).
-- Stop, bay and landmark ids are prefixed by town (for example `verona:arena`).
+Consequences (revised 2026-10-29, when the first region was built):
+- **Towns keep their own coordinates.** With the corridor model every town is placed rigidly, so a town
+  only needs its origin in the regional frame: the region builder projects each town's origin with UTM
+  and moves the town's local map there unchanged. This meets the decision's goal (towns can be joined
+  later without reprojecting them) without converting Cerea, its saves or the tests that use its
+  coordinates. Within a town, the local projection and UTM differ by about 0.1–0.2% in scale and under
+  0.2° in direction, a metre or two at a town's edge; corridor nodes inside a town use the town's own
+  projection so the two always agree.
+- Stop, bay and landmark ids are prefixed by town in a region (for example `legnago:comune`).
 
 ## Regions and compression
 
@@ -359,6 +362,17 @@ minutes, so a new town adds one smoke scenario rather than a copy of every scena
    (#33).
 
 1 to 8 are the near-term plan, in milestone "0.11 — Towns pipeline".
+
+## Status (0.11.0-rc.1)
+
+Done: the spec read by the importer (#23 step 1), the registry and selector (#26), the region spike
+(#32), water areas, the footprint fix with map data versions, the five lower-plain towns, the corridor
+compression (#40), a general tiler (#29, rendering), and the first region (#41) with direction boards in
+real kilometres. The licence summary is in [LICENSING.md](LICENSING.md) (#27).
+
+Not done: presets beyond `town` and a size budget check (#24), villages on the corridors (#50), paged
+collision and plate eviction (#51), detail zones (#28), runtime loading of town folders (#33), and the
+Verona core (#25). Gateway routing (#30) is not needed for this region: it routes over one graph.
 
 ## Risks and open questions
 
