@@ -4,10 +4,15 @@ No network is needed. Coordinates preserve local metre scale and north. See docs
 
   python3 tools/import-town.py towns/cerea.town.json [--output path/to/district.json]
 """
-import argparse, json, math, subprocess
+import argparse, json, math, os, subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-PRESETS={'town'}  # 'sketch' and 'full' arrive with #24.
+PRESETS={'sketch','town','full'}
+# Building detail per preset (#24). Every preset keeps every named street; presets change buildings,
+# scenery and plates only. 'town' is the reference (Cerea's map); 'sketch' also merges touching
+# footprints into blocks (prepare-town.mjs) and shows fewer plates and no props at runtime.
+SKETCH_MIN_AREA=40    # m²: sheds, garages and kiosks are left out of a sketch
+SKETCH_TOLERANCE=1.0  # m: outline simplification in a sketch
 
 class SpecError(Exception):pass
 
@@ -22,7 +27,6 @@ def validate(spec):
     need(isinstance(spec.get('dataVersion'),int) and spec['dataVersion']>=1,'"dataVersion" must be a positive integer')
     need(spec.get('stoppingPolicy') in ('anywhere','marked-bays'),'"stoppingPolicy" must be "anywhere" or "marked-bays"')
     need(spec.get('preset') in ('sketch','town','full'),'"preset" must be "sketch", "town" or "full"')
-    need(spec['preset'] in PRESETS,f'preset "{spec["preset"]}" is not implemented yet; use "town"')
     source=spec.get('source',{});need(isinstance(source.get('extract'),str) and isinstance(source.get('label'),str),'"source" needs "extract" and "label"')
     area=spec.get('area',{});origin=area.get('origin',{});bbox=area.get('bbox',{})
     need(all(isinstance(origin.get(k),(int,float)) for k in ('lat','lon')),'"area.origin" needs numeric "lat" and "lon"')
@@ -115,6 +119,22 @@ def build(spec,output):
         return {'x':a['x']+dx*t,'z':a['z']+dz*t}
     def dist(a,b):return math.hypot(a['x']-b['x'],a['z']-b['z'])
 
+    preset=spec['preset']
+    def ring_area(pts):
+        return abs(sum(a['x']*b['z']-b['x']*a['z'] for a,b in zip(pts,pts[1:]+pts[:1])))/2
+    def simplify(pts,tolerance):
+        # Douglas-Peucker on a closed ring, split at the vertex farthest from the first one.
+        def line(run):
+            if len(run)<3:return run
+            far,index=0,0
+            for i in range(1,len(run)-1):
+                d=dist(run[i],project(run[i],run[0],run[-1]))
+                if d>far:far,index=d,i
+            return line(run[:index+1])[:-1]+line(run[index:]) if far>tolerance else [run[0],run[-1]]
+        split=max(range(len(pts)),key=lambda i:dist(pts[0],pts[i]))
+        if split==0:return pts
+        result=line(pts[:split+1])[:-1]+line(pts[split:]+[pts[0]])[:-1]
+        return result if len(result)>=3 and ring_area(result)>0 else pts
     buildings=[];landmarks=[]
     # Confirmed landmarks that are buildings or named sites (ways), and mapped points (nodes).
     landmark_specs={item['osmId']:(item['id'],item['name'],item['road'],item['kind'],item['height']) for item in spec.get('landmarks',[]) if not item.get('point')}
@@ -123,8 +143,11 @@ def build(spec,output):
         if not tags.get('building') or len(geo)<4:continue
         pts=[point(p) for p in geo[:-1]]
         if not all(within(p) for p in pts):continue
+        if preset=='sketch' and e['id'] not in landmark_specs:
+            if ring_area(pts)<SKETCH_MIN_AREA:continue
+            pts=simplify(pts,SKETCH_TOLERANCE)
         footprint=rect(pts)
-        if footprint['width']<2 or footprint['depth']<2:continue
+        if footprint['width']<(1 if preset=='full' else 2) or footprint['depth']<(1 if preset=='full' else 2):continue
         height=7+(e['id']%4)*1.2
         try:height=float(tags.get('height',str(float(tags.get('building:levels','2'))*3.3)).replace(' m',''))
         except ValueError:pass
@@ -283,14 +306,21 @@ def build(spec,output):
     centre={'x':(bounds['minX']+bounds['maxX'])/2,'z':(bounds['minZ']+bounds['maxZ'])/2}
     areas=[{'name':item['name'],'x':item.get('x',centre['x']),'z':item.get('z',centre['z']),'width':bounds['maxX']-bounds['minX'],'depth':bounds['maxZ']-bounds['minZ']} for item in spec.get('areas',[])]
     if village:
-        district={'version':1,'kind':'village','id':spec['id'],'dataVersion':spec['dataVersion'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':[],'landmarks':[],'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
+        district={'version':1,'kind':'village','id':spec['id'],'dataVersion':spec['dataVersion'],**({} if preset=='town' else {'preset':preset}),'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':[],'landmarks':[],'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
     mission=content.get('mission',{})
     if not village:
-     district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
+     district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],**({} if preset=='town' else {'preset':preset}),'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
     output.parent.mkdir(parents=True,exist_ok=True)
-    output.write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')
-    subprocess.run(['node',str(ROOT/'tools/prepare-town.mjs'),str(output)],check=True)
-    prepared=json.loads(output.read_text())
+    # Prepare a temporary file and rename it into place, so a reader (the game, a test, a region build)
+    # never sees a district that has been written but not yet prepared.
+    pending=output.with_name(f'.{output.name}.{os.getpid()}.tmp')
+    try:
+        pending.write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')
+        subprocess.run(['node',str(ROOT/'tools/prepare-town.mjs'),str(pending)],check=True)
+        prepared=json.loads(pending.read_text())
+        os.replace(pending,output)
+    finally:
+        pending.unlink(missing_ok=True)
     print(f'{spec["name"]}:',len(nodes),'road shape/junction nodes,',len(roads),'segments,',len({r['name'] for r in roads}),'streets,',len(prepared['buildings']),'prepared building masses')
 
 REGISTRY=ROOT/'public/maps/towns.json'

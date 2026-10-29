@@ -8,7 +8,8 @@ export interface PropPlan extends Point {kind:'tree'|'lamp'|'car'|'person';angle
 export interface Sightline {position:Point;viewpoint?:Point}
 export function createScenery(context:District){
 const {district,roads,nodeById,isPaved}=context;
-function facadeVariant(x:number,z:number){return Math.abs(Math.floor(x/65)*13+Math.floor(z/65)*7)%4;}
+// Façades vary by 65 m block; a "full" district varies them building by building (#24).
+function facadeVariant(x:number,z:number){return district.preset==='full'?Math.abs(Math.round(x*7+z*13))%4:Math.abs(Math.floor(x/65)*13+Math.floor(z/65)*7)%4;}
 const palette=facades;
 function facadeColor(x:number,z:number){return palette[facadeVariant(x,z)];}
 function paintedFacade(variant:number,ground=false){
@@ -79,6 +80,7 @@ function decorateBuildings(parent:THREE.Group,buildings=district.buildings,surfa
 }
 function planProps(signs:Sightline[]=[]):PropPlan[]{
  const result:PropPlan[]=[];
+ if(district.preset==='sketch')return result; // A sketch has no trees, lamps, parked cars or bystanders.
  for(let i=0;i<roads.length;i+=3){const road=roads[i],a=nodeById(road.a),b=nodeById(road.b),length=Math.hypot(b.x-a.x,b.z-a.z);if(length<14)continue;
   const kind=(['tree','lamp','car','person'] as const)[i%4];
   const radius=kind==='tree'?2.3:kind==='car'?2.3:kind==='lamp'?1:.5;

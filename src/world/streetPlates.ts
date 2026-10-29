@@ -9,7 +9,7 @@ export interface StreetPlatePlan {
 }
 export function createStreetPlates(context:District){
 const {district,nodes,roads,nodeById}=context;
-const {boardPoints}=createSigns(context);
+const {boardPoints,isMajorRoad}=createSigns(context);
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 const linksAt=(id:string)=>context.adjacency.get(id)??[];
 function alignment(angle:number,road:Road):number {
@@ -98,7 +98,10 @@ function armAnchor(junctionId:string,first:Road,setback:number):{point:Point;roa
 function planStreetPlates():{plates:StreetPlatePlan[];missing:PlateCoverage[]} {
   const plates:StreetPlatePlan[]=[],missing:PlateCoverage[]=[];
   const junctions=nodes.filter(node=>new Set(linksAt(node.id).map(road=>road.name)).size>1);
+  // A sketch names major roads only; side streets go unlabelled (#24).
+  const named=(road:Road)=>district.preset!=='sketch'||isMajorRoad(road);
   for(const node of junctions)for(const arm of linksAt(node.id)){
+    if(!named(arm))continue;
     const armId=arm.a===node.id?arm.b:arm.a,coverage={junctionId:node.id,armId,streetName:arm.name};
     const far=nodeById(armId),length=distance(node,far),branch={origin:node,dx:(far.x-node.x)/length,dz:(far.z-node.z)/length};
     const reuse=plates.find(plate=>plate.name===arm.name&&distance(plate.position,node)<17&&((plate.position.x-node.x)*branch.dx+(plate.position.z-node.z)*branch.dz)>=1);
@@ -111,6 +114,7 @@ function planStreetPlates():{plates:StreetPlatePlan[];missing:PlateCoverage[]} {
     if(plan){plan.coverage.push(coverage);plates.push(plan);}else missing.push(coverage);
   }
   for(const road of roads){
+    if(!named(road))continue;
     const a=nodeById(road.a),b=nodeById(road.b),length=distance(a,b);
     for(const t of length>70?[.25,.5,.75]:[.5]){
       const anchor={x:a.x+(b.x-a.x)*t,z:a.z+(b.z-a.z)*t};
