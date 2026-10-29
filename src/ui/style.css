@@ -216,11 +216,6 @@ button:focus-visible {
   gap: 8px;
   align-items: center;
 }
-.hint-header > span:last-child {
-  margin-left: auto;
-  color: #91a09e;
-  font-size: 14px;
-}
 .navigation-message p {
   font: 22px/1.6 "Vice", monospace;
   margin: 8px 0 0;
@@ -301,12 +296,6 @@ kbd {
   width: 260px;
   text-align: right;
   align-self: center;
-}
-.dashboard-right > strong {
-  display: block;
-  font: 28px "Vice", monospace;
-  font-weight: 400;
-  margin-top: 8px;
 }
 .dash-detail {
   display: flex;
@@ -422,6 +411,9 @@ h1 em {
   font-weight: 500;
   margin: 14px 0;
 }
+.briefing-side > .eyebrow + p {
+  margin-top: 14px;
+}
 .briefing-side > p,
 .briefing-tip p {
   font-size: 22px;
@@ -514,10 +506,6 @@ h1 em {
   letter-spacing: 1px;
   margin-top: 8px;
   color: #9eb0a5;
-}
-.result-footnote {
-  font-size: 20px !important;
-  margin-bottom: 24px;
 }
 .fatal {
   padding: 50px;
@@ -629,12 +617,6 @@ h1 em {
   .dashboard-right {
     width: 160px;
   }
-  .dashboard-right > strong {
-    font-size: 22px;
-  }
-  .dashboard-right .eyebrow {
-    font-size: 14px;
-  }
   .dash-detail {
     font-size: 14px;
     gap: 8px;
@@ -648,9 +630,6 @@ h1 em {
   }
   .navigation-message p {
     font-size: 20px;
-  }
-  .hint-header > span:last-child {
-    display: none;
   }
   .interaction {
     bottom: 150px;
@@ -857,7 +836,6 @@ h1 em {
 .atlas-tools > span { min-width:180px;flex:1; }
 .atlas-information-sidebar { padding:0 0 12px;background:transparent; }
 .atlas-information-sidebar p { font-size:20px;line-height:1.6; }
-.atlas-introduction[hidden] { display:none; }
 @media(max-width:760px) {
   .atlas-book.has-information .atlas-content { flex-direction:column; }
   .atlas-book.has-information .atlas-sheet { min-height:200px; }
@@ -885,8 +863,6 @@ h1 em {
 .speed-line > span { font-size: 14px; }
 .stop-state { font-size: 14px; letter-spacing: .5px; }
 .dashboard-right { width: auto; }
-.dashboard-right > .eyebrow { display: none; }
-.dashboard-right > strong { font-size: 22px; margin: 0; }
 .dash-detail { margin-top: 4px; font-size: 14px; flex-direction: row; }
 .interaction { bottom: 73px; }
 .navigation-message { left: auto; right: 22px; bottom: 107px; transform: none; width: min(450px, 44vw); padding: 10px 14px; }
@@ -909,6 +885,7 @@ h1 em {
 .presentation-settings label { display:flex;justify-content:space-between;align-items:center;gap:6px;margin:4px 0; }
 .presentation-settings select { background:#253e3c;color:#fff0ce;border:1px solid #81907a;padding:4px;max-width:145px;font:20px "Vice", monospace; }
 .presentation-settings .controller-selected { outline:2px solid #e7bf74; }
+.presentation-settings .picture-info { font-size:16px;line-height:1.3;color:#d8dcc6;margin:2px 0 8px; }
 
 #performance-stats { position:absolute;z-index:20;left:12px;top:90px;margin:0;padding:8px;background:#142126ed;color:#ead6a9;font:20px/1.5 "Vice", monospace;pointer-events:none; }
 
@@ -996,3 +973,6 @@ h1 { letter-spacing:0; line-height:1.05; }
  .district-tag { max-width:30vw; }
  .binding-table > div { gap:6px; font-size:20px; }
 }
+/* Sound level, mute or blocked audio, and the radio, on the dashboard. */
+.dash-detail.sound-state { margin-top:4px; font-size:12px; letter-spacing:.5px; text-align:right; justify-content:flex-end; }
+.dash-detail.sound-state.unsafe { color:#edaa7c; }

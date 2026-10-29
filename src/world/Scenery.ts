@@ -3,27 +3,28 @@ import * as THREE from 'three';
 import { roadWidth, inRect, pointInPolygon, projectToSegment, type Point } from "./district";
 import { box, material } from './builders';
 import { District } from "./district";
+import { facades, shutters, facadeTrim as trim, props } from './palette';
 export interface PropPlan extends Point {kind:'tree'|'lamp'|'car'|'person';angle:number;}
 export interface Sightline {position:Point;viewpoint?:Point}
 export function createScenery(context:District){
 const {district,roads,nodeById,isPaved}=context;
 function facadeVariant(x:number,z:number){return Math.abs(Math.floor(x/65)*13+Math.floor(z/65)*7)%4;}
-const palette=[0xcdb08c,0xd4bf9b,0xb99988,0xbcc0a0];
+const palette=facades;
 function facadeColor(x:number,z:number){return palette[facadeVariant(x,z)];}
 function paintedFacade(variant:number,ground=false){
   const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
   const c=canvas.getContext('2d')!;
   c.fillStyle='#'+palette[variant].toString(16);c.fillRect(0,0,128,128);
-  c.fillStyle='#a08b72';c.fillRect(0,120,128,8);c.fillRect(0,1,128,3);
+  c.fillStyle=trim.plinth;c.fillRect(0,120,128,8);c.fillRect(0,1,128,3);
   for(const x of [20,82]){
-    c.fillStyle='#e8dac1';c.fillRect(x-3,22,35,64);
-    c.fillStyle='#344d50';c.fillRect(x,25,29,56);
-    c.fillStyle=['#576b50','#516f6c','#79544a','#65705a'][variant];
-    for(const side of [-1,1]){const sx=x+(side<0?-13:29);c.fillRect(sx,23,12,61);c.strokeStyle='#283e38';for(let y=28;y<80;y+=6){c.beginPath();c.moveTo(sx,y);c.lineTo(sx+12,y);c.stroke();}}
-    c.fillStyle='#c7b99b';c.fillRect(x+13,25,2,56);c.fillRect(x,50,29,2);
+    c.fillStyle=trim.frame;c.fillRect(x-3,22,35,64);
+    c.fillStyle=trim.glass;c.fillRect(x,25,29,56);
+    c.fillStyle=shutters[variant];
+    for(const side of [-1,1]){const sx=x+(side<0?-13:29);c.fillRect(sx,23,12,61);c.strokeStyle=trim.slat;for(let y=28;y<80;y+=6){c.beginPath();c.moveTo(sx,y);c.lineTo(sx+12,y);c.stroke();}}
+    c.fillStyle=trim.mullion;c.fillRect(x+13,25,2,56);c.fillRect(x,50,29,2);
   }
   // Every fourth frontage includes a little glazed shop door; never goal-dependent.
-  if(ground&&variant===2){c.fillStyle='#463d35';c.fillRect(42,62,37,66);c.fillStyle='#78918b';c.fillRect(47,68,27,37);c.fillStyle='#e3c584';c.fillRect(68,110,3,3);c.fillStyle='#775a48';c.fillRect(34,54,53,9);}
+  if(ground&&variant===2){c.fillStyle='#463d35';c.fillRect(42,62,37,66);c.fillStyle=trim.doorGlass;c.fillRect(47,68,27,37);c.fillStyle='#e3c584';c.fillRect(68,110,3,3);c.fillStyle='#775a48';c.fillRect(34,54,53,9);}
   const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.colorSpace=THREE.SRGBColorSpace;
   texture.magFilter=THREE.NearestFilter;
   return new THREE.MeshLambertMaterial({map:texture});
@@ -94,9 +95,9 @@ function planProps(signs:Sightline[]=[]):PropPlan[]{
 function dressStreets(parent:THREE.Group,signs:Sightline[]=[],planned=planProps(signs)){
  for(const p of planned){
   const group=new THREE.Group();group.position.set(p.x,0,p.z);group.rotation.y=p.angle;parent.add(group);
-  if(p.kind==='tree'){box(group,0,1.5,0,.35,3,.35,0x685744);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(2,0),material(0x687b48));crown.position.y=3.4;group.add(crown);}
-  if(p.kind==='lamp'){box(group,0,2.7,0,.16,5.4,.16,0x455856);box(group,.4,5.4,0,1.2,.15,.4,0xd3c8a5);}
-  if(p.kind==='car'){box(group,0,.65,0,3.8,.8,1.65,0x8d6953);box(group,0,1.25,0,2,.6,1.5,0x698785);for(const x of [-1.2,1.2])for(const z of [-.8,.8])box(group,x,.35,z,.6,.6,.2,0x293537);}
+  if(p.kind==='tree'){box(group,0,1.5,0,.35,3,.35,props.trunk);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(2,0),material(props.crown));crown.position.y=3.4;group.add(crown);}
+  if(p.kind==='lamp'){box(group,0,2.7,0,.16,5.4,.16,props.post);box(group,.4,5.4,0,1.2,.15,.4,props.lampHead);}
+  if(p.kind==='car'){box(group,0,.65,0,3.8,.8,1.65,props.carBody);box(group,0,1.25,0,2,.6,1.5,props.carGlass);for(const x of [-1.2,1.2])for(const z of [-.8,.8])box(group,x,.35,z,.6,.6,.2,props.tyre);}
   if(p.kind==='person')group.add(createPerson(`${p.x}/${p.z}`));
  }
 }

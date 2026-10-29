@@ -17,6 +17,7 @@ export interface Actions {
   clearMarker: boolean;
   information: boolean;
   requestFares: boolean;
+  radioNext: boolean;
   refreshFares: boolean;
   shiftGear: boolean;
   lookX: number;
@@ -84,6 +85,8 @@ export class Input {
   private queuedInformation = false;
   private previousRequestFares = false;
   private queuedRequestFares = false;
+  private previousRadioNext = false;
+  private queuedRadioNext = false;
   private previousRefreshFares = false;
   private queuedRefreshFares = false;
   private previousClearMarker = false;
@@ -106,6 +109,7 @@ export class Input {
           this.queuedPause = true;
         if (matches("information",["KeyF"])) this.queuedInformation = true;
         if (this.context==='driving'&&this.bindings.requestFares.keys.includes(event.code)) this.queuedRequestFares = true;
+        if (this.context==='driving'&&this.bindings.radioNext.keys.includes(event.code)) this.queuedRadioNext = true;
         if (this.context==='menu'&&event.code==='KeyN') this.queuedRefreshFares = true;
         if (matches("shiftGear",["KeyR"])) this.queuedShiftGear = true;
         if (matches("resetLook",["KeyC","Home"])) this.queuedResetLook = true;
@@ -138,6 +142,7 @@ export class Input {
       this.queuedClearMarker = false;
       this.queuedInformation = false;
       this.queuedRequestFares = false;
+      this.queuedRadioNext = false;
       this.queuedRefreshFares = false;
       this.queuedResetLook = false;
       this.queuedShiftGear = false;
@@ -172,7 +177,7 @@ export class Input {
     this.controllerDisconnected = this.hadController && !pad;
     this.hadController = Boolean(pad);
     this.controllerStatus = pad
-      ? "Controller connected · Left stick: steer · RT: accelerate · A / Cross: confirm · View / Select: information."
+      ? "Controller connected."
       : this.gamepadBlocked
         ? "Controller access restricted. Open in a new browser tab or use the desktop app."
         : pads.some((p) => p?.connected)
@@ -203,6 +208,7 @@ export class Input {
     const information = active('information',['KeyF'],8);
     // Raw states ignore context, so a press held while a screen changes is never a new edge.
     const requestFares = boundDown('requestFares')||boundButton('requestFares')>.5;
+    const radioNext = boundDown('radioNext')||boundButton('radioNext')>.5;
     const refreshFares = down('KeyN')||button(3)>.5;
     this.menuHeld=down('Enter','Backspace','KeyN','ArrowUp','ArrowDown','KeyW','KeyS')||[0,1,3,12,13].some(i=>button(i)>.5)||Math.abs(pad?.axes[1]??0)>.5;
     const shiftGear = active('shiftGear',['KeyR'],1);
@@ -229,6 +235,7 @@ export class Input {
       clearMarker: this.queuedClearMarker || (clearMarker && !this.previousClearMarker),
       information: this.queuedInformation || (information && !this.previousInformation),
       requestFares: this.context==='driving'&&(this.queuedRequestFares || (requestFares && !this.previousRequestFares)),
+      radioNext: this.context==='driving'&&(this.queuedRadioNext || (radioNext && !this.previousRadioNext)),
       refreshFares: this.context==='menu'&&(this.queuedRefreshFares || (refreshFares && !this.previousRefreshFares)),
       shiftGear: this.queuedShiftGear || (shiftGear && !this.previousShiftGear),
       lookX: deadzone(pad?.axes[2] ?? 0),
@@ -251,6 +258,8 @@ export class Input {
     this.queuedInformation = false;
     this.previousRequestFares = requestFares;
     this.queuedRequestFares = false;
+    this.previousRadioNext = radioNext;
+    this.queuedRadioNext = false;
     this.previousRefreshFares = refreshFares;
     this.queuedRefreshFares = false;
     this.previousClearMarker = clearMarker;

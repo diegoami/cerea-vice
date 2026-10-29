@@ -23,12 +23,12 @@ interface Harness {
  screen:Screen;car:InstanceType<typeof Car>;parking:InstanceType<typeof Parking>;mission:InstanceType<typeof Mission>;waitForDrivingRelease:boolean;
  frame(time:number):void;pause():void;requestInformation():void;
 }
-const idle:Actions={steer:0,throttle:0,brake:0,handbrake:false,glance:0,interact:false,pause:false,reminder:false,atlas:false,back:false,declineOffer:false,requestFares:false,refreshFares:false,atlasPage:0,atlasMoveX:0,atlasMoveY:0,clearMarker:false,information:false,shiftGear:false,lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false,atlasZoom:0,atlasZoomStep:0,atlasPanX:0,atlasPanY:0};
+const idle:Actions={steer:0,throttle:0,brake:0,handbrake:false,glance:0,interact:false,pause:false,reminder:false,atlas:false,back:false,declineOffer:false,requestFares:false,radioNext:false,refreshFares:false,atlasPage:0,atlasMoveX:0,atlasMoveY:0,clearMarker:false,information:false,shiftGear:false,lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false,atlasZoom:0,atlasZoomStep:0,atlasPanX:0,atlasPanY:0};
 function harness(data:unknown=contextHarbor){
  if(data!==contextHarbor){context=new District(data);({Game}=createGame(context));({Car}=createCar(context));({Parking}=createParking(context));({Mission}=createMission(context));}
  else if(context.district.id!=='harbor'){context=new District(contextHarbor);({Game}=createGame(context));({Car}=createCar(context));({Parking}=createParking(context));({Mission}=createMission(context));}
  Object.defineProperty(globalThis,'document',{configurable:true,value:{pointerLockElement:null}});
- let actions={...idle},markers=0,estimates=0,clock=1000;
+ let actions={...idle},markers=0,estimates=0,clock=1000,radioSkips=0;
  const game=Object.create(Game.prototype) as Harness;
  const noop=()=>{};
  Object.assign(game,{
@@ -37,13 +37,13 @@ function harness(data:unknown=contextHarbor){
   districtSwitchReady:false,ignorePauseUntil:0,missionRevision:-1,waitForDrivingRelease:false,
   input:{bindings:structuredClone(defaultBindings),settingsInput:{move:0,confirm:false,keyboardConfirm:false},poll:()=>({...actions}),controllerDisconnected:false,setMouseCaptured:noop,menuHeld:false,drivingReleased:true},
   retro:{render:noop},renderer:{domElement:{focus:noop},render:noop},world:{frame:new LocalFrame({x:0,z:0}),updateFrame:noop,collisionIndex:[],colliders:[],updateDaylight:noop},
-  cockpit:{update:noop,camera:{}},interior:{update:noop,renderMirrors:noop,setPassenger:noop},sound:{update:noop,unlock:noop},motion:new BodyMotion(),
+  cockpit:{update:noop,camera:{}},interior:{update:noop,renderMirrors:noop,setPassenger:noop},sound:{update:noop,unlock:noop,state:'running'},radio:{update:noop,next:()=>radioSkips++,playable:true,summary:'1/2 Test'},motion:new BodyMotion(),
   settings:{...defaults},settingsPanel:{update:()=>false},
   hud:{setHint:noop,confirmAtlasPosition:()=>markers++,setAtlasInformation:noop,show:noop,update:noop,setTaxiMessage:noop,
-   turnAtlasPage:noop,controlAtlasView:noop,moveAtlasCursor:noop,placeAtlasMarker:()=>estimates++,removeAtlasMarker:noop,refresh:noop,setFareSelection:noop,remindMission:noop},
+   turnAtlasPage:noop,controlAtlasView:noop,moveAtlasCursor:noop,placeAtlasMarker:()=>estimates++,removeAtlasMarker:noop,refresh:noop,setFareSelection:noop,remindMission:noop,setSound:noop},
  });
  game.parking.update(1,game.car,0);
- return {game,step:(next:Partial<Actions>={},dt=100)=>{actions={...idle,...next};clock+=dt;game.frame(clock);},markers:()=>markers,estimates:()=>estimates};
+ return {game,step:(next:Partial<Actions>={},dt=100)=>{actions={...idle,...next};clock+=dt;game.frame(clock);},markers:()=>markers,estimates:()=>estimates,radioSkips:()=>radioSkips};
 }
 test('Game atlas and pause freeze actual mission time and return without a gear change',()=>{
  const h=harness();h.step();assert.ok(h.game.mission.elapsed>0);
@@ -125,4 +125,14 @@ test('Game holds the taxi while the passenger walks over, then releases it',()=>
  h.step({interact:true});assert.ok(h.game.mission.boarding>0);
  for(let i=0;i<20;i++)h.step({throttle:1,shiftGear:true});assert.equal(h.game.car.speed,0);assert.equal(h.game.car.gear,'D');
  for(let i=0;i<60;i++)h.step();assert.equal(h.game.mission.boarding,0);h.step({throttle:1});h.step({throttle:1});assert.ok(h.game.car.speed>0);
+});
+test('Radio next track works only while driving with the folder radio on, and never touches the atlas or clock',()=>{
+ const h=harness(),game=h.game as Harness&{settings:typeof defaults};
+ h.step();h.step({radioNext:true});assert.equal(h.radioSkips(),0,'Radio off: nothing changes');
+ game.settings.radio=true;h.step({radioNext:true});assert.equal(h.radioSkips(),0,'The built-in tune has no track list');
+ game.settings.radioSource='folder';h.step({radioNext:true});assert.equal(h.radioSkips(),1);
+ h.step({atlas:true});assert.equal(h.game.screen,'atlas');const elapsed=h.game.mission.elapsed;
+ h.step({radioNext:true});assert.equal(h.game.mission.elapsed,elapsed);h.step({back:true});h.game.pause();h.step({radioNext:true});
+ assert.equal(h.radioSkips(),1,'Atlas and pause ignore the driving radio control');
+ assert.equal(h.markers(),0);assert.equal(h.estimates(),0);
 });

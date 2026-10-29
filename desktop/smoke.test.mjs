@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { _electron } from 'playwright-core';
@@ -11,6 +11,34 @@ const settled=page=>page.waitForFunction(()=>/STOP/.test(document.querySelector(
 async function requestFares(page,key='o'){await settled(page);await page.keyboard.press(key);await page.locator('.fare-board').waitFor();await frames(page);}
 async function takeFare(page,index=0){await requestFares(page);await page.locator('[data-fare-offer]').nth(index).click();await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});}
 const listed=page=>page.locator('[data-fare-offer]').allInnerTexts();
+/** Supported window sizes, from the desktop minimum to full HD. */
+const windowSizes=[[960,640],[1280,900],[1440,900],[1920,1080]];
+/** Visible HUD text that leaves the window or is cut off inside its own box. The compass strip scrolls by design;
+ * screen-reader-only text (a 1 px clipped box, such as the picture-mode announcement) is hidden by design. */
+const clippedText=page=>page.evaluate(()=>{
+  const bad=[];
+  for(const el of document.querySelectorAll('#hud *')){
+    if(el.closest('[hidden],svg,.compass-window'))continue;
+    if(![...el.childNodes].some(n=>n.nodeType===3&&n.textContent.trim()))continue;
+    const style=getComputedStyle(el),r=el.getBoundingClientRect();
+    if(style.display==='none'||style.visibility==='hidden'||!r.width||!r.height)continue;
+    if(r.width<=1&&r.height<=1&&style.overflow==='hidden')continue;
+    const name=`${el.tagName.toLowerCase()}${el.id?'#'+el.id:''}${el.className&&typeof el.className==='string'?'.'+el.className.trim().split(/\s+/).join('.'):''} “${el.textContent.trim().slice(0,40)}”`;
+    if(r.left<-1||r.right>innerWidth+1)bad.push(`${name} leaves the window`);
+    if(style.overflowX!=='visible'&&el.scrollWidth>el.clientWidth+1)bad.push(`${name} is clipped`);
+  }
+  return bad;
+});
+/** Resize through every supported window size, asserting no clipped text, with screenshots at both ends. */
+async function checkTextFit(app,page,label){
+  for(const [width,height] of windowSizes){
+    await app.evaluate(({BrowserWindow},{width,height})=>BrowserWindow.getAllWindows()[0].setContentSize(width,height),{width,height});
+    await page.waitForFunction(({width,height})=>innerWidth===width&&innerHeight===height,{width,height});await frames(page);
+    assert.deepEqual(await clippedText(page),[],`${label} text fits at ${width}x${height}`);
+    if(width===960||width===1920)await page.screenshot({path:`test-results/text-fit-${label}-${width}x${height}.png`});
+  }
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1440,900));
+}
 
 test('startup during held scenery loading withholds prices until the complete collection quote is ready', {timeout:90000},async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-startup-quote-'));
@@ -195,6 +223,8 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     await button(9,1); // Start button can begin the drive without a keyboard.
     await button(9,0);
     await page.waitForFunction(() => document.querySelector('#overlay').hidden);
+    // No click or key yet: the desktop shell still lets the engine sound start.
+    await page.waitForFunction(() => /^SOUND 75% · RADIO OFF$/.test(document.querySelector('#sound-state').textContent));
     await page.waitForFunction(() => document.querySelector('#stop-state').textContent === 'P · LEGAL STOP');
     assert.equal(await page.locator('#gear').innerText(),'D');
     await button(1,1);
@@ -367,14 +397,14 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
     await seedDispatch(page);
     await page.getByRole('button',{name:'Cerea Centro',exact:true,pressed:true}).waitFor();
-    await page.getByRole('heading',{name:'Drive a taxi in Cerea.'}).waitFor();
+    await page.getByRole('heading',{name:/Taxi shift/}).waitFor();
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
     assert.equal(await page.locator('[data-key=resolution]').inputValue(),'retro-fine');
     await page.getByRole('button',{name:'Start the engine'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
-    assert.equal(await page.locator('.car-badge').innerText(),'CEREA / 1986');
+    assert.equal(await page.locator('.car-badge').count(),0,'No decorative badge in the HUD');
     assert.match(await page.locator('#objective-stage').innerText(),/FREE DRIVING/);assert.equal(await page.locator('.fare-board').count(),0);
     await page.keyboard.press('Enter');await page.waitForFunction(()=>/No passenger booked.*O to see available fares/.test(document.querySelector('#hint').textContent));
     assert.match(await page.locator('#prompt').innerText(),/O\s*Request fares/);
@@ -386,7 +416,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     assert.match(await page.locator('#timer').innerText(),/^07:/);
     await page.keyboard.press('Enter');
     await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
-    assert.match(await page.locator('#hint').innerText(),/Elena has seen the taxi/);
+    assert.match(await page.locator('#hint').innerText(),/Elena is getting in/);
     await page.waitForTimeout(900);
     await page.evaluate(()=>{window.arrivalPad={connected:true,mapping:'standard',axes:[0,0,1,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.arrivalPad],configurable:true});});
     await page.waitForTimeout(750);await page.screenshot({path:'test-results/passenger-arriving.png'});
@@ -516,9 +546,42 @@ test('taxi shift ends at 17:00 with an earnings summary and can restart', {timeo
     await page.getByRole('heading',{name:'You earned €0.00.'}).waitFor();
     assert.equal(await page.locator('#timer').innerText(),'17:00');
     await page.screenshot({path:'test-results/taxi-shift-results.png'});
+    await checkTextFit(electronApp,page,'shift-results');
     await page.getByRole('button',{name:'Start another shift'}).click();
     await page.waitForFunction(()=>document.querySelector('#overlay').hidden);
   }finally{await electronApp.close();await rm(profile,{recursive:true,force:true});}
+});
+
+test('shortened text fits every window size and picture mode, with accented street names', {timeout:180000}, async()=>{
+  const profile=await mkdtemp(path.join(tmpdir(),'cerea-text-fit-test-'));
+  const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+  try{
+    const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await seedDispatch(page);await mkdir('test-results',{recursive:true});
+    await page.getByRole('button',{name:'Start the engine'}).waitFor();
+    for(const mode of ['retro-fine','sharp','retro']){
+      await page.locator('[data-key=resolution]').selectOption(mode);
+      await checkTextFit(app,page,`briefing-${mode}`);
+    }
+    await page.getByRole('button',{name:'Start the engine'}).click();
+    await requestFares(page);
+    await checkTextFit(app,page,'fare-list');
+    await page.keyboard.press('Backspace');await page.locator('#overlay').waitFor({state:'hidden'});
+    // A long passenger request with accented Italian names in the radio panel (the objective line is redrawn every frame).
+    await page.evaluate(()=>{document.querySelector('#hint').textContent='Elena boarded: “Please take me to San Zeno in Santa Maria Assunta, Via Fabrizio de Andrè.”';});
+    await checkTextFit(app,page,'hud-notice');
+    await settled(page);await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+    await checkTextFit(app,page,'atlas-map');
+    await page.keyboard.press('e');await page.locator('.atlas-index').waitFor();
+    await checkTextFit(app,page,'atlas-index');
+    await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+    await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+    for(const mode of ['retro-fine','sharp','retro']){
+      await page.locator('[data-key=resolution]').selectOption(mode);
+      await checkTextFit(app,page,`pause-${mode}`);
+    }
+    assert.deepEqual(errors,[]);
+  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
 
 test('presentation modes preserve sharp UI, mirrors and controller settings without resuming', {timeout:90000}, async()=>{
@@ -575,6 +638,90 @@ test('presentation modes preserve sharp UI, mirrors and controller settings with
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
 
+
+/** The internal size Settings.renderSize should give for this window (Sharp 1920 wide; High 3840×2160; ratio 2). */
+const expectedPicture=page=>page.evaluate(()=>{
+ const mode=document.querySelector('[data-key=resolution]').value,w=innerWidth,h=innerHeight,r=devicePixelRatio;
+ const scale=mode==='sharp'?Math.min(r,2,1920/w):mode==='high'?Math.min(r,2,3840/w,2160/h):Math.min(1,(mode==='retro'?270:540)/h);
+ const canvas=document.querySelector('#viewport'),box=canvas.getBoundingClientRect();
+ return {mode,expected:[Math.round(w*scale),Math.round(h*scale)],buffer:[canvas.width,canvas.height],css:[box.width,box.height],window:[w,h],ratio:r,info:document.querySelector('.picture-info').textContent,
+  hudFont:getComputedStyle(document.querySelector('#timer')).fontSize,pixelated:canvas.classList.contains('pixel-picture')};
+});
+test('picture quality is labelled, saved, keyboard/controller selectable and follows HiDPI and fullscreen', {timeout:120000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-picture-quality-'));
+ const launch=()=>_electron.launch({args:[path.resolve('.'),'--force-device-scale-factor=2',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ let app=await launch();
+ try{
+  let page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.deepEqual(await page.locator('[data-key=resolution] option').allInnerTexts(),['Retro 270p','Retro 540p','Sharp','High (to 4K)']);
+  let state=await expectedPicture(page);
+  assert.equal(state.mode,'retro-fine','A fresh profile never starts in a costly mode');assert.equal(state.ratio,2);
+  assert.deepEqual(state.buffer,state.expected);assert.match(state.info,/^Default\..*Drawing \d+×540 for a \d+×\d+ window\.$/);
+  const font=state.hudFont,css=state.css;
+  // Keyboard: Tab from the scenery choice, then an arrow key, as the panel advertises.
+  await page.locator('[data-key=detail]').focus();await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(()=>document.activeElement.dataset.key),'resolution');
+  await page.keyboard.press('ArrowDown');await page.waitForFunction(()=>document.querySelector('[data-key=resolution]').value==='sharp');
+  state=await expectedPicture(page);assert.deepEqual(state.buffer,state.expected);assert.ok(state.buffer[0]>state.window[0],'Sharp uses the HiDPI ratio');
+  assert.match(state.info,new RegExp(`street plates\\. Drawing ${state.buffer[0]}×${state.buffer[1]} for a ${state.window[0]*2}×${state.window[1]*2} window`));
+  await page.locator('[data-key=resolution]').blur();
+  // Controller: D-pad to the Picture row, A cycles to High.
+  await page.evaluate(()=>{window.qualityPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};
+   Object.defineProperty(navigator,'getGamepads',{value:()=>[window.qualityPad],configurable:true});});
+  for(const key of ['detail','resolution']){
+   await page.evaluate(()=>{window.qualityPad.buttons[13].value=1;});
+   await page.waitForFunction(key=>document.querySelector(`[data-key=${key}]`).classList.contains('controller-selected'),key);
+   await page.evaluate(()=>{window.qualityPad.buttons[13].value=0;});await frames(page);
+  }
+  await page.evaluate(()=>{window.qualityPad.buttons[0].value=1;});
+  await page.waitForFunction(()=>document.querySelector('[data-key=resolution]').value==='high');
+  await page.evaluate(()=>{window.qualityPad.buttons[0].value=0;});await frames(page);
+  assert.equal(await page.getByRole('button',{name:'Start the engine'}).isVisible(),true,'Changing quality does not start the shift');
+  state=await expectedPicture(page);assert.deepEqual(state.buffer,state.expected);assert.match(state.info,/Most demanding/);
+  assert.ok(state.buffer[0]>=state.window[0]*2||state.buffer[0]===3840||state.buffer[1]===2160,'High draws every device pixel up to its cap');
+  for(const mode of ['retro','retro-fine','sharp','high']){
+   await page.locator('[data-key=resolution]').selectOption(mode);state=await expectedPicture(page);
+   assert.deepEqual(state.buffer,state.expected,mode);assert.deepEqual(state.css,css,`${mode} keeps the display-size canvas`);assert.equal(state.hudFont,font,`${mode} keeps HUD text at display resolution`);
+   assert.equal(state.pixelated,mode.startsWith('retro'));
+   assert.ok(Math.abs(state.buffer[0]/state.buffer[1]-state.window[0]/state.window[1])<.01,`${mode} keeps the aspect ratio`);
+  }
+  // Same knowledge and controls in every mode: an estimate placed in High stays put in Retro.
+  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>document.querySelector('#atlas-marker-status')?.textContent.includes('Your estimated position'));
+  const pin=await page.locator('.atlas-pin').getAttribute('transform');
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  await page.locator('[data-key=resolution]').selectOption('retro');await page.locator('[data-key=resolution]').selectOption('high');
+  await page.keyboard.press('Enter');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),pin,'Picture quality never moves the atlas marker');
+  await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
+  // Fullscreen and back recompute the picture for the new window.
+  for(const full of [true,false]){
+   await app.evaluate(async({BrowserWindow},full)=>{const win=BrowserWindow.getAllWindows()[0];if(win.isFullScreen()===full)return;
+    await new Promise(resolve=>{win.once(full?'enter-full-screen':'leave-full-screen',resolve);win.setFullScreen(full);});},full);
+   // The window manager may deliver the final size after the fullscreen event, and the game redraws on its resize
+   // event. Wait until the window and the picture agree and stay agreeing across polls, then assert on that state.
+   const agree=state=>state.mode==='high'&&JSON.stringify(state.buffer)===JSON.stringify(state.expected);
+   const deadline=Date.now()+15000;let streak=0;
+   while(Date.now()<deadline&&streak<3){state=await expectedPicture(page);streak=agree(state)?streak+1:0;await page.waitForTimeout(300);}
+   assert.deepEqual(state.buffer,state.expected,`fullscreen ${full}`);
+  }
+  // Resizing redraws the size line silently; only the mode change was announced.
+  assert.equal(await page.locator('.picture-info').getAttribute('role'),null);
+  assert.match(await page.locator('.picture-announce').innerText(),/High|4K|resolution|sharp/i);
+  assert.deepEqual(errors,[]);
+  await app.close();
+  // The explicit choice is saved; relaunching keeps it rather than silently changing it.
+  app=await launch();page=await app.firstWindow();
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  state=await expectedPicture(page);assert.equal(state.mode,'high');assert.deepEqual(state.buffer,state.expected);
+  await page.screenshot({path:'test-results/picture-quality-high-hidpi.png'});
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
 
 test('restricted storage and keyboard settings preserve startup and resume controls', {timeout:90000}, async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-settings-regression-'));
@@ -736,4 +883,83 @@ test('a hung local tile request times out into backoff and recovers without adva
   await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();assert.match(await page.locator('#atlas-marker-status').innerText(),/Starting position/);
   assert.deepEqual(errors,[]);
  }finally{release();await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
+/** A tiny generated tone, written at test time only; no music is stored in the repository. */
+function toneWav(seconds=1,rate=8000){
+ const samples=Math.round(seconds*rate),data=Buffer.alloc(44+samples*2);
+ data.write('RIFF',0);data.writeUInt32LE(36+samples*2,4);data.write('WAVEfmt ',8);data.writeUInt32LE(16,16);data.writeUInt16LE(1,20);data.writeUInt16LE(1,22);
+ data.writeUInt32LE(rate,24);data.writeUInt32LE(rate*2,28);data.writeUInt16LE(2,32);data.writeUInt16LE(16,34);data.write('data',36);data.writeUInt32LE(samples*2,40);
+ for(let i=0;i<samples;i++)data.writeInt16LE(Math.round(Math.sin(i/rate*2*Math.PI*440)*3000),44+i*2);
+ return data;
+}
+test('the radio plays a chosen local folder, skips a broken track, survives a relaunch and explains a missing folder', {timeout:120000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-radio-profile-'));
+ const music=await mkdtemp(path.join(tmpdir(),'cerea-radio-music-'));
+ const folder=path.basename(music);
+ await writeFile(path.join(music,'01 Tone.wav'),toneWav());
+ await writeFile(path.join(music,'02 Broken.mp3'),Buffer.from('this is not audio'));
+ await writeFile(path.join(music,'notes.txt'),'ignored');
+ const launch=()=>_electron.launch({args:[path.resolve('.'),'--district=harbor',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ // Record the radio's media element without changing how it plays.
+ const watch=page=>page.evaluate(()=>{const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){window.radioPlayer=this;return play.call(this);};});
+ const status=page=>page.locator('.radio-status').innerText();
+ let app=await launch();const errors=[];
+ try{
+  let page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.deepEqual(await page.evaluate(()=>Object.keys(window.cereaMusic).sort()),['chooseFolder','library'],'Only the two radio calls cross the bridge');
+  assert.equal(await page.evaluate(()=>typeof process+typeof require),'undefinedundefined');
+  assert.equal(await page.locator('#sound-state').innerText(),'SOUND 75% · RADIO OFF');
+  assert.match(await status(page),/No music folder chosen/);
+  assert.match(await page.locator('.control-table').innerText(),/Radio: next track \(music folder\)\s+D-pad right\s+V/);
+  // The native dialog is the only way to pick a folder; stand in for the player's choice.
+  await app.evaluate(({dialog},dir)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[dir]});},music);
+  await page.getByRole('button',{name:'Choose music folder…'}).click();
+  await page.locator('.radio-status').filter({hasText:'2 tracks, 1 other file ignored'}).waitFor();
+  assert.equal(await page.locator('[data-key=radio]').inputValue(),'true');assert.equal(await page.locator('[data-key=radioSource]').inputValue(),'folder');
+  // Regression: cancelling the dialog must not rescan and strand the ids the player already holds.
+  await app.evaluate(({dialog})=>{dialog.showOpenDialog=async()=>({canceled:true,filePaths:[]});});
+  await page.getByRole('button',{name:'Choose music folder…'}).click();
+  await page.locator('.radio-status').filter({hasText:'Kept'}).waitFor();
+  // Ids are the only handle: a path or traversal request is refused.
+  const refused=await page.evaluate(async()=>Promise.all(['cerea-music://track/../../etc/passwd','cerea-music://track/00000000-0000-4000-8000-000000000000','cerea-music://file/etc/passwd'].map(src=>new Promise(resolve=>{const a=new Audio();a.onerror=()=>resolve(true);a.oncanplay=()=>resolve(false);a.src=src;}))));
+  assert.deepEqual(refused,[true,true,true]);
+  await watch(page);
+  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.waitForFunction(()=>window.radioPlayer&&!window.radioPlayer.paused&&window.radioPlayer.currentTime>0);
+  assert.match(await page.evaluate(()=>window.radioPlayer.src),/^cerea-music:\/\/track\/[0-9a-f-]{36}$/);
+  assert.match(await page.locator('#sound-state').innerText(),/^SOUND 75% · RADIO 1\/2 01 Tone$/);
+  const clock=await page.locator('#timer').innerText();
+  await page.keyboard.press('v'); // Next track: the broken file is skipped with a message, back to the tone.
+  await page.locator('.radio-status').filter({hasText:'Skipped “02 Broken”'}).waitFor({state:'attached'});
+  await page.waitForFunction(()=>/RADIO 1\/2 01 Tone/.test(document.querySelector('#sound-state').textContent)&&!window.radioPlayer.paused);
+  assert.doesNotMatch(await page.locator('#hint').innerText(),/Tone|Broken|Radio/,'Track changes never replace a road message');
+  await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  await page.waitForFunction(()=>window.radioPlayer.paused);
+  const paused=await page.locator('#timer').innerText();await page.waitForTimeout(600);
+  assert.equal(await page.locator('#timer').innerText(),paused,'Pause still freezes the clock');
+  await page.locator('[data-key=volume]').selectOption('0');
+  await page.getByRole('button',{name:'Back to the road'}).click();await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(()=>window.radioPlayer.paused),true,'Mute silences the music too');
+  assert.match(await page.locator('#sound-state').innerText(),/^SOUND MUTED/);
+  await page.keyboard.press('p');await page.locator('[data-key=volume]').selectOption('0.5');
+  await app.close();
+  // Relaunch: the folder choice and sound settings return from the profile.
+  app=await launch();page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
+  await page.locator('.radio-status').filter({hasText:'2 tracks'}).waitFor();
+  assert.equal(await page.locator('[data-key=volume]').inputValue(),'0.5');assert.equal(await page.locator('[data-key=radioSource]').inputValue(),'folder');
+  assert.match(await page.locator('#sound-state').innerText(),/^SOUND 50% · RADIO 1\/2 01 Tone$/);
+  await app.close();
+  // An unavailable folder (moved or unplugged) is explained, and the built-in tune stands in.
+  await rm(music,{recursive:true,force:true});
+  app=await launch();page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
+  await page.locator('.radio-status').filter({hasText:'is not available'}).waitFor();
+  assert.match(await status(page),new RegExp(`“${folder}” is not available`));
+  assert.match(await page.locator('#sound-state').innerText(),/RADIO TUNE$/);
+  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  assert.equal(await page.locator('.fatal').count(),0);
+  assert.deepEqual(errors,[]);
+ }catch(error){const page=await app.firstWindow();await page.screenshot({path:'test-results/radio-failure.png'});console.log(await page.locator('body').innerText());throw error;}
+ finally{await app.close().catch(()=>{});await rm(profile,{recursive:true,force:true});await rm(music,{recursive:true,force:true});}
 });

@@ -67,7 +67,7 @@ Roads without an explicit `width` use the same 8 m carriageway width for renderi
 ## Presentation details
 
 Neighbourhood façade colours derive deterministically from local 65 m areas,
-not the mission. Detailed scenery paints repeating shutters/windows and
+not the mission; the shared palette is `src/world/palette.ts`. Detailed scenery paints repeating shutters/windows and
 street-level shop doors locally. Roof facets use each clipped footprint's
 triangulation, including courtyards; no overhang changes road clearance.
 These are economical interpretations rather than surveyed architectural details.

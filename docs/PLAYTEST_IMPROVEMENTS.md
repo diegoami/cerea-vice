@@ -172,3 +172,13 @@ Validation on 28 October 2026 for 0.9.0-rc.1 (Node 24, WSL):
   `test-results/`.
 - Not run: Windows packaging/launch, a physical controller, and a Windows
   close/relaunch gameplay check; these remain owner checks.
+
+## 0.10 follow-up: less prose (#19)
+
+On-screen text was audited and trimmed to what is needed to play: controls
+with the active bindings, fares and pay, names, the clock and earnings,
+passenger requests, rules and necessary state or error messages. Taglines,
+flavour lines, repeated pay and clock sentences and explanations already given
+by a button or footer were removed. The record, with every surface, its
+decision and the open owner decisions, is [the text audit](TEXT_AUDIT.md).
+Map data text is unchanged so that existing saves still load.

@@ -24,7 +24,7 @@ const idle: Actions = {
   reminder: false,
   atlas: false,
   back: false,
-  declineOffer: false, requestFares: false, refreshFares: false,
+  declineOffer: false, requestFares: false, radioNext: false, refreshFares: false,
   atlasPage: 0,
   atlasMoveX: 0,
   atlasMoveY: 0,

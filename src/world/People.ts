@@ -11,7 +11,7 @@ import {BOARDING_SECONDS,DEPARTURE_SECONDS} from '../mission/Mission';
 /** Faceted, clothed people with a face and bent limbs; no external assets. */
 export function createPerson(identity:string,seated=false){
   let hash=0;for(const c of identity)hash=(Math.imul(hash,31)+c.charCodeAt(0))>>>0;
-  const shirt=[0x5f8193,0xa26754,0x73815d,0x9c875a][hash%4];
+  const shirt=[0x5f8193,0xa26754,0x7f6a8a,0x9c875a][hash%4];
   const skin=[0xd1ab88,0xb78562,0x98694c][hash%3];
   const hair=[0x473b32,0x756148,0x312f2d][hash%3];
   const group=new THREE.Group();group.name=seated?'Seated passenger':'Waiting person';

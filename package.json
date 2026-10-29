@@ -1,13 +1,13 @@
 {
   "name": "cerea-vice",
   "private": true,
-  "version": "0.9.0-rc.1",
+  "version": "0.10.0-rc.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --import tsx --test tests/*.test.ts desktop/assets.test.mjs",
+    "test": "node --import tsx --test tests/*.test.ts desktop/assets.test.mjs desktop/music.test.mjs",
     "desktop:setup": "install-electron",
     "desktop": "npm run desktop:setup && npm run build && electron .",
     "desktop:package": "npm run desktop:setup && npm run build && node desktop/package.mjs",

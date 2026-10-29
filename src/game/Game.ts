@@ -1,6 +1,7 @@
 import { StreamingWorld } from "../world/streaming/StreamingWorld";
-import { SettingsPanel, readSettings, renderSize } from "../presentation/Settings";
-import { Sound } from "../presentation/Sound";
+import { SettingsPanel, readSettings, renderSize, isRetro } from "../presentation/Settings";
+import { Sound, musicGain } from "../presentation/Sound";
+import { Radio } from "../presentation/Radio";
 import { BodyMotion } from "../presentation/Motion";
 import { Retro } from "../presentation/Retro";
 import { availableDistricts, selectDistrict } from "../world/load";
@@ -31,6 +32,7 @@ class Game {
   private readonly timingPanel=context.profile.enabled?document.createElement("pre"):undefined;
   private timingRefresh=0;
   private readonly sound = new Sound();
+  private readonly radio = new Radio();
   private readonly motion = new BodyMotion();
   private readonly settings = readSettings();
   private settingsPanel!: SettingsPanel;
@@ -79,8 +81,18 @@ class Game {
     if(this.timingPanel){this.timingPanel.id="performance-stats";this.timingPanel.setAttribute("aria-label","CPU profiling timings");root.append(this.timingPanel);}
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation(),(choice,id)=>this.chooseFare(choice,id));
     this.hud.setBindings(this.input.bindings);
-    this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);});
+    let heardVolume=this.settings.volume;
+    this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);
+      // Changing the volume plays a short check tone, even on the paused screens.
+      if(this.settings.volume!==heardVolume){heardVolume=this.settings.volume;this.sound.preview(heardVolume);}});
     this.controlsPanel=new ControlsPanel(this.input.bindings,()=>this.hud.setBindings(this.input.bindings));
+    // Radio actions sit with the sound options; choosing a folder is a deliberate native dialog.
+    this.settingsPanel.addAction('Choose music folder…',()=>{if(!this.radio.available){this.radio.onChange();return;}void this.radio.choose().then(()=>{if(this.radio.playable)this.settingsPanel.apply({radio:true,radioSource:'folder'});});});
+    this.settingsPanel.addAction('Previous track',()=>this.radio.previous());
+    const radioStatus=document.createElement('p');radioStatus.setAttribute('role','status');radioStatus.className='save-status radio-status';
+    this.settingsPanel.addAction('Next track',()=>this.radio.next()).after(radioStatus);
+    this.radio.onChange=()=>{radioStatus.textContent=this.radio.message;};this.radio.onChange();
+    void this.radio.load();
     this.settingsPanel.addAction('Change controls',()=>this.controlsPanel.open());
     this.saveButton=this.settingsPanel.addAction('Save shift',()=>this.save());
     this.settingsPanel.addAction('Continue saved shift',()=>this.load());
@@ -103,6 +115,7 @@ class Game {
     window.addEventListener("pagehide",()=>{this.sound.dispose();if(this.world instanceof StreamingWorld)this.world.dispose();},{once:true});
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    this.watchPixelRatio();
     window.addEventListener("blur", () => this.pause());
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) this.pause();
@@ -121,11 +134,20 @@ class Game {
   private resize() {
     const width = window.innerWidth,
       height = window.innerHeight;
-    const size=renderSize(width,height,this.settings.resolution,window.devicePixelRatio||1);
+    const ratio=window.devicePixelRatio||1,gl=this.renderer.getContext();
+    const limit=Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),this.renderer.capabilities.maxTextureSize,...gl.getParameter(gl.MAX_VIEWPORT_DIMS));
+    const size=renderSize(width,height,this.settings.resolution,ratio,limit);
     this.renderer.setSize(size.width,size.height,false);
-    this.renderer.domElement.classList.toggle('pixel-picture',this.settings.resolution!=='sharp');
+    this.renderer.domElement.classList.toggle('pixel-picture',isRetro(this.settings.resolution));
+    // Report what the browser actually allocated, which can be less than requested.
+    this.settingsPanel.showPicture(gl.drawingBufferWidth,gl.drawingBufferHeight,Math.round(width*ratio),Math.round(height*ratio));
     this.cockpit.camera.aspect = width / height;
     this.cockpit.camera.updateProjectionMatrix();
+  }
+
+  /** Moving between displays can change the pixel ratio without a window resize. */
+  private watchPixelRatio(){
+    matchMedia(`(resolution: ${window.devicePixelRatio||1}dppx)`).addEventListener("change",()=>{this.resize();this.watchPixelRatio();},{once:true});
   }
 
   private pause() {
@@ -175,7 +197,7 @@ class Game {
     const key=bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller');
     if(!this.mission.taxiMode||this.mission.finished)return;
     if(this.mission.hasRide){this.hud.setHint(`You already have a fare: ${this.mission.objective}`);return;}
-    if(!this.parking.stopped||this.car.speed!==0){this.hud.setHint(`Come to a complete stop before requesting fares. Hold the handbrake, then press ${key}.`);return;}
+    if(!this.parking.stopped||this.car.speed!==0){this.hud.setHint(`Come to a complete stop before requesting fares, then press ${key}.`);return;}
     if(!worldReady){this.hud.setHint(`Scenery is still loading. Request fares (${key}) once it is ready.`);return;}
     if(!this.mission.requestFares(this.car))return;
     if(this.mission.fareBoard[0]?.id===0)try{const first=this.mission.fareBoard[0];localStorage.setItem(`cerea-last-opening-${district.id}`,`${first.pickupId}/${first.destinationId}`);}catch{/* Optional variety only. */}
@@ -194,10 +216,9 @@ class Game {
 
   private chooseFare(choice:FareChoice,id=this.fareSelection){
     if(this.screen!=='fares')return;
-    const key=bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller');
     if(choice==='select'){if(this.mission.fareBoard.some(o=>o.id===id)){this.fareSelection=id;this.hud.setFareSelection(id);}return;}
     if(choice==='refresh'){this.mission.refreshFares(this.car);this.fareSelection=this.mission.fareBoard[0]?.id??-1;this.hud.setFareSelection(this.fareSelection);this.hud.refresh();return;}
-    if(choice==='close'){this.closeFareBoard(`Fare list closed; nothing accepted. It stays available while you drive: stop and press ${key} to read it again.`);return;}
+    if(choice==='close'){this.closeFareBoard('Fare list closed; nothing accepted.');return;}
     if(this.mission.acceptFare(id))this.closeFareBoard(this.mission.notice);
   }
 
@@ -226,7 +247,7 @@ class Game {
         car:{x,z,heading,speed,gear,steering,collisions},unsafeStops:this.parking.unsafeStops,mission:this.mission.snapshot(),atlas:this.hud.saveAtlas()};
       decodeSave(context,JSON.stringify(value));
       localStorage.setItem(saveKey(context),JSON.stringify(value));
-      this.saveStatus.textContent=`Saved ${this.mission.clockText}. Continue saved shift restores this district. Starting a new shift keeps the save until you explicitly save again.`;
+      this.saveStatus.textContent=`Saved ${this.mission.clockText}. A new shift keeps this save until you save again.`;
     }catch{this.saveStatus.textContent='Save failed. Storage is unavailable or full; the previous save has been kept.';}
   }
 
@@ -240,19 +261,27 @@ class Game {
       this.hud.restoreAtlas(value.atlas);this.world.updateFrame(this.car);
       this.cockpit.reset();this.motion.reset();this.cockpit.update(1,this.car,0);
       this.hasStarted=true;this.screen='paused';this.accumulator=0;this.waitForDrivingRelease=true;this.releaseMouseLook();
-      this.saveStatus.textContent=`Loaded ${this.mission.clockText}. Paused; resume when ready.`;
+      this.saveStatus.textContent=`Loaded ${this.mission.clockText}. Paused.`;
     }catch{this.saveStatus.textContent='Could not load this save: it is unavailable, damaged or belongs to an older map. Your current shift and stored save have been kept.';}
+  }
+
+  /** Dashboard sound state: level or mute, whether the platform is blocking audio, and the radio. */
+  private soundStatus(folderRadio:boolean){
+    const state=this.sound.state,volume=this.settings.volume;
+    const sound=state==='unavailable'?'SOUND UNAVAILABLE':volume===0?'SOUND MUTED':state==='waiting'?'SOUND BLOCKED · CLICK OR PRESS A KEY':`SOUND ${Math.round(volume*100)}%`;
+    const radio=!this.settings.radio?'RADIO OFF':folderRadio&&this.radio.playable?`RADIO ${this.radio.summary}`:'RADIO TUNE';
+    return {text:`${sound} · ${radio}`,warn:state==='waiting'||state==='unavailable'};
   }
 
   private requestInformation() {
     if (this.screen !== "running" && this.screen !== "atlas") return;
     if (this.mission.recordDirectionRequest(this.parking.stopped, this.parking.legal)) {
       const target=this.mission.target;
-      const message = target ? directionHint(this.car, this.car.heading, target) : `${locationHint(this.car, this.car.heading)} No fare booked: stop and request fares when you want a destination.`;
+      const message = target ? directionHint(this.car, this.car.heading, target) : `${locationHint(this.car, this.car.heading)} No fare booked.`;
       this.hud.setHint(message);
       this.hud.confirmAtlasPosition(this.car, this.parking.zone);
       this.hud.setAtlasInformation(message);
-    } else this.hud.setHint("Come to a complete stop first. Hold the handbrake, then ask again.");
+    } else this.hud.setHint("Come to a complete stop first, then ask again.");
   }
 
   private frame(time: number) {
@@ -269,7 +298,7 @@ class Game {
     if(this.settingsPanel.update(!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
     this.saveButton.disabled=!this.hasStarted||this.mission.finished;
     if(this.screen==='running'&&this.waitForDrivingRelease&&this.input.drivingReleased===false){
-      actions.interact=false;actions.information=false;actions.atlas=false;actions.reminder=false;actions.requestFares=false;actions.shiftGear=false;actions.glance=0;actions.resetLook=false;
+      actions.interact=false;actions.information=false;actions.atlas=false;actions.reminder=false;actions.requestFares=false;actions.radioNext=false;actions.shiftGear=false;actions.glance=0;actions.resetLook=false;
     }
     if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
@@ -283,7 +312,7 @@ class Game {
       this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
     }
     if (this.screen === "running" && !this.input.controllerDisconnected && !this.waitForDrivingRelease && actions.shiftGear) {
-      if (this.mission.boarding>0) this.hud.setHint(`${this.mission.passenger} is getting in. Wait until they are seated before moving.`);
+      if (this.mission.boarding>0) this.hud.setHint(`${this.mission.passenger} is getting in. Stay stopped.`);
       else if (this.parking.stopped && actions.throttle < .1 && this.car.shiftGear())
         this.hud.setHint(`${this.car.gear === "R" ? "Reverse" : "Forward"} selected. ${bindingLabel(this.input.bindings,'throttle',this.input.device==='Controller')} accelerates; ${bindingLabel(this.input.bindings,'brake',this.input.device==='Controller')} brakes.`);
       else this.hud.setHint(`Stop fully and release the accelerator before switching forward / reverse (${bindingLabel(this.input.bindings,'shiftGear',this.input.device==='Controller')}).`);
@@ -317,6 +346,8 @@ class Game {
       }
       if (actions.information) this.requestInformation();
       if (actions.requestFares && this.screen === "running") this.requestFares(readyForFares);
+      // Track changes show on the dashboard only, so they never replace an information message.
+      if (actions.radioNext && this.screen === "running" && this.settings.radio && this.settings.radioSource==='folder') this.radio.next();
       if (actions.reminder && this.screen === "running") {
         this.hud.remindMission(this.mission);
       }
@@ -326,7 +357,7 @@ class Game {
           this.accumulator = 0;
           this.releaseMouseLook();
         } else {
-          this.hud.setHint(`Come to a complete stop before opening the atlas. Hold the handbrake, then press ${bindingLabel(this.input.bindings,'atlas',this.input.device==='Controller')}.`);
+          this.hud.setHint(`Come to a complete stop before opening the atlas, then press ${bindingLabel(this.input.bindings,'atlas',this.input.device==='Controller')}.`);
         }
       }
     }
@@ -372,15 +403,20 @@ class Game {
       this.input.gamepadBlocked,
       this.input.controllerStatus,
     );
-    this.sound.update(dt,this.screen==='running',this.car.speed,this.car.gear,this.car.steering,this.settings);
+    const running=this.screen==='running',held=!running||this.waitForDrivingRelease||this.mission.boarding>0;
+    const pedals=held?{throttle:0,brake:0,handbrake:false}:actions;
+    const folderRadio=this.settings.radio&&this.settings.radioSource==='folder';
+    this.sound.update(dt,running,this.car,pedals,this.settings,folderRadio&&!this.radio.playable);
+    this.radio.update(running&&folderRadio,musicGain(this.settings,pedals.throttle));
+    this.hud.setSound(this.soundStatus(folderRadio));
     if(this.screen==='running')this.motion.update(dt,this.car.speed,this.car.steering,this.settings.motion);
     this.people.update(this.mission,this.world.frame,this.car);
     this.interior.setPassenger(this.mission.seatedIdentity);
     this.interior.update({...this.car,...this.world.frame.toLocal(this.car)},this.motion.roll,this.motion.pitch,this.motion.wobble);
     const renderStart=context.profile.start();
     this.interior.renderMirrors(this.renderer,this.world.scene,dt);
-    if(this.settings.resolution==='sharp')this.renderer.render(this.world.scene, this.cockpit.camera);
-    else this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
+    if(isRetro(this.settings.resolution))this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
+    else this.renderer.render(this.world.scene, this.cockpit.camera);
     context.profile.end("render",renderStart);
     if(this.timingPanel&&time>=this.timingRefresh){this.timingRefresh=time+500;this.timingPanel.textContent=context.profile.text()+(this.world instanceof StreamingWorld?`\ntiles: ${this.world.stream.resident.size} resident · ${this.world.stream.stats.loads} loads / ${this.world.stream.stats.unloads} unloads`:"");}
   }
