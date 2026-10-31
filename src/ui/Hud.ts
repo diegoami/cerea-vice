@@ -9,6 +9,7 @@ import { type Point } from "../world/district";
 import { createNavigation } from "../navigation/Navigation";
 import { District } from "../world/district";
 import type {AtlasSnapshot} from '../navigation/AtlasNotes';
+import type {AtlasSheet} from '../navigation/AtlasSheets';
 import {bindingLabel,defaultBindings,type Bindings} from '../input/Bindings';
 export type Screen = "briefing" | "running" | "paused" | "result" | "atlas" | "fares";
 export type FareChoice = "select" | "accept" | "refresh" | "close";
@@ -16,7 +17,7 @@ export function createHud(context:District,towns:readonly Pick<TownEntry,"id"|"n
 const {district,areaAt}=context;
 const {AtlasView}=createAtlasView(context);
 const {AtlasNotes}=createAtlasNotes(context);
-const {atlasFrame,atlasStreetEntries,atlasReference,atlasMarkup}=createAtlas(context);
+const {atlasFrame,atlasStreetEntries,atlasReference,atlasMarkup,sheets,sheetAt,setAtlasSheet}=createAtlas(context);
 const {bearing,compass,nearestRoad}=createNavigation(context);
 const escapeHtml=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const formatMoney=(cents:number)=>`€${(cents/100).toFixed(2)}`;
@@ -30,6 +31,7 @@ class Hud {
   private overlay: HTMLElement;
   private atlasInformation = "";
   private readonly atlasView = new AtlasView();
+  private atlasSheet:AtlasSheet|undefined;
   private selectedStreet = "";
   private indexStreet = -1;
   private indexSelectDelay = 0;
@@ -54,7 +56,7 @@ class Hud {
   setSound({text,warn}:{text:string;warn:boolean}){if(text===this.soundText)return;this.soundText=text;const element=document.querySelector<HTMLElement>('#sound-state');if(element){element.textContent=text;element.classList.toggle('unsafe',warn);}}
   setBindings(bindings:Bindings){this.bindings=bindings;this.currentScreen=undefined;}
   saveAtlas(){return this.atlasNotes.snapshot();}
-  restoreAtlas(value:AtlasSnapshot){this.atlasNotes.restore(value);this.atlasInformation='';this.atlasView.reset();this.currentScreen=undefined;}
+  restoreAtlas(value:AtlasSnapshot){this.atlasNotes.restore(value);this.atlasInformation='';this.atlasSheet=undefined;setAtlasSheet();this.atlasView.setSheet();this.currentScreen=undefined;}
 
   constructor(root: HTMLElement, onAction: () => void, onInformation: () => void, private onFare:(choice:FareChoice,id?:number)=>void=()=>{}) {
     const ui = document.createElement("div");
@@ -100,12 +102,14 @@ class Hud {
         const matrix = map.getScreenCTM();
         if (!matrix) return;
         const point = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse());
+        if(sheets.length&&!this.atlasSheet){this.openAtlasSheet(sheetAt({x:point.x,z:point.y})?.id);return;}
         const frame=atlasFrame();
         if (point.x < frame.minX || point.x > frame.minX+frame.span || point.y < frame.minZ || point.y > frame.minZ+frame.span) return;
         this.atlasNotes.pointAt({ x: point.x, z: point.y });
         this.placeAtlasMarker();
         return;
       }
+      if(button.dataset.atlasSheet){this.openAtlasSheet(button.dataset.atlasSheet);return;}
       if(button.dataset.atlasZoom) {this.zoomAtlas(Math.pow(1.5,Number(button.dataset.atlasZoom)));return;}
       // Keyboard and controller reach the fare list through Input; ignore synthetic Enter/Space clicks.
       if((button.dataset.fareOffer||button.dataset.fare)&&e.detail===0)return;
@@ -175,6 +179,25 @@ class Hud {
     }
     for(const label of map.querySelectorAll<SVGTextElement>('[data-map-label="place"]')){label.style.fontSize=`${(pixels+1)/scale}px`;label.style.strokeWidth=`${2/scale}px`;}
     for(const label of map.querySelectorAll<SVGTextElement>('[data-map-label="parking"]'))label.style.fontSize=`${(pixels+2)/scale}px`;
+    for(const label of map.querySelectorAll<SVGTextElement>('[data-map-label="town"]')){label.style.fontSize=`${14/scale}px`;label.style.strokeWidth=`${3/scale}px`;}
+    for(const label of map.querySelectorAll<SVGTextElement>('[data-map-label="quadrant"]'))label.style.fontSize=`${10/scale}px`;
+    if(sheets.length&&this.atlasSheet){
+      // Reserve paper space for selected streets and landmarks first. A lookup always reveals its name.
+      const labels=[...map.querySelectorAll<SVGTextElement>('[data-street], [data-map-label]')];
+      const priority=(label:SVGTextElement)=>label.dataset.street===this.selectedStreet?0:label.dataset.mapLabel==='place'?1:label.dataset.street?2:3;
+      labels.sort((a,b)=>priority(a)-priority(b));
+      const occupied:DOMRect[]=[],viewport=map.getBoundingClientRect(),frame=atlasFrame();
+      const matrix=map.getScreenCTM()!;
+      const topLeft=new DOMPoint(frame.minX,frame.minZ).matrixTransform(matrix),bottomRight=new DOMPoint(frame.minX+frame.span,frame.minZ+frame.span).matrixTransform(matrix);
+      const paper={left:Math.max(viewport.left,topLeft.x),right:Math.min(viewport.right,bottomRight.x),top:Math.max(viewport.top,topLeft.y),bottom:Math.min(viewport.bottom,bottomRight.y)};
+      for(const label of labels)label.style.display='';
+      for(const label of labels){
+        const box=label.getBoundingClientRect();
+        const visible=box.width>0&&box.left>=paper.left+3&&box.right<=paper.right-3&&box.top>=paper.top+3&&box.bottom<=paper.bottom-3;
+        const collides=occupied.some(other=>box.left<other.right+4&&box.right>other.left-4&&box.top<other.bottom+3&&box.bottom>other.top-3);
+        if(!visible||(collides&&priority(label)!==0))label.style.display='none';else occupied.push(box);
+      }
+    }
     const pin=map.querySelector<SVGGElement>(".atlas-pin"),cursor=map.querySelector<SVGGElement>(".atlas-cursor");
     pin?.querySelector('circle')?.setAttribute('r',`${5/scale}`);
     pin?.querySelector('path')?.setAttribute('d',`M ${-3/scale} ${-3/scale} L ${3/scale} ${3/scale} M ${-3/scale} ${3/scale} L ${3/scale} ${-3/scale}`);
@@ -191,10 +214,17 @@ class Hud {
     if(this.currentScreen!=="atlas"||this.atlasPage!=="map")return;
     this.atlasView.zoomAt(factor,anchor??this.atlasView.centre);this.updateAtlasView();
   }
-  private resetAtlasView(){this.atlasView.reset();this.updateAtlasView();}
-  private focusAtlasStreet(name:string){
-    const street=atlasStreetEntries().find(street=>street.name===name);if(!street)return;
-    this.selectedStreet=name;this.indexStreet=atlasStreetEntries().findIndex(street=>street.name===name);
+  private resetAtlasView(){if(sheets.length)this.openAtlasSheet();else {this.atlasView.reset();this.updateAtlasView();}}
+  private openAtlasSheet(id?:string){
+    this.atlasSheet=sheets.find(sheet=>sheet.id===id);setAtlasSheet(this.atlasSheet?.id);
+    this.atlasView.setSheet(this.atlasSheet);this.atlasDrag=undefined;this.suppressAtlasClick=false;
+    this.atlasPage='map';this.overlay.innerHTML=atlasMarkup('map');this.updateAtlasNotes();
+    this.overlay.querySelector<HTMLButtonElement>('[data-atlas-page="map"]')?.focus({preventScroll:true});
+  }
+  private focusAtlasStreet(key:string){
+    const street=atlasStreetEntries().find(street=>street.key===key);if(!street)return;
+    this.selectedStreet=key;this.indexStreet=atlasStreetEntries().findIndex(street=>street.key===key);
+    if(sheets.length)this.openAtlasSheet(street.sheet);
     this.atlasNotes.pointAt(street);this.atlasView.focus(street,5);
     if(this.atlasPage!=="map")this.setAtlasPage("map");else this.updateAtlasView();
   }
@@ -207,13 +237,13 @@ class Hud {
         const entries=atlasStreetEntries();this.indexStreet=this.indexStreet<0?0:Math.max(0,Math.min(entries.length-1,this.indexStreet+direction));
         this.indexSelectDelay=.18;
         for(const button of this.overlay.querySelectorAll<HTMLButtonElement>('[data-atlas-street]')){
-          const selected=button.dataset.atlasStreet===entries[this.indexStreet].name;button.setAttribute('aria-pressed',String(selected));
+          const selected=button.dataset.atlasStreet===entries[this.indexStreet].key;button.setAttribute('aria-pressed',String(selected));
           if(selected){button.focus();button.scrollIntoView({block:'nearest'});}
         }
       }
       this.indexSelectDirection=direction;return;
     }
-    if(overview)this.atlasView.reset();
+    if(overview){this.resetAtlasView();return;}
     else {
       if(step)this.atlasView.zoomAt(Math.pow(1.5,step));
       if(Math.abs(zoom)>.08)this.atlasView.zoomAt(Math.exp(zoom*dt*1.25));
@@ -273,25 +303,34 @@ class Hud {
 
   resetAtlasNotes() {
     this.atlasNotes.reset();
-    this.atlasView.reset();this.selectedStreet="";this.indexStreet=-1;
+    this.atlasSheet=undefined;setAtlasSheet();this.atlasView.setSheet();this.selectedStreet="";this.indexStreet=-1;
     this.atlasInformation = "";
   }
 
   confirmAtlasPosition(position: Point, parkingName?: string) {
     const label = parkingName ?? `${nearestRoad(position).edge.name}, ${areaAt(position)}`;
     this.atlasNotes.confirm(position, label);
+    if(sheets.length){
+      const sheet=sheetAt(position);
+      if(sheet?.id!==this.atlasSheet?.id){
+        this.atlasSheet=sheet;setAtlasSheet(sheet?.id);this.atlasView.setSheet(sheet);
+        if(this.currentScreen==='atlas'&&this.atlasPage==='map')this.overlay.innerHTML=atlasMarkup('map');
+      }
+    }
     this.atlasView.ensureVisible(position);
   }
 
   moveAtlasCursor(dt: number, x: number, z: number) {
     if(this.currentScreen!=="atlas")return;
     if(this.atlasPage==="index") { const index=this.overlay.querySelector<HTMLElement>(".atlas-index");if(index)index.scrollTop+=z*dt*300;return; }
-    if(this.atlasNotes.move(dt/this.atlasView.zoom,x,z)){this.atlasView.ensureVisible(this.atlasNotes.cursor);this.updateAtlasNotes();}
+    const pageScale=this.atlasView.base.width/this.atlasView.overview.width;
+    if(this.atlasNotes.move(dt*pageScale/this.atlasView.zoom,x,z)){this.atlasView.ensureVisible(this.atlasNotes.cursor);this.updateAtlasNotes();}
   }
 
   placeAtlasMarker() {
-    if(this.currentScreen==="atlas"&&this.atlasPage==="index"&&this.indexStreet>=0){this.focusAtlasStreet(atlasStreetEntries()[this.indexStreet].name);return;}
+    if(this.currentScreen==="atlas"&&this.atlasPage==="index"&&this.indexStreet>=0){this.focusAtlasStreet(atlasStreetEntries()[this.indexStreet].key);return;}
     if (this.currentScreen !== "atlas" || this.atlasPage !== "map") return;
+    if(sheets.length&&!this.atlasSheet){this.openAtlasSheet(sheetAt(this.atlasNotes.cursor)?.id);return;}
     this.atlasNotes.place();
     this.updateAtlasNotes();
   }
@@ -303,6 +342,12 @@ class Hud {
   }
 
   turnAtlasPage(direction: number) {
+    if(sheets.length){
+      const current=this.atlasPage==='index'?sheets.length+1:this.atlasSheet?sheets.indexOf(this.atlasSheet)+1:0;
+      const next=(current+Math.sign(direction)+sheets.length+2)%(sheets.length+2);
+      if(next===sheets.length+1)this.setAtlasPage('index');else this.openAtlasSheet(sheets[next-1]?.id);
+      return;
+    }
     this.setAtlasPage(direction < 0 ? "map" : "index");
   }
 

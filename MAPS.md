@@ -22,6 +22,20 @@ The atlas supports 1×–8× zoom, panning, pointer-centred wheel zoom and a ful
 
 Map controls: RT / LT or + / − zoom, right stick / I J K L / mouse drag pan, R3 / Home restores overview. In the index, right stick up/down or I / K selects a street and A / Enter locates it. Mouse users click the indexed name. Left stick retains crosshair/index-scrolling control. Zooming and dragging never move the position marker, and reading keeps taxi time paused.
 
+Large districts, including the Lower Veronese plain, use a book of local quadrants.
+The regional overview shows towns and page boundaries without street-name clutter.
+Click a quadrant, or move the crosshair and press A / Enter, to open its detail page.
+Each page covers 1.2 km square, with 200 m overlapping its neighbours, and has a
+local A–D / 1–4 grid like the original Cerea atlas. North / south / east / west
+links lead to adjacent pages; LB / RB or Q / E turn through the quadrants and index.
+R3 / Home returns to the regional overview. The 1×–8× zoom applies to each local
+page, so it can reach street detail independently of the region's total size.
+The index gives page and local-grid references, distinguishes the same street
+name on different pages, and opens the chosen page when a street is located.
+Overlapping labels are suppressed on detail pages; a street lookup highlights
+the selected name. Turning pages, opening a quadrant and looking up a street
+never update the position marker. Information remains available on every page.
+
 ## Files and loading
 
 - `public/maps/cerea.json`: generated Cerea district, bundled into the Windows build.
