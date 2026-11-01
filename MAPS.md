@@ -22,10 +22,15 @@ The atlas supports 1×–8× zoom, panning, pointer-centred wheel zoom and a ful
 
 Map controls: RT / LT or + / − zoom, right stick / I J K L / mouse drag pan, R3 / Home restores overview. In the index, right stick up/down or I / K selects a street and A / Enter locates it. Mouse users click the indexed name. Left stick retains crosshair/index-scrolling control. Zooming and dragging never move the position marker, and reading keeps taxi time paused.
 
-Large districts, including the Lower Veronese plain, use a book of local quadrants.
+Large or dense districts use a book of local quadrants. The Lower Veronese plain
+keeps fixed 1.2 km pages; compact but dense towns such as Verona centro receive
+smaller, unequal pages chosen by street density, so no page carries more street
+labels than the busiest accepted regional page. Sparse small towns keep their
+single printed sheet.
 The regional overview shows towns and page boundaries without street-name clutter.
 Click a quadrant, or move the crosshair and press A / Enter, to open its detail page.
-Each page covers 1.2 km square, with 200 m overlapping its neighbours, and has a
+Regional pages cover 1.2 km square with 200 m of overlap; Verona's density-chosen
+pages overlap their neighbours by 100 m. Each page has a
 local A–D / 1–4 grid like the original Cerea atlas. North / south / east / west
 links lead to adjacent pages; LB / RB or Q / E turn through the quadrants and index.
 R3 / Home returns to the regional overview. The 1×–8× zoom applies to each local

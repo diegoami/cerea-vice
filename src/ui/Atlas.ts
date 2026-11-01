@@ -5,7 +5,7 @@ import { createAtlasSheets, type AtlasSheet } from '../navigation/AtlasSheets';
 export type AtlasPage = "map" | "index";
 export function createAtlas(context:District){
 const {district,areaAt,landmarks,nodeById,parkingZones,roads}=context;
-const {sheets,sheetAt,neighbour,stride}=createAtlasSheets(context);
+const {sheets,sheetAt,neighbour}=createAtlasSheets(context);
 let activeSheet:AtlasSheet|undefined;
 const setAtlasSheet=(id?:string)=>{activeSheet=sheets.find(sheet=>sheet.id===id);};
 function atlasFrame(sheet=activeSheet) {
@@ -74,7 +74,7 @@ function mapSvg() {
     ${areas}${buildings}${features}${overview?'':`<g class="atlas-grid">${grid}</g>`}
     <g fill="none" stroke="#8b8e76" stroke-linecap="round">${edges}</g><g fill="none" stroke="#f9f2df" stroke-linecap="round">${paths}</g>
     ${overview?'':bays+places}<g class="atlas-road-label">${labels}</g>
-    ${overview?`<g class="atlas-quadrants">${sheets.map(sheet=>`<g data-atlas-sheet="${sheet.id}"><rect x="${sheet.minX+100}" y="${sheet.minZ+100}" width="${stride}" height="${stride}"/><text data-map-label="quadrant" x="${sheet.minX+150}" y="${sheet.minZ+250}">${sheet.id}</text></g>`).join('')}</g><g class="atlas-town-labels">${district.areas.map(area=>`<text data-map-label="town" x="${area.x}" y="${area.z}">${xml(area.name)}</text>`).join('')}</g>`:''}
+    ${overview?`<g class="atlas-quadrants">${sheets.map(sheet=>`<g data-atlas-sheet="${sheet.id}"><rect x="${sheet.minX+sheet.overlap/2}" y="${sheet.minZ+sheet.overlap/2}" width="${sheet.span-sheet.overlap}" height="${sheet.span-sheet.overlap}"/><text data-map-label="quadrant" x="${sheet.minX+sheet.overlap/2+50}" y="${sheet.minZ+sheet.overlap/2+150}">${sheet.id}</text></g>`).join('')}</g><g class="atlas-town-labels">${district.areas.map(area=>`<text data-map-label="town" x="${area.x}" y="${area.z}">${xml(area.name)}</text>`).join('')}</g>`:''}
     </g>
     ${overview?'':`<g class="atlas-grid-label" style="font-size:${5*u}px">${["A","B","C","D"].map((letter,i)=>`<text x="${minX+(i+0.5)*span/4}" y="${minZ-5*u}">${letter}</text>`).join("")}${[1,2,3,4].map((row,i)=>`<text x="${minX-7*u}" y="${minZ+(i+0.5)*span/4}">${row}</text>`).join("")}</g>`}
     <g clip-path="url(#atlas-paper-clip)"><g class="atlas-pin" style="display:none" role="img" aria-label="Your marker"><circle r="${3.2*u}"/><path d="M ${-2*u} ${-2*u} L ${2*u} ${2*u} M ${-2*u} ${2*u} L ${2*u} ${-2*u}"/></g>
