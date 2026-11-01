@@ -12,7 +12,7 @@ const stage = await mkdtemp(path.join(root, '.desktop-stage', 'app-'));
 try {
   await cp(path.join(root, 'dist'), path.join(stage, 'dist'), { recursive: true });
   await mkdir(path.join(stage, 'desktop'));
-  for (const file of ['main.mjs', 'assets.mjs', 'music.mjs', 'preload.cjs']) {
+  for (const file of ['main.mjs', 'assets.mjs', 'districts.mjs', 'music.mjs', 'preload.cjs']) {
     await cp(path.join(root, 'desktop', file), path.join(stage, 'desktop', file));
   }
   await writeFile(path.join(stage, 'package.json'), JSON.stringify({

@@ -1005,6 +1005,51 @@ test('the lower Veronese plain region streams, starts and drives offline across 
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
 
+test('regional atlas has readable connected quadrants without moving knowledge or advancing time', {timeout:120000},async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-atlas-quadrants-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=lower-verona',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.keyboard.press('t');await page.locator('.atlas-quadrants').waitFor();
+  const clock=await page.locator('#timer').innerText(),marker=await page.locator('.atlas-pin').getAttribute('transform');
+  assert.equal(await page.locator('[data-street]').count(),0,'Overview carries towns and page references, not all street names');
+  await page.screenshot({path:'test-results/region-atlas-overview.png'});
+  await page.evaluate(()=>{window.atlasPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.atlasPad],configurable:true});});
+  const press=async index=>{await page.evaluate(index=>window.atlasPad.buttons[index].value=1,index);await frames(page);await page.evaluate(index=>window.atlasPad.buttons[index].value=0,index);await frames(page);};
+  await press(0);await page.locator('.atlas-sheet-navigation strong').filter({hasText:/Cerea/}).waitFor();
+  const initial=await page.locator('.atlas-sheet-navigation strong').innerText();
+  assert.ok(await page.locator('[data-street]').count()>0);
+  assert.ok(await page.locator('[data-street]').count()<150,'Only local street names are on the detail sheet');
+  assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),marker,'Opening a quadrant is not marker placement');
+  await press(5);assert.notEqual(await page.locator('.atlas-sheet-navigation strong').innerText(),initial,'RB turns a detail page');
+  await press(4);assert.equal(await page.locator('.atlas-sheet-navigation strong').innerText(),initial,'LB returns to the same page');
+  const east=await page.locator('button[data-atlas-sheet]').filter({hasText:/East/}).getAttribute('data-atlas-sheet');
+  await page.locator('button[data-atlas-sheet]').filter({hasText:/East/}).click();
+  assert.ok((await page.locator('.atlas-sheet-navigation strong').innerText()).startsWith(east+' ·'));
+  await page.locator('button[data-atlas-sheet]').filter({hasText:/West/}).click();
+  assert.equal(await page.locator('.atlas-sheet-navigation strong').innerText(),initial);
+  await checkTextFit(app,page,'region-quadrant');
+  const labels=await page.locator('.atlas-map').evaluate(map=>[...map.querySelectorAll('[data-street], [data-map-label="place"], [data-map-label="parking"]')].filter(label=>getComputedStyle(label).display!=='none').map(label=>{const r=label.getBoundingClientRect();return {name:label.textContent,left:r.left,right:r.right,top:r.top,bottom:r.bottom};}));
+  for(let i=0;i<labels.length;i++)for(let j=i+1;j<labels.length;j++){
+   const a=labels[i],b=labels[j];assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,`${a.name} and ${b.name} do not overlap`);
+  }
+  await press(11);await page.locator('.atlas-quadrants').waitFor();
+  const legnago=await page.locator('.atlas-town-labels text').filter({hasText:/^Legnago$/}).evaluate(label=>{const p=new DOMPoint(Number(label.getAttribute('x')),Number(label.getAttribute('y'))).matrixTransform(label.ownerSVGElement.getScreenCTM());return {x:p.x,y:p.y};});
+  await page.mouse.click(legnago.x,legnago.y);await page.locator('.atlas-sheet-navigation strong').filter({hasText:/Legnago/}).waitFor();
+  await page.locator('[data-atlas-zoom="1"]').click();
+  assert.notEqual(await page.locator('#atlas-zoom-level').innerText(),'100%');
+  await page.locator('[data-atlas-page="index"]').click();
+  const street=page.locator('[data-atlas-street]').filter({hasText:/Via Cordioli/}).first();const key=await street.getAttribute('data-atlas-street');
+  await street.click();assert.equal(await page.locator('#atlas-zoom-level').innerText(),'500%');
+  assert.equal(await page.locator(`[data-street="${key}"]`).isVisible(),true,'A lookup reveals the selected street on its detail page');
+  assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),marker,'Browsing towns, turning pages, zoom and lookup preserve the marker');
+  assert.equal(await page.locator('#timer').innerText(),clock);
+  await page.screenshot({path:'test-results/region-atlas-street-lookup.png'});
+  await page.keyboard.press('f');await page.locator('#atlas-marker-status').filter({hasText:/Last information received/}).waitFor();
+  await page.locator('[data-atlas-close]').click();assert.equal(await page.locator('#speed').innerText(),'00','Atlas inputs never accelerate the taxi');
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
+
 test('Verona centro streams, starts by Palazzo Barbieri, drives offline and shows its squares in the atlas', {timeout:180000}, async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-verona-test-'));
  const app=await _electron.launch({args:[path.resolve('.'),'--district=verona',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});

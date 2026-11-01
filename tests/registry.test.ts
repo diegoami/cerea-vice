@@ -134,7 +134,12 @@ test('the region builder rejects settings it would ignore, and rebuilds a town o
 test('every listed district labels its places with their own names; only Cerea keeps its short forms (#80)',async()=>{
  const {createAtlas}=await import('../src/ui/Atlas');const {atlasLabel,directionsName}=await import('../src/world/placeNames');
  for(const town of registry.towns){
-  const context=new District(load(town.map)),html=createAtlas(context).atlasMarkup('map');
+  const context=new District(load(town.map)),atlas=createAtlas(context);
+  if(atlas.sheets.length){
+   assert.doesNotMatch(atlas.atlasMarkup('map'),/class="atlas-place-label"/,'Regional overview reserves labels for towns');
+   atlas.setAtlasSheet(atlas.sheetAt(context.spawn)!.id);
+  }
+  const html=atlas.atlasMarkup('map');
   const shown=[...html.matchAll(/class="atlas-place-label"[^>]*>([^<]*)<\/text>/g)].map(m=>m[1]);
   const xml=(s:string)=>s.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
   assert.deepEqual(shown,context.landmarks.map(place=>xml(atlasLabel(place).toUpperCase())),`${town.id}: atlas labels`);
