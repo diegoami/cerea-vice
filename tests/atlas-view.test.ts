@@ -7,6 +7,7 @@ import { createAtlas } from "../src/ui/Atlas";
 import { District } from "../src/world/district";
 import contextHarbor from "../public/maps/harbor.json";
 import region from '../public/maps/lower-verona/manifest.json';
+import verona from '../public/maps/verona/manifest.json';
 import {createAtlasSheets} from '../src/navigation/AtlasSheets';
 import {createAtlasNotes} from '../src/navigation/AtlasNotes';
 let context=new District(contextHarbor);
@@ -93,4 +94,34 @@ test('turning regional sheets, zooming and looking up a street preserve atlas kn
   notes.pointAt(street);view.focus(street,5);view.setSheet();atlas.setAtlasSheet();
   assert.deepEqual(notes.marker,before.marker);assert.equal(notes.source,before.source);
   assert.equal(atlas.atlasReference(before.marker!),reference);
+});
+
+test('compact dense Verona receives adaptive detail pages while Cerea keeps its single sheet',()=>{
+  const context=new District(verona),{sheets,sheetAt,neighbour}=createAtlasSheets(context);
+  assert.ok(sheets.length>1,'A dense town needs detail pages despite its modest extent');
+  const extent=Math.max(context.district.bounds.maxX-context.district.bounds.minX,context.district.bounds.maxZ-context.district.bounds.minZ);
+  for(const point of [...context.nodes,...context.district.areas]){
+    const sheet=sheetAt(point)!;
+    assert.ok(point.x>=sheet.minX&&point.x<=sheet.minX+sheet.span&&point.z>=sheet.minZ&&point.z<=sheet.minZ+sheet.span);
+  }
+  assert.ok(Math.max(...sheets.map(sheet=>sheet.span))<extent,'Verona pages are smaller than one whole-district sheet');
+  const page=sheetAt(context.spawn)!;
+  const east=neighbour(page,1,0)!;
+  assert.equal(neighbour(east,-1,0),page);
+  assert.ok(east.minX<page.minX+page.span,'Neighbouring pages overlap');
+  // No printed page carries more distinct street labels than the busiest accepted regional page.
+  const atlas=createAtlas(context),perPage=new Map<string,number>();
+  for(const street of atlas.atlasStreetEntries())perPage.set(street.sheet!,(perPage.get(street.sheet!)??0)+1);
+  assert.ok(Math.max(...perPage.values())<=90,'Every page stays within the readable label budget');
+  assert.equal(createAtlasSheets(new District(cerea)).sheets.length,0,'Cerea stays one readable sheet');
+});
+
+test('a Verona street lookup opens its own detail page and shows the name',()=>{
+  const context=new District(verona),atlas=createAtlas(context),view=new (createAtlasView(context).AtlasView)();
+  const street=atlas.atlasStreetEntries().find(entry=>entry.name==='Via Roma');
+  assert.ok(street,'Verona indexes Via Roma');
+  const sheet=atlas.sheets.find(entry=>entry.id===street!.sheet)!;
+  atlas.setAtlasSheet(sheet.id);view.setSheet(sheet);view.focus(street!,5);
+  assert.match(atlas.atlasMarkup('map'),/VIA ROMA/);
+  assert.match(atlas.atlasMarkup('map'),/(North|South|East|West) ·/,'Verona detail pages link to their neighbours');
 });
