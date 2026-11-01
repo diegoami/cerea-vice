@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import cerea from '../public/maps/cerea.json';
 import harbor from '../public/maps/harbor.json';
 import { createAtlasView } from "../src/navigation/AtlasView";
-import { createAtlas } from "../src/ui/Atlas";
+import { createAtlas, pinnedGridLabels } from "../src/ui/Atlas";
 import { District } from "../src/world/district";
 import contextHarbor from "../public/maps/harbor.json";
 import region from '../public/maps/lower-verona/manifest.json';
@@ -13,8 +13,8 @@ import {createAtlasNotes} from '../src/navigation/AtlasNotes';
 let context=new District(contextHarbor);
 let {district}=context;
 let {AtlasView}=createAtlasView(context);
-let {atlasStreetEntries,atlasMarkup}=createAtlas(context);
-function useDistrict(data:unknown){context=new District(data);({district}=context);({AtlasView}=createAtlasView(context));({atlasStreetEntries,atlasMarkup}=createAtlas(context));}
+let {atlasFrame,atlasReference,atlasStreetEntries,atlasMarkup}=createAtlas(context);
+function useDistrict(data:unknown){context=new District(data);({district}=context);({AtlasView}=createAtlasView(context));({atlasFrame,atlasReference,atlasStreetEntries,atlasMarkup}=createAtlas(context));}
 afterEach(()=>useDistrict(harbor));
 test('atlas zoom preserves the pointer anchor and clamps panning to the printed sheet',()=>{
   useDistrict(cerea);const view=new AtlasView(),initial=view.box;
@@ -124,4 +124,25 @@ test('a Verona street lookup opens its own detail page and shows the name',()=>{
   atlas.setAtlasSheet(sheet.id);view.setSheet(sheet);view.focus(street!,5);
   assert.match(atlas.atlasMarkup('map'),/VIA ROMA/);
   assert.match(atlas.atlasMarkup('map'),/(North|South|East|West) ·/,'Verona detail pages link to their neighbours');
+});
+
+test('grid references stay readable while zoomed into the paper (#86)',()=>{
+  useDistrict(cerea);
+  const frame=atlasFrame(),cell=frame.span/4,inset=8;
+  // Deep zoom inside one cell: only that column and row remain, pinned inside the view.
+  const box={x:frame.minX+cell*1.2,z:frame.minZ+cell*1.2,width:cell*0.4,height:cell*0.4};
+  const {letters,numbers}=pinnedGridLabels(frame,box,inset);
+  assert.deepEqual(letters.map(entry=>entry.index),[1]);
+  assert.deepEqual(numbers.map(entry=>entry.index),[1]);
+  for(const entry of [...letters,...numbers])
+    assert.ok(entry.x>=box.x&&entry.x<=box.x+box.width&&entry.y>=box.z&&entry.y<=box.z+box.height,'Pinned labels stay inside the visible box');
+  // The whole paper in view: all references at their natural printed positions.
+  const full=pinnedGridLabels(frame,{x:frame.minX,z:frame.minZ,width:frame.span,height:frame.span},inset);
+  assert.deepEqual(full.letters.map(entry=>entry.index),[0,1,2,3]);
+  assert.deepEqual(full.numbers.map(entry=>entry.index),[0,1,2,3]);
+  full.letters.forEach((entry,i)=>assert.equal(entry.x,frame.minX+(i+0.5)*cell));
+  full.numbers.forEach((entry,i)=>assert.equal(entry.y,frame.minZ+(i+0.5)*cell));
+  assert.equal(atlasReference({x:frame.minX+cell*1.5,z:frame.minZ+cell*0.5}),'B1');
+  assert.match(atlasMarkup('map'),/data-grid-letter="1"/);
+  assert.match(atlasMarkup('map'),/id="atlas-view-reference"/);
 });
