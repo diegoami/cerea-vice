@@ -1,6 +1,6 @@
 import { createAtlasView } from "../navigation/AtlasView";
 import { createAtlasNotes } from "../navigation/AtlasNotes";
-import { createAtlas, type AtlasPage } from "./Atlas";
+import { createAtlas, pinnedGridLabels, type AtlasPage } from "./Atlas";
 import { type Car } from "../driving/Car";
 import { type Mission } from "../mission/Mission";
 import { type Parking } from "../navigation/Parking";
@@ -170,6 +170,17 @@ class Hud {
     if(oldCursor.x<box.x||oldCursor.x>box.x+box.width||oldCursor.z<box.z||oldCursor.z>box.z+box.height)this.atlasNotes.pointAt(this.atlasView.centre);
     map.setAttribute("viewBox",`${box.x} ${box.z} ${box.width} ${box.height}`);
     const scale=map.getScreenCTM()?.a??1;if(!(scale>0))return;
+    // The printed reference under the view centre follows the reader's eye, never the car (#86).
+    const viewReference=this.overlay.querySelector('#atlas-view-reference');if(viewReference)viewReference.textContent=atlasReference(this.atlasView.centre);
+    if(!(sheets.length>0&&!this.atlasSheet)){
+      // Keep the page's grid letters and numbers on screen when the paper edges scroll out of view.
+      const {letters,numbers}=pinnedGridLabels(atlasFrame(),box,16/scale);
+      for(const label of map.querySelectorAll<SVGTextElement>('[data-grid-letter],[data-grid-number]')){
+        const pinned=(label.dataset.gridLetter!==undefined?letters:numbers).find(entry=>entry.index===Number(label.dataset.gridLetter??label.dataset.gridNumber));
+        if(!pinned){label.style.display='none';continue;}
+        label.style.display='';label.setAttribute('x',`${pinned.x}`);label.setAttribute('y',`${pinned.y}`);label.style.fontSize=`${13/scale}px`;
+      }
+    }
     const pixels=Math.min(24,14+3*(this.atlasView.zoom-1));
     for(const label of map.querySelectorAll<SVGTextElement>("[data-street]")){
       const selected=label.dataset.street===this.selectedStreet;

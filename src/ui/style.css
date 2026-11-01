@@ -872,6 +872,7 @@ h1 em {
 .atlas-zoom-controls { position:absolute;left:14px;top:10px;z-index:1;display:flex;align-items:center;border:1px solid #8b8e76;box-shadow:0 2px 6px #263d3d22;background:#eee5cdeb; }
 .atlas-book .atlas-zoom-controls button { padding:8px 12px;background:transparent; }
 .atlas-zoom-controls output { min-width:52px;text-align:center;font:20px "Vice", monospace; }
+.atlas-zoom-controls #atlas-view-reference { min-width:70px;border-left:1px solid #8b8e76;padding-left:10px;margin-left:4px; }
 .atlas-zoom-controls button:disabled { opacity:.4;cursor:default; }
 .atlas-map { cursor:grab; }
 .atlas-map:active { cursor:grabbing; }
