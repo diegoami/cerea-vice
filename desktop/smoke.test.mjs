@@ -40,6 +40,20 @@ async function checkTextFit(app,page,label){
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1440,900));
 }
 
+/** Received directions stay readable on the atlas map page at common window sizes; the key is dropped only below 1050 px wide. */
+async function checkAtlasInformation(app,page,text){
+  for(const [width,height] of [[1440,900],[1366,720],[960,640]]){
+    await app.evaluate(({BrowserWindow},{width,height})=>BrowserWindow.getAllWindows()[0].setContentSize(width,height),{width,height});
+    await page.waitForFunction(({width,height})=>innerWidth===width&&innerHeight===height,{width,height});await frames(page);
+    const information=page.locator('.atlas-information-sidebar');
+    assert.equal(await information.isVisible(),true,`Received directions stay on the map page at ${width}x${height}`);
+    assert.match(await information.innerText(),text);
+    const box=await information.boundingBox();assert.ok(box&&box.width>100&&box.y>=0&&box.y+box.height<=height,`Directions are inside the window at ${width}x${height}`);
+    assert.equal(await page.locator('.atlas-margin h3').filter({hasText:'Key'}).isVisible(),width>1050,`The key is shown only where it fits at ${width}x${height}`);
+  }
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1440,900));
+}
+
 test('startup during held scenery loading withholds prices until the complete collection quote is ready', {timeout:90000},async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-startup-quote-'));
  const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
@@ -456,6 +470,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     assert.equal(await page.locator('.atlas-map').isVisible(),true);
     assert.match(await page.locator('#atlas-information-text').innerText(),/Via Venticinque Aprile/);
     assert.match(await page.locator('#atlas-marker-status').innerText(),/Last information received/);
+    await checkAtlasInformation(electronApp,page,/Via Venticinque Aprile/);
     const pinBeforeLookup=await page.locator('.atlas-pin').getAttribute('transform');
     await page.screenshot({path:'test-results/cerea-atlas.png'});
     const manualPoint=await page.locator('.atlas-map').evaluate(map=>{const p=new DOMPoint(220,250).matrixTransform(map.getScreenCTM());return {x:p.x,y:p.y};});
@@ -1046,6 +1061,8 @@ test('regional atlas has readable connected quadrants without moving knowledge o
   assert.equal(await page.locator('#timer').innerText(),clock);
   await page.screenshot({path:'test-results/region-atlas-street-lookup.png'});
   await page.keyboard.press('f');await page.locator('#atlas-marker-status').filter({hasText:/Last information received/}).waitFor();
+  await checkAtlasInformation(app,page,/facing/);
+  await checkTextFit(app,page,'region-information');
   await page.locator('[data-atlas-close]').click();assert.equal(await page.locator('#speed').innerText(),'00','Atlas inputs never accelerate the taxi');
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
