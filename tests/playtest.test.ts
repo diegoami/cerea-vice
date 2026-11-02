@@ -342,3 +342,25 @@ test('the radio control is a driving-only edge that never leaks into the atlas o
  input.context='driving';assert.equal(input.poll().radioNext,false,'A press held from a menu is not a new edge');buttons[15].value=0;input.poll();
  assert.equal(bindingConflict(defaultBindings,'requestFares',15),'radioNext');
 });
+test('regenerated tiles keep saves loading: the signature ignores tile sizes and accepts earlier signatures (#84)',async()=>{
+ const region=new District((await import('../public/maps/lower-verona/manifest.json',{with:{type:'json'}})).default);
+ const shuffled=structuredClone(region.district);shuffled.streaming!.tiles[0].bytes+=17;
+ assert.equal(mapSignature(new District(shuffled)),mapSignature(region),'Tile sizes are not map content');
+ const {Mission:RegionMission}=createMission(region),{AtlasNotes}=createAtlasNotes(region);
+ const save=(map:string):string=>JSON.stringify({version:2,district:region.district.id,map,dataVersion:mapDataVersion(region),savedAt:new Date().toISOString(),
+  car:{x:region.spawn.x,z:region.spawn.z,heading:region.spawn.heading,speed:0,gear:'D',steering:0,collisions:0},unsafeStops:0,mission:new RegionMission({seed:3}).snapshot(),atlas:new AtlasNotes().snapshot()});
+ for(const map of [mapSignature(region),'fabb226f'])assert.equal(decodeSave(region,save(map)).district,'lower-verona',`${map} loads`);
+ assert.throws(()=>decodeSave(region,save('0badc0de')),/different map/,'An unknown map still refuses to load');
+ const verona=new District((await import('../public/maps/verona/manifest.json',{with:{type:'json'}})).default);
+ const {Mission:VeronaMission}=createMission(verona),{AtlasNotes:VeronaNotes}=createAtlasNotes(verona);
+ const veronaSave=JSON.stringify({version:2,district:'verona',map:'6834cb33',dataVersion:mapDataVersion(verona),savedAt:new Date().toISOString(),
+  car:{x:verona.spawn.x,z:verona.spawn.z,heading:verona.spawn.heading,speed:0,gear:'D',steering:0,collisions:0},unsafeStops:0,mission:new VeronaMission({seed:3}).snapshot(),atlas:new VeronaNotes().snapshot()});
+ assert.equal(decodeSave(verona,veronaSave).district,'verona','A Verona save from 0.14.0-rc.1 loads');
+ // Streamed maps whose tiles did not change keep matching the whole-district signature their saves recorded.
+ const streamed=new District(outskirts);let hash=2166136261;for(const c of JSON.stringify(streamed.district))hash=Math.imul(hash^c.charCodeAt(0),16777619)>>>0;
+ assert.notEqual(hash.toString(16),mapSignature(streamed));
+ const {Mission:OutskirtsMission}=createMission(streamed),{AtlasNotes:OutskirtsNotes}=createAtlasNotes(streamed);
+ const legacy=JSON.stringify({version:2,district:streamed.district.id,map:hash.toString(16),dataVersion:mapDataVersion(streamed),savedAt:new Date().toISOString(),
+  car:{x:streamed.spawn.x,z:streamed.spawn.z,heading:streamed.spawn.heading,speed:0,gear:'D',steering:0,collisions:0},unsafeStops:0,mission:new OutskirtsMission({seed:3}).snapshot(),atlas:new OutskirtsNotes().snapshot()});
+ assert.equal(decodeSave(streamed,legacy).district,streamed.district.id);
+});

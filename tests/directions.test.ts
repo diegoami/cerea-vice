@@ -60,3 +60,42 @@ test('Cerea information follows the current taxi target and gives a useful retur
     assert.match(hint,/On Via Venticinque Aprile/);assert.doesNotMatch(hint,/undefined|NaN/);
   }
 });
+
+test('region boards name the towns each exit leads to, and towns and villages are signed where you enter and leave (#84)',async()=>{
+  const {createSigns}=await import("../src/world/signs");
+  const {townSignName}=await import("../src/world/placeNames");
+  const {RouteGraph}=await import("../src/navigation/RouteGraph");
+  const region=new District((await import("../public/maps/lower-verona/manifest.json",{with:{type:"json"}})).default);
+  const plain=new District({...region.district,streaming:undefined});
+  const signs=createSigns(plain,{signPlaces:true}),names=new Map(plain.district.areas.map(area=>[townSignName(area).toUpperCase(),area]));
+  const graph=new RouteGraph(plain.nodes,plain.district.roads);
+  const boards=signs.planJunctionSigns().signs;let named=0;
+  for(const board of boards){
+    const here=plain.areaAt(plain.nodeById(board.junctionId));
+    for(const row of board.rows){
+      const area=names.get(row.detail);if(!area)continue;named++;
+      assert.notEqual(area.name,here,'A board never signs the town it stands in');
+      // The exit named for a town is a legal first step of a drivable route there.
+      const exits=(plain.adjacency.get(board.junctionId)??[]).filter(road=>road.name.toUpperCase()===row.text&&(!road.oneWay||road.a===board.junctionId));
+      const centre=[...plain.nodes].sort((a,b)=>Math.hypot(a.x-area.x,a.z-area.z)-Math.hypot(b.x-area.x,b.z-area.z))[0];
+      assert.ok(exits.some(exit=>Number.isFinite(graph.search(exit.a===board.junctionId?exit.b:exit.a,centre.id).cost)),`${row.text} reaches ${area.name}`);
+    }
+    assert.equal(new Set(board.rows.map(row=>JSON.stringify(row))).size,board.rows.length,'No duplicated rows');
+  }
+  assert.ok(named>boards.length/2,`Most region junction boards name a town (${named} rows on ${boards.length} boards)`);
+  const places=signs.planPlaceSigns();
+  for(const area of plain.district.areas){
+    const name=townSignName(area).toUpperCase();
+    assert.ok(places.some(sign=>sign.rows.length===1&&sign.rows[0]===name),`${name} has an entry sign`);
+    assert.ok(places.some(sign=>sign.rows[0]==='FINE'&&sign.rows[1]===name),`${name} has an exit sign`);
+  }
+  assert.ok(places.every(sign=>signs.boardIsClear(sign)),'Place signs stand clear of roads and buildings');
+  assert.ok(!places.some(sign=>sign.rows.join(' ').includes('CENTRO DI')),'Signs say Cerea, not the area\'s long name');
+  // Other maps never sign places: a single town has none, and the outskirts prototype's areas are a test fixture.
+  useDistrict(cerea);
+  assert.deepEqual(createSigns(context,{signPlaces:true}).planPlaceSigns(),[]);
+  const outskirts=new District((await import("../public/maps/cerea-outskirts/manifest.json",{with:{type:"json"}})).default);
+  assert.deepEqual(createSigns(outskirts).planPlaceSigns(),[]);
+  assert.ok(!createSigns(outskirts).planJunctionSigns().signs.some(board=>board.rows.some(row=>/FICTIONAL|HAMLET/.test(row.detail))));
+  assert.ok(!createSigns(context).planJunctionSigns().signs.some(board=>board.rows.some(row=>row.detail==='CEREA'||row.detail==='CENTRO DI CEREA')));
+});

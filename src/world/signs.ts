@@ -1,6 +1,7 @@
 import { roadWidth, projectToSegment, inRect, type Point, type Road } from "./district";
 import { createDirections, type DirectionRow } from "./directions";
 import { District } from "./district";
+import { townSignName } from "./placeNames";
 export interface RoadSignPlan {
   junctionId: string;
   approachId: string;
@@ -10,9 +11,9 @@ export interface RoadSignPlan {
   height: number;
   rows: DirectionRow[];
 }
-export function createSigns(context:District){
+export function createSigns(context:District,options:{signPlaces?:boolean}={}){
 const {district,nodes,roads,nodeById}=context;
-const {junctionDirections}=createDirections(context);
+const {junctionDirections}=createDirections(context,options);
 const isMajorRoad=(road:Road)=>["primary","secondary","tertiary"].includes(road.roadClass??"");
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 function approachPoints(junctionId:string,incoming:Road):Point[] {
@@ -134,5 +135,45 @@ function planEdgeSigns():{position:Point;angle:number;width:number;height:number
   }
   return result;
 }
-return {isMajorRoad,boardPoints,boardIsClear,planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns};
+/**
+ * Town and village name signs where a major road crosses a place's boundary (#84): the name for traffic
+ * coming in, "FINE" and the name for traffic going out, on the right verge, respecting one-way streets.
+ * Only regions get them (see createDirections); a single town's edge is the edge of the map.
+ */
+function planPlaceSigns():{position:Point;angle:number;width:number;height:number;rows:string[]}[] {
+  const places=options.signPlaces&&district.areas.length>1?district.areas:[];
+  const result:{position:Point;angle:number;width:number;height:number;rows:string[]}[]=[];
+  for(const area of places) {
+    const placed:{point:Point;dx:number;dz:number}[]=[];
+    for(const road of roads) {
+      if(!isMajorRoad(road))continue;
+      const a=nodeById(road.a),b=nodeById(road.b);
+      if(inRect(a,area)===inRect(b,area))continue;
+      for(const [from,to] of road.oneWay?[[a,b]]:[[a,b],[b,a]]) {
+        const length=distance(from,to),dx=(to.x-from.x)/length,dz=(to.z-from.z)/length,entering=!inRect(from,area);
+        // Where the segment meets the boundary: the last point outside on the way in, the first outside on the way out.
+        let low=0,high=1;for(let i=0;i<24;i++){const mid=(low+high)/2,p={x:from.x+(to.x-from.x)*mid,z:from.z+(to.z-from.z)*mid};if(inRect(p,area)===inRect(from,area))low=mid;else high=mid;}
+        const crossing={x:from.x+(to.x-from.x)*low,z:from.z+(to.z-from.z)*low};
+        // One sign per direction for a road that clips the boundary more than once.
+        if(placed.some(other=>distance(other.point,crossing)<80&&other.dx*dx+other.dz*dz>.5))continue;
+        const name=townSignName(area).toUpperCase(),rows=entering?[name]:["FINE",name];
+        // Large enough to read at driving speed, like a real place-name sign seen from the carriageway.
+        const width=Math.max(3.2,Math.min(4.6,.26*Math.max(...rows.map(row=>row.length))+1)),height=rows.length*1.3;
+        let selected:typeof result[number]|undefined;
+        for(const along of [0,-6,6,-12,12]) {
+          const t=Math.max(0,Math.min(length,low*length+along)),point={x:from.x+dx*t,z:from.z+dz*t};
+          for(const extra of [.5,1.5,3,5]) {
+            const offset=roadWidth(road)/2+width/2+extra;
+            const plan={position:{x:point.x-dz*offset,z:point.z+dx*offset},angle:Math.atan2(-dx,-dz),width,height,rows};
+            if(boardIsClear(plan)){selected=plan;break;}
+          }
+          if(selected)break;
+        }
+        if(selected){result.push(selected);placed.push({point:crossing,dx,dz});}
+      }
+    }
+  }
+  return result;
+}
+return {isMajorRoad,boardPoints,boardIsClear,planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,planPlaceSigns};
 }
