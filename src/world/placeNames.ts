@@ -12,3 +12,6 @@ type Place=Pick<Landmark,'name'>;
 export const atlasLabel=(place:Place)=>atlas[place.name]??place.name;
 export const directionsName=(place:Place)=>directions[place.name]??place.name;
 export const signRows=(place:Place)=>signs[place.name]??(place.name.length>24?place.name.toUpperCase().split(/ (.+)/).filter(Boolean):[place.name.toUpperCase()]);
+/** A town or village as road signs name it (#84): the region keeps Cerea's area as "Centro di Cerea", signs say "Cerea". */
+const townSigns:Record<string,string>={'Centro di Cerea':'Cerea'};
+export const townSignName=(area:Place)=>townSigns[area.name]??area.name;

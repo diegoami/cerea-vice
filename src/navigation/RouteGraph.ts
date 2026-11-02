@@ -17,6 +17,18 @@ export class RouteGraph {
   const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
   for(const r of roads){const d=distance(this.nodes.get(r.a)!,this.nodes.get(r.b)!);this.links.get(r.a)!.push({id:r.b,distance:d});if(!r.oneWay)this.links.get(r.b)!.push({id:r.a,distance:d});}
  }
+ /** Route cost from every node that can reach the target, following one-way streets (a search over reversed links). */
+ costsTo(target:string):Map<string,number>{
+  const costs=new Map<string,number>();if(!this.nodes.has(target))return costs;
+  const reverse=new Map<string,{id:string;distance:number}[]>();
+  for(const [from,links] of this.links)for(const link of links){if(!reverse.has(link.id))reverse.set(link.id,[]);reverse.get(link.id)!.push({id:from,distance:link.distance});}
+  const heap=new Heap();costs.set(target,0);heap.push({id:target,cost:0,order:this.order.get(target)!});
+  for(let current=heap.pop();current;current=heap.pop()){
+   if(current.cost!==costs.get(current.id))continue;
+   for(const link of reverse.get(current.id)??[]){const cost=current.cost+link.distance;if(cost<(costs.get(link.id)??Infinity)){costs.set(link.id,cost);heap.push({id:link.id,cost,order:this.order.get(link.id)!});}}
+  }
+  return costs;
+ }
  search(start:string,target:string):{cost:number;path:string[]}{
   if(!this.nodes.has(start)||!this.nodes.has(target))return {cost:Infinity,path:[]};
   const costs=new Map<string,number>([[start,0]]),previous=new Map<string,string>(),heap=new Heap();

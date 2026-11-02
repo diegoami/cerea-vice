@@ -25,9 +25,11 @@ const regionStub={version:1,tileSize:size,fogDistance:300,loadRadius:1000,retain
 const plain=structuredClone(data);delete plain.streaming;
 const context=new District(plain),plates=createStreetPlates(context).planStreetPlates();
 if(plates.missing.length)console.warn(`Street plates without a place: ${plates.missing.length} (first: ${JSON.stringify(plates.missing[0])})`);
-const signs=createSigns(context);
+// A region (with a sidecar of town zones) signs its towns and villages (#84); a single town has none to sign.
+const signs=createSigns(context,{signPlaces:Boolean(sidecarFile)});
 const boards=[...signs.planJunctionSigns().signs.map(p=>({...p,color:'#31594e'})),...signs.planParkingSigns().map(p=>({...p,rows:['P',p.label],color:'#31594e'})),
- ...signs.planEdgeSigns().map(p=>({...p,rows:['END OF MAPPED ROAD','TURN BACK'],color:'#755e46'})),...(sidecar.boards??[])];
+ ...signs.planEdgeSigns().map(p=>({...p,rows:['END OF MAPPED ROAD','TURN BACK'],color:'#755e46'})),
+ ...signs.planPlaceSigns().map(p=>({...p,color:'#234b72'})),...(sidecar.boards??[])];
 // Facade plaques: the same frontage selection as the outskirts exporter, with the place name.
 for(const place of data.landmarks){
  const outline=place.points??[{x:place.x-place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z+place.depth/2},{x:place.x-place.width/2,z:place.z+place.depth/2}];
