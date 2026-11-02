@@ -193,3 +193,16 @@ test('the place index names the current destination and marks its place and bay,
   assert.doesNotMatch(map,/atlas-destination|Current destination/,'Nothing is drawn on the map');
   atlas.setAtlasJourney();assert.doesNotMatch(atlas.atlasMarkup('index'),/atlas-destination/,'Clearing the journey clears the mark');
 });
+
+test('a single long city gets density pages within the label budget; only a region keeps the kilometre grid (#112)',async()=>{
+  const south=new District((await import('../public/maps/verona-south/manifest.json',{with:{type:'json'}})).default);
+  const atlas=createAtlas(south),perPage=new Map<string,number>();
+  for(const street of atlas.atlasStreetEntries())perPage.set(street.sheet!,(perPage.get(street.sheet!)??0)+1);
+  assert.ok(Math.max(...perPage.values())<=90,`Every page stays within the label budget (worst ${Math.max(...perPage.values())})`);
+  assert.ok(atlas.sheets.some(sheet=>sheet.span<600),'Dense Verona gets small pages, unlike the region\'s 1.2 km grid');
+  const {sheetAt,neighbour}=createAtlasSheets(south);
+  for(const point of [...south.nodes,...south.parkingZones]){const sheet=sheetAt(point)!;assert.ok(point.x>=sheet.minX&&point.x<=sheet.minX+sheet.span&&point.z>=sheet.minZ&&point.z<=sheet.minZ+sheet.span);}
+  const spawnPage=sheetAt(south.spawn)!;assert.equal(neighbour(neighbour(spawnPage,0,1)!,0,-1),spawnPage,'North and south links lead back');
+  const book=createAtlasSheets(new District(region));
+  assert.equal(book.sheets.length,135);assert.ok(book.sheets.every(sheet=>sheet.span===1200),'The region keeps its fixed grid');
+});

@@ -144,7 +144,9 @@ def build(spec,output):
         node['label']=' / '.join(names) if len(names)>1 else names[0]
 
     def project(p,a,b):
-        dx,dz=b['x']-a['x'],b['z']-a['z'];t=max(0,min(1,((p['x']-a['x'])*dx+(p['z']-a['z'])*dz)/(dx*dx+dz*dz)))
+        dx,dz=b['x']-a['x'],b['z']-a['z']
+        # A repeated vertex in a mapped outline is a zero-length edge: its nearest point is that vertex.
+        t=max(0,min(1,((p['x']-a['x'])*dx+(p['z']-a['z'])*dz)/(dx*dx+dz*dz))) if dx or dz else 0
         return {'x':a['x']+dx*t,'z':a['z']+dz*t}
     def dist(a,b):return math.hypot(a['x']-b['x'],a['z']-b['z'])
 

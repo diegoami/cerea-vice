@@ -5,8 +5,9 @@ export interface AtlasSheet { id:string; column:number; row:number; minX:number;
 const MAX_PAGE_LABELS=90;
 /** Detail pages overlap their neighbours so streets near an edge still sit fully on a page. */
 const EDGE_OVERLAP=100;
-/** Adaptive ladders: 3×3, 4×4 and 5×5 pages bound a dense town's book at 25 sheets. */
-const PART_LADDER=[3,4,5];
+/** Adaptive ladders: pages along the town's longer side (3 to 14), with the shorter side in proportion. Verona centro
+ *  (nearly square) settles at 5×5; Verona to Borgo Roma, about 2.3 × 5.2 km, needs 6×13. */
+const PART_LADDER=[3,4,5,6,7,8,9,10,11,12,13,14];
 
 function clippedStreetCount(context:District,minX:number,minZ:number,span:number){
   const names=new Set<string>();
@@ -44,9 +45,10 @@ function densitySheets(context:District,letters:(column:number)=>string){
   // A whole-district paper inside the label budget needs no detail pages (Cerea keeps its single sheet).
   if(clippedStreetCount(context,bounds.minX,bounds.minZ,extent)<=MAX_PAGE_LABELS)return {sheets:[] as AtlasSheet[],locate:null};
   let chosen:{sheets:AtlasSheet[],xs:number[],zs:number[]}|undefined;
+  const width=bounds.maxX-bounds.minX,depth=bounds.maxZ-bounds.minZ;
   for(const parts of PART_LADDER){
-    const xs=densityCuts(context,'x',bounds.minX,bounds.maxX,parts,EDGE_OVERLAP/2);
-    const zs=densityCuts(context,'z',bounds.minZ,bounds.maxZ,parts,EDGE_OVERLAP/2);
+    const xs=densityCuts(context,'x',bounds.minX,bounds.maxX,width>=depth?parts:Math.max(1,Math.round(parts*width/depth)),EDGE_OVERLAP/2);
+    const zs=densityCuts(context,'z',bounds.minZ,bounds.maxZ,depth>=width?parts:Math.max(1,Math.round(parts*depth/width)),EDGE_OVERLAP/2);
     const sheets:AtlasSheet[]=[];
     for(let row=0;row<zs.length-1;row++)for(let column=0;column<xs.length-1;column++){
       const minX=xs[column]-EDGE_OVERLAP/2,minZ=zs[row]-EDGE_OVERLAP/2;
@@ -68,7 +70,8 @@ function densitySheets(context:District,letters:(column:number)=>string){
 /** Printed, overlapping kilometre quadrants. Selection depends on the reader, never the car. */
 export function createAtlasSheets(context:District) {
   const {bounds,areas,spawn}=context.district;
-  const regional=Math.max(bounds.maxX-bounds.minX,bounds.maxZ-bounds.minZ)>4000;
+  // The fixed kilometre book is for regions (several towns over more than 4 km); a single large town gets density pages.
+  const regional=areas.length>1&&Math.max(bounds.maxX-bounds.minX,bounds.maxZ-bounds.minZ)>4000;
   const stride=1000,span=1200;
   // Align the fixed book with its starting town, so the original Cerea map fits one page.
   const anchor=areas.find(area=>Math.abs(spawn.x-area.x)<=area.width/2&&Math.abs(spawn.z-area.z)<=area.depth/2)??spawn;

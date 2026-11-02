@@ -22,9 +22,9 @@ The atlas supports 1×–8× zoom, panning, pointer-centred wheel zoom and a ful
 
 Map controls: RT / LT or + / − zoom, right stick / I J K L / mouse drag pan, R3 / Home restores overview. In the index, right stick up/down or I / K selects a street and A / Enter locates it. Mouse users click the indexed name. Left stick retains crosshair/index-scrolling control. Zooming and dragging never move the position marker, and reading keeps taxi time paused.
 
-Large or dense districts use a book of local quadrants. The Lower Veronese plain
-keeps fixed 1.2 km pages; compact but dense towns such as Verona centro receive
-smaller, unequal pages chosen by street density, so no page carries more street
+Large or dense districts use a book of local quadrants. A region (the Lower Veronese
+plain) keeps fixed 1.2 km pages; single dense towns such as Verona centro, and the long
+Verona centro–Borgo Roma, receive smaller, unequal pages chosen by street density, so no page carries more street
 labels than the busiest accepted regional page. Sparse small towns keep their
 single printed sheet.
 The regional overview shows towns and page boundaries without street-name clutter.
@@ -224,3 +224,22 @@ Every named street is drivable, including pedestrian and limited-traffic streets
 are still 8 m wide; clearance removes 12.3% of the footprint area (Legnago 10.5%), and fitting widths to
 narrow streets is a follow-up. A river centreline inside a mapped river area is drawn but not solid,
 since the area's own shape (water minus road corridors) applies there; it used to block Ponte Garibaldi.
+
+## Verona centro–Borgo Roma
+
+Verona grown south through Porta Nuova to Borgo Roma as one city at real scale (#112, owner decision
+2026-11-02), from `towns/verona-south.town.json` and `data/sources/verona-south-osm.json`. It is meant to
+become a town of the region north of Bovolone; until then it is its own district, so it can be played and
+measured. Verona centro stays as it was. About 2.3 × 5.2 km (12 km²): 724 named streets, 11,407 building
+masses (3.2× Verona centro), 220 tiles, 20 stops: Verona centro's 13 and seven proposed in the south (Porta
+Nuova, Autostazione, Santuario di Santa Teresa, Gesù Divino Lavoratore, Biblioteca Caliari, San Giacomo
+Maggiore, Policlinico G.B. Rossi), for the owner to confirm in play. All town checks pass; load time,
+memory and frame time on Windows are still to be measured (#51).
+
+Its atlas uses density pages like Verona centro's: the fixed kilometre grid is now only for regions
+(several towns over 4 km), and the density ladder follows the town's shape up to 14 pages on its long side
+(6 × 13 = 78 pages here, at most 82 street labels on a page).
+
+```sh
+npm run build:verona-south     # tools/import-town.py, then tools/tile-district.mjs
+```
