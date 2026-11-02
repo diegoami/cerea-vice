@@ -118,6 +118,8 @@ test('the region builder rejects settings it would ignore, and rebuilds a town o
   const region=JSON.parse(readFileSync('regions/lower-verona.region.json','utf8'));
   const withZone=structuredClone(region);withZone.towns[0].zone=550;await writeFile(path.join(directory,'zone.json'),JSON.stringify(withZone));
   const zone=run(path.join(directory,'zone.json'));assert.notEqual(zone.status,0);assert.match(zone.stderr,/A town entry takes only "spec"/);
+  const ownK={...region,k:0.7};await writeFile(path.join(directory,'k.json'),JSON.stringify(ownK));
+  const k=run(path.join(directory,'k.json'));assert.notEqual(k.status,0);assert.match(k.stderr,/"k" belongs to the shared frame/);
   const unknown={...region,bands:400};await writeFile(path.join(directory,'unknown.json'),JSON.stringify(unknown));
   const bad=run(path.join(directory,'unknown.json'));assert.notEqual(bad.status,0);assert.match(bad.stderr,/Unknown region settings: bands/);
   // A one-town region in a temporary place: built, then reused, then rebuilt after a spec edit.
@@ -155,4 +157,15 @@ test('every listed district labels its places with their own names; only Cerea k
  assert.ok(churches.every(p=>directionsName(p)===p.name),'directions name Verona\'s churches too');
  const cerea=new District(load('cerea.json')),church=cerea.landmarks.find(p=>p.kind==='church')!;
  assert.deepEqual([atlasLabel(church),directionsName(church)],['San Zeno','San Zeno'],'Cerea keeps its familiar short form');
+});
+
+test('every region is built in the one shared frame, whose origin and k the shipped region records (#112)',async()=>{
+ const {readdirSync}=await import('node:fs');
+ const regions=readdirSync('regions').filter(file=>file.endsWith('.region.json')).map(file=>JSON.parse(readFileSync(`regions/${file}`,'utf8')));
+ assert.ok(regions.length>=1);
+ for(const region of regions){assert.equal(region.frame,'regions/veronese.frame.json',`${region.id} uses the shared frame`);assert.equal(region.k,undefined,`${region.id} takes k from the frame`);}
+ const frame=JSON.parse(readFileSync('regions/veronese.frame.json','utf8')),shipped=load('lower-verona/manifest.json');
+ assert.equal(shipped.provenance.compression.k,frame.k);
+ assert.deepEqual(shipped.provenance.frame.falseOrigin.lat,Math.round(frame.origin.lat*1e6)/1e6);
+ assert.deepEqual(shipped.provenance.frame.falseOrigin.lon,Math.round(frame.origin.lon*1e6)/1e6);
 });
