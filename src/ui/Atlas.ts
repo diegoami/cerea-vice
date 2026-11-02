@@ -25,6 +25,9 @@ const {district,areaAt,landmarks,nodeById,parkingZones,roads}=context;
 const {sheets,sheetAt,neighbour}=createAtlasSheets(context);
 let activeSheet:AtlasSheet|undefined;
 const setAtlasSheet=(id?:string)=>{activeSheet=sheets.find(sheet=>sheet.id===id);};
+/** The current journey's stop, named in the place index only (#87): never drawn on the map. */
+let journey:{objective:string;bay:{id:string;x:number;z:number}}|undefined;
+const setAtlasJourney=(value?:typeof journey)=>{journey=value;};
 function atlasFrame(sheet=activeSheet) {
   if(sheet)return {...sheet,unit:sheet.span/240};
   const bounds=district.bounds;
@@ -98,10 +101,12 @@ function mapSvg() {
   </svg>`;
 }
 function indexMarkup() {
-  const entries = [...landmarks.map((place) => ({ name: place.name, road: place.road, area: areaAt(place), ref: atlasReference(place) })),
-    ...parkingZones.map((zone) => ({ name: zone.name, road: "Legal stopping bay", area: areaAt(zone), ref: atlasReference(zone) }))]
+  const entries = [...landmarks.map((place) => ({ id: place.id, name: place.name, road: place.road, area: areaAt(place), ref: atlasReference(place) })),
+    ...parkingZones.map((zone) => ({ id: zone.id, name: zone.name, road: "Legal stopping bay", area: areaAt(zone), ref: atlasReference(zone) }))]
     .sort((a, b) => a.name.localeCompare(b.name));
-  return `<div class="atlas-index"><h2>Places and parking</h2><table><thead><tr><th scope="col">Place</th><th scope="col">Street / area</th><th scope="col">${sheets.length?'Page · grid':'Grid'}</th></tr></thead><tbody>${entries.map((entry) => `<tr><th scope="row">${xml(entry.name)}</th><td>${xml(entry.road)}<small>${xml(entry.area)}</small></td><td class="atlas-ref">${entry.ref}</td></tr>`).join("")}</tbody></table><p>Grid letters run west to east; numbers run north to south.${sheets.length?' Page letters and numbers identify regional quadrants; the second reference is the local grid.':''}</p><h2>Street index</h2><table class="atlas-street-index"><thead><tr><th scope="col">Street</th><th scope="col">Grid</th></tr></thead><tbody>${atlasStreetEntries().map(street=>`<tr><th scope="row"><button type="button" class="atlas-street-link" data-atlas-street="${xml(street.key)}">${xml(street.name)}${sheets.length?`<small>${xml(sheets.find(sheet=>sheet.id===street.sheet)!.name)}</small>`:''}</button></th><td class="atlas-ref">${street.reference}</td></tr>`).join("")}</tbody></table></div>`;
+  // A stop's landmark and its bay share the stop's id.
+  const destination=journey?`<section class="atlas-destination" aria-label="Current destination"><strong>CURRENT DESTINATION</strong><p>${xml(journey.objective)}</p><span class="atlas-ref">${atlasReference(journey.bay)}</span></section>`:'';
+  return `<div class="atlas-index">${destination}<h2>Places and parking</h2><table><thead><tr><th scope="col">Place</th><th scope="col">Street / area</th><th scope="col">${sheets.length?'Page · grid':'Grid'}</th></tr></thead><tbody>${entries.map((entry) => {const target=entry.id===journey?.bay.id;return `<tr${target?' class="atlas-destination-row" aria-current="location"':''}><th scope="row">${xml(entry.name)}${target?'<small>Current destination</small>':''}</th><td>${xml(entry.road)}<small>${xml(entry.area)}</small></td><td class="atlas-ref">${entry.ref}</td></tr>`;}).join("")}</tbody></table><p>Grid letters run west to east; numbers run north to south.${sheets.length?' Page letters and numbers identify regional quadrants; the second reference is the local grid.':''}</p><h2>Street index</h2><table class="atlas-street-index"><thead><tr><th scope="col">Street</th><th scope="col">Grid</th></tr></thead><tbody>${atlasStreetEntries().map(street=>`<tr><th scope="row"><button type="button" class="atlas-street-link" data-atlas-street="${xml(street.key)}">${xml(street.name)}${sheets.length?`<small>${xml(sheets.find(sheet=>sheet.id===street.sheet)!.name)}</small>`:''}</button></th><td class="atlas-ref">${street.reference}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function sheetNavigation(){
   if(!sheets.length)return '';
@@ -118,5 +123,5 @@ function atlasMarkup(page: AtlasPage): string {
     <footer class="atlas-footer"><div class="atlas-attribution">${xml(district.attribution)}${district.id === "cerea" ? " · Modern street subset; simplified scenery and game stopping bays." : ""}</div><button type="button" data-atlas-close>Close atlas</button></footer>
   </section>`;
 }
-return {atlasFrame,atlasReference,atlasStreetEntries,atlasMarkup,sheets,sheetAt,setAtlasSheet};
+return {atlasFrame,atlasReference,atlasStreetEntries,atlasMarkup,sheets,sheetAt,setAtlasSheet,setAtlasJourney};
 }
