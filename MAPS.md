@@ -38,7 +38,10 @@ page, so it can reach street detail independently of the region's total size.
 The index gives page and local-grid references, distinguishes the same street
 name on different pages, and opens the chosen page when a street is located.
 Overlapping labels are suppressed on detail pages; a street lookup highlights
-the selected name. Turning pages, opening a quadrant and looking up a street
+the selected name. Zoomed-out paper prints only the major-road network:
+residential streets appear from 2× zoom and service roads and paths from 4×,
+with street labels following the same prominence. Turning pages, opening a
+quadrant and looking up a street
 never update the position marker. Information remains available on every page.
 
 ## Files and loading

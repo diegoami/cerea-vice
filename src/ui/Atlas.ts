@@ -4,6 +4,12 @@ import { atlasLabel } from "../world/placeNames";
 import { createAtlasSheets, type AtlasSheet } from '../navigation/AtlasSheets';
 export type AtlasPage = "map" | "index";
 interface AtlasPaper { minX:number;minZ:number;span:number }
+const MAJOR_ROADS=new Set(["primary","trunk","secondary","secondary_link","tertiary","tertiary_link","unclassified"]);
+const STREET_ROADS=new Set(["residential","pedestrian","living_street"]);
+/** Printed prominence: 1 prints at every scale, 2 (streets) from 2×, 3 (service roads, paths, anything unknown) from 4×. Authored districts without a class always print. */
+export function roadTier(roadClass?:string){return !roadClass||MAJOR_ROADS.has(roadClass)?1:STREET_ROADS.has(roadClass)?2:3;}
+/** Highest road tier the current atlas zoom reveals. A lookup focuses at 5×, so every tier is reachable. */
+export function roadTiersVisible(zoom:number){return zoom<2?1:zoom<4?2:3;}
 /** Paper-edge grid labels clamped into the visible box, so page references stay readable while zoomed (#86). */
 export function pinnedGridLabels(frame:AtlasPaper,box:{x:number;z:number;width:number;height:number},inset:number){
   const cell=frame.span/4,letters:{index:number;x:number;y:number}[]=[],numbers:{index:number;x:number;y:number}[]=[];
@@ -35,7 +41,7 @@ function atlasReference(point: Point): string {
 }
 const xml=(value:string)=>value.replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]!));
 function streetEntries(sheet?:AtlasSheet) {
-  const grouped=new Map<string,{a:Point;b:Point;length:number}>();
+  const grouped=new Map<string,{a:Point;b:Point;length:number;tier:number}>();
   for(const road of roads){
     let a:Point=nodeById(road.a),b:Point=nodeById(road.b);
     if(sheet){
@@ -48,13 +54,13 @@ function streetEntries(sheet?:AtlasSheet) {
       b={x:a.x+dx*end,z:a.z+dz*end};a={x:a.x+dx*start,z:a.z+dz*start};
     }
     const length=Math.hypot(b.x-a.x,b.z-a.z);
-    if(!grouped.has(road.name)||grouped.get(road.name)!.length<length)grouped.set(road.name,{a,b,length});
+    if(!grouped.has(road.name)||grouped.get(road.name)!.length<length)grouped.set(road.name,{a,b,length,tier:roadTier(road.roadClass)});
   }
-  return [...grouped].sort(([a],[b])=>a.localeCompare(b)).map(([name,{a,b}])=>{
+  return [...grouped].sort(([a],[b])=>a.localeCompare(b)).map(([name,{a,b,tier}])=>{
     const x=(a.x+b.x)/2,z=(a.z+b.z)/2;
     let angle=Math.atan2(b.z-a.z,b.x-a.x)*180/Math.PI;if(angle>90)angle-=180;if(angle< -90)angle+=180;
     const frame=atlasFrame(sheet),column=Math.max(0,Math.min(3,Math.floor((x-frame.minX)/frame.span*4))),row=Math.max(0,Math.min(3,Math.floor((z-frame.minZ)/frame.span*4)));
-    return {name,key:sheet?`${sheet.id}|${name}`:name,sheet:sheet?.id,x,z,angle,reference:`${sheet?sheet.id+' · ':''}${'ABCD'[column]}${row+1}`};
+    return {name,key:sheet?`${sheet.id}|${name}`:name,sheet:sheet?.id,x,z,angle,tier,reference:`${sheet?sheet.id+' · ':''}${'ABCD'[column]}${row+1}`};
   });
 }
 let streetCache:ReturnType<typeof streetEntries>|undefined;
@@ -66,9 +72,7 @@ function mapSvg() {
   const maxX=minX+width,maxZ=minZ+height;
   const points=(list:Point[])=>list.map((p)=>`${p.x},${p.z}`).join(" ");
   const grid=Array.from({length:5},(_,i)=>`<path d="M ${minX+i*span/4} ${minZ} V ${maxZ} M ${minX} ${minZ+i*span/4} H ${maxX}"/>`).join("");
-  const edges=roads.map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${roadWidth(road)+2}"/>`;}).join("");
-  const paths=roads.map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${roadWidth(road)}"/>`;}).join("");
-  const labels=overview?'':atlasStreetEntries().filter(street=>street.sheet===activeSheet?.id).map(street=>`<text data-street="${xml(street.key)}" x="${street.x}" y="${street.z-1*u}" transform="rotate(${street.angle} ${street.x} ${street.z})" style="font-size:${4*u}px">${xml(street.name.toUpperCase())}</text>`).join("");
+  const labels=overview?'':atlasStreetEntries().filter(street=>street.sheet===activeSheet?.id).map(street=>`<text data-street="${xml(street.key)}" data-road-tier="${street.tier}" x="${street.x}" y="${street.z-1*u}" transform="rotate(${street.angle} ${street.x} ${street.z})" style="font-size:${4*u}px">${xml(street.name.toUpperCase())}</text>`).join("");
   const bays=parkingZones.map((zone)=>`<rect x="${zone.x-zone.width/2}" y="${zone.z-zone.depth/2}" width="${zone.width}" height="${zone.depth}" class="atlas-bay"/><text x="${zone.x}" y="${zone.z+2*u}" class="atlas-parking" data-map-label="parking" style="font-size:${6*u}px">P</text>`).join("");
   const places=landmarks.map((place)=>`<path d="${(place.points?[place.points,...(place.holes??[])]:[[{x:place.x-place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z+place.depth/2},{x:place.x-place.width/2,z:place.z+place.depth/2}]]).map(ring=>`M ${ring.map(p=>`${p.x} ${p.z}`).join(" L ")} Z`).join(" ")}" fill-rule="evenodd" class="atlas-building"/><text x="${place.x}" y="${place.z-place.depth/2-4*u}" class="atlas-place-label" data-map-label="place" style="font-size:${4.5*u}px">${xml(atlasLabel(place).toUpperCase())}</text>`).join("");
   const features=district.features.map((feature)=>`<polyline points="${points(feature.points)}" fill="none" stroke="${feature.kind==="water"?"#9cbfc1":"#756e5b"}" stroke-width="${feature.width}" ${feature.kind==="rail"?'stroke-dasharray="3 2"':""}/>`).join("");
@@ -83,7 +87,7 @@ function mapSvg() {
     <rect x="${minX}" y="${minZ}" width="${width}" height="${height}" fill="#dedfc7"/>
     <g clip-path="url(#atlas-paper-clip)">
     ${areas}${buildings}${features}${overview?'':`<g class="atlas-grid">${grid}</g>`}
-    <g fill="none" stroke="#8b8e76" stroke-linecap="round">${edges}</g><g fill="none" stroke="#f9f2df" stroke-linecap="round">${paths}</g>
+    ${[3,2,1].map(tier=>`<g data-road-tier="${tier}"><g fill="none" stroke="#8b8e76" stroke-linecap="round">${roads.filter(road=>roadTier(road.roadClass)===tier).map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${roadWidth(road)+2}"/>`;}).join("")}</g><g fill="none" stroke="#f9f2df" stroke-linecap="round">${roads.filter(road=>roadTier(road.roadClass)===tier).map((road)=>{const a=nodeById(road.a),b=nodeById(road.b);return `<path d="M ${a.x} ${a.z} L ${b.x} ${b.z}" stroke-width="${roadWidth(road)}"/>`;}).join("")}</g></g>`).join('')}
     ${overview?'':bays+places}<g class="atlas-road-label">${labels}</g>
     ${overview?`<g class="atlas-quadrants">${sheets.map(sheet=>`<g data-atlas-sheet="${sheet.id}"><rect x="${sheet.minX+sheet.overlap/2}" y="${sheet.minZ+sheet.overlap/2}" width="${sheet.span-sheet.overlap}" height="${sheet.span-sheet.overlap}"/><text data-map-label="quadrant" x="${sheet.minX+sheet.overlap/2+50}" y="${sheet.minZ+sheet.overlap/2+150}">${sheet.id}</text></g>`).join('')}</g><g class="atlas-town-labels">${district.areas.map(area=>`<text data-map-label="town" x="${area.x}" y="${area.z}">${xml(area.name)}</text>`).join('')}</g>`:''}
     </g>

@@ -1,6 +1,6 @@
 import { createAtlasView } from "../navigation/AtlasView";
 import { createAtlasNotes } from "../navigation/AtlasNotes";
-import { createAtlas, pinnedGridLabels, type AtlasPage } from "./Atlas";
+import { createAtlas, pinnedGridLabels, roadTiersVisible, type AtlasPage } from "./Atlas";
 import { type Car } from "../driving/Car";
 import { type Mission } from "../mission/Mission";
 import { type Parking } from "../navigation/Parking";
@@ -182,8 +182,13 @@ class Hud {
       }
     }
     const pixels=Math.min(24,14+3*(this.atlasView.zoom-1));
+    // Zoomed-out paper shows the major network; smaller streets and then paths appear as the reader zooms (#88).
+    const tiers=roadTiersVisible(this.atlasView.zoom);
+    for(let tier=1;tier<=3;tier++){const group=map.querySelector<SVGGElement>(`[data-road-tier="${tier}"]`);if(group)group.style.display=tier<=tiers?'':'none';}
     for(const label of map.querySelectorAll<SVGTextElement>("[data-street]")){
       const selected=label.dataset.street===this.selectedStreet;
+      if(Number(label.dataset.roadTier??1)>tiers){label.style.display='none';continue;}
+      label.style.display='';
       label.style.fontSize=`${(selected?pixels+2:pixels)/scale}px`;
       label.style.paintOrder="stroke";label.style.stroke="#f8f1dd";label.style.strokeWidth=`${3/scale}px`;
       label.style.fill=selected?"#8f342c":"#29443f";
@@ -201,7 +206,7 @@ class Hud {
       const matrix=map.getScreenCTM()!;
       const topLeft=new DOMPoint(frame.minX,frame.minZ).matrixTransform(matrix),bottomRight=new DOMPoint(frame.minX+frame.span,frame.minZ+frame.span).matrixTransform(matrix);
       const paper={left:Math.max(viewport.left,topLeft.x),right:Math.min(viewport.right,bottomRight.x),top:Math.max(viewport.top,topLeft.y),bottom:Math.min(viewport.bottom,bottomRight.y)};
-      for(const label of labels)label.style.display='';
+      for(const label of labels)if(Number(label.dataset.roadTier??1)<=tiers)label.style.display='';
       for(const label of labels){
         const box=label.getBoundingClientRect();
         const visible=box.width>0&&box.left>=paper.left+3&&box.right<=paper.right-3&&box.top>=paper.top+3&&box.bottom<=paper.bottom-3;
