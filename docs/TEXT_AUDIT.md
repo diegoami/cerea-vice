@@ -1,5 +1,10 @@
 # Player-visible text audit (issue #19)
 
+> **Later change (#93):** key and button names were then removed from every playing screen —
+> the controls table, button notes, the fare-list footer, the atlas footer and tool hints, and
+> the driving prompts and hints. The rows below marked KEEP or SHORTEN for "Bindings" record the
+> #19 decision; the full mapping now appears only under **Change controls**.
+
 Owner request: remove text that is only prose and is not needed to play. Kept:
 controls and prompts (with the active bindings), fares and pay, street, place
 and sign names, the clock and earnings, passenger requests, the compass,

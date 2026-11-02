@@ -18,7 +18,6 @@ import { createHud, type FareChoice, type Screen } from "../ui/Hud";
 import { District } from "../world/district";
 import {PassengerPresence} from '../world/People';
 import {ControlsPanel} from '../input/ControlsPanel';
-import {bindingLabel} from '../input/Bindings';
 import {decodeSave,mapDataVersion,mapSignature,MapVersionError,saveKey,SAVE_VERSION,type SaveData} from './Save';
 export function createGame(context:District,towns:readonly Pick<TownEntry,"id"|"name">[]=[{id:context.district.id,name:context.district.name}]){
 const {district}=context;
@@ -80,12 +79,11 @@ class Game {
     this.streamStatus.id="stream-status";this.streamStatus.hidden=true;this.streamStatus.setAttribute("role","status");root.append(this.streamStatus);
     if(this.timingPanel){this.timingPanel.id="performance-stats";this.timingPanel.setAttribute("aria-label","CPU profiling timings");root.append(this.timingPanel);}
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation(),(choice,id)=>this.chooseFare(choice,id));
-    this.hud.setBindings(this.input.bindings);
     let heardVolume=this.settings.volume;
     this.settingsPanel=new SettingsPanel(this.settings,()=>{this.resize();this.world.setDetail(this.settings.detail);
       // Changing the volume plays a short check tone, even on the paused screens.
       if(this.settings.volume!==heardVolume){heardVolume=this.settings.volume;this.sound.preview(heardVolume);}});
-    this.controlsPanel=new ControlsPanel(this.input.bindings,()=>this.hud.setBindings(this.input.bindings));
+    this.controlsPanel=new ControlsPanel(this.input.bindings);
     // Radio actions sit with the sound options; choosing a folder is a deliberate native dialog.
     this.settingsPanel.addAction('Choose music folder…',()=>{if(!this.radio.available){this.radio.onChange();return;}void this.radio.choose().then(()=>{if(this.radio.playable)this.settingsPanel.apply({radio:true,radioSource:'folder'});});});
     this.settingsPanel.addAction('Previous track',()=>this.radio.previous());
@@ -101,8 +99,8 @@ class Game {
     this.world.setDetail(this.settings.detail);
     this.renderer.domElement.addEventListener("click", () => {
       if(this.screen!=="running" || document.pointerLockElement===this.renderer.domElement)return;
-      try { const result=this.renderer.domElement.requestPointerLock(); result?.catch(()=>this.hud.setHint("Mouse look could not capture the pointer. Click the windshield again, or use the right stick / Q and E.")); }
-      catch { this.hud.setHint("Click the windshield to capture mouse look, or use the right stick / Q and E."); }
+      try { const result=this.renderer.domElement.requestPointerLock(); result?.catch(()=>this.hud.setHint("Mouse look could not capture the pointer. Click the windshield again to look around.")); }
+      catch { this.hud.setHint("Click the windshield to look around with the mouse."); }
     });
     document.addEventListener("pointerlockchange", () => {
       const captured=document.pointerLockElement===this.renderer.domElement;
@@ -180,9 +178,7 @@ class Game {
       this.hud.resetAtlasNotes();
       this.cockpit.reset();
       this.motion.reset();
-      this.hud.setHint(
-        district.mission.hint,
-      );
+      this.hud.setHint(this.mission.notice);
       this.cockpit.update(1, this.car, 0);
     }
     this.sound.unlock();
@@ -194,11 +190,10 @@ class Game {
 
   /** Deliberate stopped request: shows the waiting list, or issues one. Never automatic. */
   private requestFares(worldReady:boolean){
-    const key=bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller');
     if(!this.mission.taxiMode||this.mission.finished)return;
     if(this.mission.hasRide){this.hud.setHint(`You already have a fare: ${this.mission.objective}`);return;}
-    if(!this.parking.stopped||this.car.speed!==0){this.hud.setHint(`Come to a complete stop before requesting fares, then press ${key}.`);return;}
-    if(!worldReady){this.hud.setHint(`Scenery is still loading. Request fares (${key}) once it is ready.`);return;}
+    if(!this.parking.stopped||this.car.speed!==0){this.hud.setHint('Come to a complete stop before requesting fares.');return;}
+    if(!worldReady){this.hud.setHint('Scenery is still loading. Request fares once it is ready.');return;}
     if(!this.mission.requestFares(this.car))return;
     if(this.mission.fareBoard[0]?.id===0)try{const first=this.mission.fareBoard[0];localStorage.setItem(`cerea-last-opening-${district.id}`,`${first.pickupId}/${first.destinationId}`);}catch{/* Optional variety only. */}
     this.openFareBoard();
@@ -313,13 +308,13 @@ class Game {
     }
     if (this.input.controllerDisconnected) {
       this.pause();
-      this.hud.setHint("Controller disconnected. Reconnect and press A / Cross, or Enter on the keyboard, to resume.");
+      this.hud.setHint("Controller disconnected. Reconnect it, or use the keyboard, and resume when ready.");
     }
     if (this.screen === "running" && !this.input.controllerDisconnected && !this.waitForDrivingRelease && actions.shiftGear) {
       if (this.mission.boarding>0) this.hud.setHint(`${this.mission.passenger} is getting in. Stay stopped.`);
       else if (this.parking.stopped && actions.throttle < .1 && this.car.shiftGear())
-        this.hud.setHint(`${this.car.gear === "R" ? "Reverse" : "Forward"} selected. ${bindingLabel(this.input.bindings,'throttle',this.input.device==='Controller')} accelerates; ${bindingLabel(this.input.bindings,'brake',this.input.device==='Controller')} brakes.`);
-      else this.hud.setHint(`Stop fully and release the accelerator before switching forward / reverse (${bindingLabel(this.input.bindings,'shiftGear',this.input.device==='Controller')}).`);
+        this.hud.setHint(`${this.car.gear === "R" ? "Reverse" : "Forward"} selected. The accelerator drives in this direction; the brake only brakes.`);
+      else this.hud.setHint('Stop fully and release the accelerator before switching forward / reverse.');
     }
     const readyForFares=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
     if(this.screen==='fares'){
@@ -344,8 +339,8 @@ class Game {
         else if(this.mission.taxiMode) {
           const target=this.mission.target;
           if(this.mission.boarding>0)this.hud.setHint(`${this.mission.passenger} is getting in. Stay stopped.`);
-          else if(!target)this.hud.setHint(`No passenger booked. Stop and press ${bindingLabel(this.input.bindings,'requestFares',this.input.device==='Controller')} to see available fares.`);
-          else if(!this.mission.serveAtStop(this.car,this.parking.stopped))this.hud.setHint(`Stop in ${target.bay.name} at ${target.name}, then press ${bindingLabel(this.input.bindings,'interact',this.input.device==='Controller')} to ${this.mission.taxiStage === "pickup" ? "collect" : "drop off"} ${this.mission.passenger}.`);
+          else if(!target)this.hud.setHint('No passenger booked. Stop and request fares to see what is available.');
+          else if(!this.mission.serveAtStop(this.car,this.parking.stopped))this.hud.setHint(`Stop in ${target.bay.name} at ${target.name} to ${this.mission.taxiStage === "pickup" ? "collect" : "drop off"} ${this.mission.passenger}.`);
         }
       }
       if (actions.information) this.requestInformation();
@@ -361,7 +356,7 @@ class Game {
           this.accumulator = 0;
           this.releaseMouseLook();
         } else {
-          this.hud.setHint(`Come to a complete stop before opening the atlas, then press ${bindingLabel(this.input.bindings,'atlas',this.input.device==='Controller')}.`);
+          this.hud.setHint('Come to a complete stop before opening the atlas.');
         }
       }
     }

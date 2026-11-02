@@ -10,7 +10,6 @@ import { createNavigation } from "../navigation/Navigation";
 import { District } from "../world/district";
 import type {AtlasSnapshot} from '../navigation/AtlasNotes';
 import type {AtlasSheet} from '../navigation/AtlasSheets';
-import {bindingLabel,defaultBindings,type Bindings} from '../input/Bindings';
 export type Screen = "briefing" | "running" | "paused" | "result" | "atlas" | "fares";
 export type FareChoice = "select" | "accept" | "refresh" | "close";
 export function createHud(context:District,towns:readonly Pick<TownEntry,"id"|"name">[]=[{id:context.district.id,name:context.district.name}]){
@@ -50,11 +49,9 @@ class Hud {
   private device: HTMLElement;
   private hint: HTMLElement;
   private hintLabel: HTMLElement;
-  private bindings:Bindings=defaultBindings;
   private soundText='';
   /** Sound level, mute or a blocked audio device, and the radio; shown on every screen. */
   setSound({text,warn}:{text:string;warn:boolean}){if(text===this.soundText)return;this.soundText=text;const element=document.querySelector<HTMLElement>('#sound-state');if(element){element.textContent=text;element.classList.toggle('unsafe',warn);}}
-  setBindings(bindings:Bindings){this.bindings=bindings;this.currentScreen=undefined;}
   saveAtlas(){return this.atlasNotes.snapshot();}
   restoreAtlas(value:AtlasSnapshot){this.atlasNotes.restore(value);this.atlasInformation='';this.atlasSheet=undefined;setAtlasSheet();this.atlasView.setSheet();this.currentScreen=undefined;}
 
@@ -76,7 +73,7 @@ class Hud {
       <div class="interaction" id="prompt"></div>
       <footer class="dashboard">
         <div class="dashboard-left"><div class="speed-line"><strong id="speed">00</strong><span>KM/H<br><b id="gear">D</b></span></div><div class="stop-state" id="stop-state">SETTLING</div></div>
-        <div class="dashboard-right"><div class="dash-detail"><span id="device">Keyboard</span><span>ESC / START &nbsp; PAUSE</span></div><div class="dash-detail sound-state" id="sound-state" role="status"></div></div>
+        <div class="dashboard-right"><div class="dash-detail"><span id="device">Keyboard</span></div><div class="dash-detail sound-state" id="sound-state" role="status"></div></div>
       </footer>
       ${district.attribution.includes("OpenStreetMap") ? `<div class="map-credit">${district.attribution} · openstreetmap.org/copyright</div>` : ""}
       <div id="overlay" class="overlay"></div>
@@ -405,14 +402,13 @@ class Hud {
     this.overlay.classList.toggle("atlas-open", screen === "atlas");
     this.overlay.hidden = screen === "running";
     if (screen === "running") return;
-    const label=(action:Parameters<typeof bindingLabel>[1],controller=false)=>bindingLabel(this.bindings,action,controller);
     if(screen==='fares'){
       const offers=mission.fareBoard.map(offer=>{
         const pickup=district.taxi!.stops.find(stop=>stop.id===offer.pickupId)!,destination=district.taxi!.stops.find(stop=>stop.id===offer.destinationId)!;
         const supplement=Math.round(Math.max(0,offer.approachDistance-1000)*2.5);
         return `<button type="button" data-fare-offer="${offer.id}" aria-pressed="false"><b>${escapeHtml(offer.passenger)}</b><span>From ${escapeHtml(pickup.name)}, ${escapeHtml(pickup.road)}</span><span>To ${escapeHtml(destination.name)}, ${escapeHtml(destination.road)}</span><strong>${offer.quoted?`Guaranteed ${formatMoney(mission.offerGuaranteeCents(offer))}${supplement?` (includes ${formatMoney(supplement)} collection)`:''} + up to ${formatMoney(district.taxi!.maxBonusCents)} speed bonus`:'Quote pending'}</strong></button>`;
       }).join('');
-      this.overlay.innerHTML=`<section class="fare-board modal" aria-labelledby="screen-title"><span class="eyebrow accent">TAXI DISPATCH / TIME PAUSED</span><h1 id="screen-title">Available fares</h1><p>Prices are fixed from where this list was issued; collection supplements and fares pay only on delivery.</p><div class="fare-list" role="group" aria-label="Available fares">${offers}</div><div class="fare-actions"><button type="button" data-fare="accept">Accept selected · A / Enter</button><button type="button" data-fare="refresh">New list · Y / N</button><button type="button" data-fare="close">Close list · B / Backspace</button></div><small>Up / down, W / S, D-pad or left stick: choose. A closed list is kept until you accept a fare or ask for a new one; ${label('requestFares',true)} / ${label('requestFares')} shows it again while stopped. Start / Escape: pause and save.</small></section>`;
+      this.overlay.innerHTML=`<section class="fare-board modal" aria-labelledby="screen-title"><span class="eyebrow accent">TAXI DISPATCH / TIME PAUSED</span><h1 id="screen-title">Available fares</h1><p>Prices are fixed from where this list was issued; collection supplements and fares pay only on delivery.</p><div class="fare-list" role="group" aria-label="Available fares">${offers}</div><div class="fare-actions"><button type="button" data-fare="accept">Accept selected</button><button type="button" data-fare="refresh">New list</button><button type="button" data-fare="close">Close list</button></div><small>A closed list is kept until you accept a fare or ask for a new one, and you can show it again while stopped. Pause to save the shift.</small></section>`;
       this.setFareSelection(this.fareSelection);
       return;
     }
@@ -423,43 +419,25 @@ class Hud {
       this.overlay.querySelector<HTMLButtonElement>("[data-atlas-close]")?.focus();
       return;
     }
-    const controls = `<div class="control-table">
-      <div class="control-heading"><span>ACTION</span><span>CONTROLLER</span><span>KEYBOARD</span></div>
-      ${mission.taxiMode ? `<div><span>Collect / drop off passenger</span><b>${label('interact',true)}</b><b>${label('interact')}</b></div>` : ""}
-      <div><span>Steer</span><b>Left stick</b><b>${label('steerLeft')} / ${label('steerRight')}</b></div>
-      <div><span>Accelerate</span><b>${label('throttle',true)}</b><b>${label('throttle')}</b></div>
-      <div><span>Brake only</span><b>${label('brake',true)}</b><b>${label('brake')}</b></div>
-      <div><span>Forward / reverse (stopped)</span><b>${label('shiftGear',true)}</b><b>${label('shiftGear')}</b></div>
-      <div><span>Handbrake</span><b>${label('handbrake',true)}</b><b>${label('handbrake')}</b></div>
-      <div><span>Look around</span><b>Right stick</b><b>Click view + mouse</b></div>
-      <div><span>Look forward</span><b>${label('resetLook',true)}</b><b>${label('resetLook')}</b></div>
-      <div><span>Glance</span><b>${label('glanceLeft',true)} / ${label('glanceRight',true)}</b><b>${label('glanceLeft')} / ${label('glanceRight')}</b></div>
-      <div><span>Ask for information (road / atlas)</span><b>${label('information',true)}</b><b>${label('information')}</b></div>
-      <div><span>Atlas (while stopped)</span><b>${label('atlas',true)}</b><b>${label('atlas')}</b></div>
-      ${mission.taxiMode ? `<div><span>Request fares (while stopped)</span><b>${label('requestFares',true)}</b><b>${label('requestFares')}</b></div>` : ""}
-      <div><span>Mission reminder</span><b>${label('reminder',true)}</b><b>${label('reminder')}</b></div>
-      <div><span>Radio: next track (music folder)</span><b>${label('radioNext',true)}</b><b>${label('radioNext')}</b></div>
-      <div><span>Volume, mute and radio</span><b>Picture &amp; Sound panel</b><b>Picture &amp; Sound panel</b></div>
-      <div><span>Pause</span><b>Start</b><b>Esc / P</b></div>
-    </div>`;
+    const controlsNote=`<small class="controller-note">Every key and button is listed under Change controls in the Picture &amp; Sound panel.</small>`;
     if (screen === "briefing") {
       this.overlay.innerHTML = `<section class="briefing modal" aria-labelledby="screen-title">
         <div class="briefing-main"><span class="eyebrow accent">CEREA VICE</span>
           <h1 id="screen-title">${mission.taxiMode ? `Taxi shift<br> <em>${mission.shiftLabel}</em>` : `Find<br> <em>${district.mission.name}</em>`}</h1>
           <p class="intro">${mission.taxiMode ? `Collect passengers and earn as much as you can before ${mission.shiftLabel.split("–")[1]}.` : district.mission.objective}</p>
-          <button type="button">Start the engine <span aria-hidden="true">&gt;</span></button><span class="button-note">${mission.taxiMode ? "A / ENTER TO START" : `A / ENTER TO BEGIN · ${Math.round(district.mission.duration/60)} MINUTE DRIVE`}</span>
+          <button type="button">Start the engine <span aria-hidden="true">&gt;</span></button>${mission.taxiMode ? "" : `<span class="button-note">${Math.round(district.mission.duration/60)} MINUTE DRIVE</span>`}
         </div>
-        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop and press ${label('requestFares',true)} / ${label('requestFares')} for the fare list and accept one. Stop in the pickup's named bay and press ${label('interact',true)} / ${label('interact')} to collect them, and again at their destination.`:district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${towns.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${escapeHtml(map.name)}</button>`).join("")}</div><small class="controller-note">LB / RB or Q / E: change district before starting.</small><small class="controller-note">${district.attribution}</small>
-          <div class="briefing-tip">${mission.taxiMode ? `<b>${mission.shiftLabel} in about ${Math.ceil(mission.duration/60)} active minutes.</b><p>Faster rides earn a bigger bonus; slow rides still pay the base fare. The clock runs while you drive and stops while paused or reading the atlas or fare list.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere. Use ${label('atlas',true)} / ${label('atlas')} for the atlas, or ${label('information',true)} / ${label('information')} for information. Marked P bays are legal stopping places.</p></div>
-          ${controls}<small class="controller-note" id="controller-status" role="status"></small>
+        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop, request the fare list and accept a fare. Stop in the pickup's named bay to collect them, and again at their destination.`:district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${towns.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${escapeHtml(map.name)}</button>`).join("")}</div><small class="controller-note">Choose a district before starting.</small><small class="controller-note">${district.attribution}</small>
+          <div class="briefing-tip">${mission.taxiMode ? `<b>${mission.shiftLabel} in about ${Math.ceil(mission.duration/60)} active minutes.</b><p>Faster rides earn a bigger bonus; slow rides still pay the base fare. The clock runs while you drive and stops while paused or reading the atlas or fare list.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere, then open the atlas or ask for information. Marked P bays are legal stopping places.</p></div>
+          ${controlsNote}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
       </section>`;
       // With many districts the list scrolls; keep the current one in view.
       this.overlay.querySelector<HTMLElement>('.district-switch [aria-pressed="true"]')?.scrollIntoView({block:"nearest"});
     } else if (screen === "paused") {
-      this.overlay.innerHTML = `<section class="pause modal" aria-labelledby="screen-title"><span class="eyebrow accent">TIMER PAUSED</span><h1 id="screen-title">Paused</h1>${controls}<small class="controller-note" id="controller-status" role="status"></small><button type="button">Back to the road <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER / START TO RESUME</span></section>`;
+      this.overlay.innerHTML = `<section class="pause modal" aria-labelledby="screen-title"><span class="eyebrow accent">TIMER PAUSED</span><h1 id="screen-title">Paused</h1>${controlsNote}<small class="controller-note" id="controller-status" role="status"></small><button type="button">Back to the road <span aria-hidden="true">&gt;</span></button></section>`;
     } else if(mission.taxiMode) {
-      this.overlay.innerHTML=`<section class="result modal" aria-labelledby="screen-title"><span class="eyebrow accent">${mission.clockText} / TAXI SHIFT COMPLETE</span><h1 id="screen-title">You earned ${formatMoney(mission.earningsCents)}.</h1><div class="result-stats"><div><strong>${formatMoney(mission.earningsCents)}</strong><span>TOTAL FARES</span></div><div><strong>${formatMoney(mission.bonusEarnedCents)}</strong><span>SPEED BONUSES</span></div><div><strong>${mission.completedFares}</strong><span>COMPLETED RIDES</span></div><div><strong>${car.collisions}</strong><span>COLLISIONS</span></div><div><strong>${mission.directionRequestCount}</strong><span>INFORMATION REQUESTS</span></div></div>${mission.unfinishedPassenger?"<p>The passenger still aboard at closing time is not counted as a completed fare.</p>":""}<button type="button">Start another shift <span aria-hidden="true">&gt;</span></button><span class="button-note">A / ENTER TO RESTART AT ${mission.shiftLabel.split("–")[0]}</span></section>`;
+      this.overlay.innerHTML=`<section class="result modal" aria-labelledby="screen-title"><span class="eyebrow accent">${mission.clockText} / TAXI SHIFT COMPLETE</span><h1 id="screen-title">You earned ${formatMoney(mission.earningsCents)}.</h1><div class="result-stats"><div><strong>${formatMoney(mission.earningsCents)}</strong><span>TOTAL FARES</span></div><div><strong>${formatMoney(mission.bonusEarnedCents)}</strong><span>SPEED BONUSES</span></div><div><strong>${mission.completedFares}</strong><span>COMPLETED RIDES</span></div><div><strong>${car.collisions}</strong><span>COLLISIONS</span></div><div><strong>${mission.directionRequestCount}</strong><span>INFORMATION REQUESTS</span></div></div>${mission.unfinishedPassenger?"<p>The passenger still aboard at closing time is not counted as a completed fare.</p>":""}<button type="button">Start another shift <span aria-hidden="true">&gt;</span></button><span class="button-note">RESTARTS AT ${mission.shiftLabel.split("–")[0]}</span></section>`;
     } else {
       const success = mission.state === "success";
       this.overlay.innerHTML = `<section class="result modal" aria-labelledby="screen-title">
@@ -474,7 +452,6 @@ class Hud {
           <div><strong>${mission.directionRequests.unsafe}</strong><span>UNSAFE REQUESTS</span></div>
         </div>
         <button type="button">Take another drive <span aria-hidden="true">&gt;</span></button>
-        <span class="button-note">A / ENTER TO RESTART</span>
       </section>`;
     }
   }
@@ -494,7 +471,7 @@ class Hud {
     const taxiStatus=document.querySelector<HTMLElement>('#taxi-status')!;
     if(mission.taxiMode) {
       stage.textContent=`TAXI / ${!target?'FREE DRIVING':mission.taxiStage==='pickup'?'COLLECT PASSENGER':mission.boarding>0?'PASSENGER BOARDING':'PASSENGER ABOARD'}`;
-      const text=!target?`Free driving · ${bindingLabel(this.bindings,'requestFares',device==='Controller')} requests fares`:mission.taxiStage==='pickup'?`Collect ${mission.passenger} at ${target.name}`:`${mission.passenger} → ${target.name}`;
+      const text=!target?'Free driving · stop to request fares':mission.taxiStage==='pickup'?`Collect ${mission.passenger} at ${target.name}`:`${mission.passenger} → ${target.name}`;
       if(title.textContent!==text)title.textContent=text;
       if(description.textContent!==mission.objective)description.textContent=mission.objective;
       taxiStatus.hidden=false;
@@ -533,13 +510,12 @@ class Hud {
     this.device.title = gamepadBlocked
       ? "Open the preview in a new browser tab to use a controller."
       : "";
-    const control=(action:Parameters<typeof bindingLabel>[1])=>bindingLabel(this.bindings,action,device==='Controller');
-    const serve=mission.canServe(car,parking.stopped)?`<kbd>${control('interact')}</kbd> ${mission.taxiStage==='pickup'?`Collect ${escapeHtml(mission.passenger)}`:'Complete fare'} &nbsp; `:'';
-    const fares=mission.freeDriving&&!mission.finished?`<kbd>${control('requestFares')}</kbd> ${mission.fareBoard.length?'Show fare list':'Request fares'} &nbsp; `:'';
+    const serve=mission.canServe(car,parking.stopped)?`${mission.taxiStage==='pickup'?`Collect ${escapeHtml(mission.passenger)}`:'Complete fare'} · `:'';
+    const fares=mission.freeDriving&&!mission.finished?`${mission.fareBoard.length?'Show fare list':'Request fares'} · `:'';
     this.prompt.innerHTML = mission.boarding>0
       ? `${escapeHtml(mission.passenger)} is getting in · stay stopped`
       : parking.stopped
-      ? `${serve}${fares}<kbd>${control('information')}</kbd> Ask for information &nbsp; <kbd>${control('atlas')}</kbd> Atlas &nbsp; <kbd>${control('shiftGear')}</kbd> ${car.gear === "D" ? "Select reverse" : "Select forward"} <span>· ${parking.zone ?? (parking.legal ? "stopping allowed" : "unsafe stopping place")}</span>`
+      ? `${serve}${fares}Ask for information · Atlas · ${car.gear === "D" ? "Select reverse" : "Select forward"} <span>· ${parking.zone ?? (parking.legal ? "stopping allowed" : "unsafe stopping place")}</span>`
       : mission.freeDriving ? "Stop fully to request fares, read the atlas or ask for directions" : "Stop fully for the atlas or directions";
   }
 }
