@@ -113,6 +113,17 @@
           "bay": "duomo"
         }
       ]
+    },
+    {
+      "id": "verona-south",
+      "name": "Verona centro–Borgo Roma",
+      "map": "verona-south/manifest.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "local",
+      "taxi": true,
+      "provenance": true,
+      "spec": "towns/verona-south.town.json"
     }
   ]
 }

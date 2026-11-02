@@ -17,6 +17,7 @@
     "release:win": "node desktop/release-windows.mjs",
     "town:check": "node --import tsx tools/town-check.ts",
     "build:verona": "python3 tools/import-town.py towns/verona.town.json",
+    "build:verona-south": "python3 tools/import-town.py towns/verona-south.town.json",
     "build:region": "python3 tools/build-region.py regions/lower-verona.region.json && node --import tsx tools/tile-district.mjs build/regions/lower-verona.json public/maps/lower-verona build/regions/lower-verona.tiling.json"
   },
   "dependencies": {

@@ -84,3 +84,12 @@ ground). Porta Borsari and Porta Leoni are mapped points: the street runs throug
 clearance removes the gate itself and the stop uses the nearest remaining building. Built with
 `npm run build:verona` into `public/maps/verona/` (tiled). Same ODbL 1.0 terms and attribution as above.
 
+## Verona centro–Borgo Roma
+
+`sources/verona-south-osm.json`, fetched 2026-11-02 from `https://overpass-api.de/api/interpreter` (OSM data
+timestamp 2026-11-02T19:06:36Z), box 45.4030, 10.9780, 45.4500, 11.0110, with the same contents as the Verona
+centro extract (highways, buildings and building relations, waterways, railways, water areas, `area:highway`,
+amenity, tourism, historic, leisure and place features; `out geom`). The spec `towns/verona-south.town.json`
+keeps 45.4030–45.4495 N, 10.9800–11.0090 E. The 13 Adige-loop stops are Verona centro's (owner-confirmed
+2026-10-29); the seven southern stops are proposed and await the owner's confirmation. Built with
+`npm run build:verona-south` into `public/maps/verona-south/` (tiled). Same ODbL 1.0 terms and attribution.
