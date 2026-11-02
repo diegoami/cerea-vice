@@ -1039,10 +1039,16 @@ test('regional atlas has readable connected quadrants without moving knowledge o
   await press(5);assert.notEqual(await page.locator('.atlas-sheet-navigation strong').innerText(),initial,'RB turns a detail page');
   await press(4);assert.equal(await page.locator('.atlas-sheet-navigation strong').innerText(),initial,'LB returns to the same page');
   const east=await page.locator('button[data-atlas-sheet]').filter({hasText:/East/}).getAttribute('data-atlas-sheet');
+  await page.locator('[data-atlas-zoom="1"]').click();await page.locator('[data-atlas-zoom="1"]').click();
+  const zoomed=await page.locator('#atlas-zoom-level').innerText();assert.equal(zoomed,'225%');
   await page.locator('button[data-atlas-sheet]').filter({hasText:/East/}).click();
   assert.ok((await page.locator('.atlas-sheet-navigation strong').innerText()).startsWith(east+' ·'));
+  assert.equal(await page.locator('#atlas-zoom-level').innerText(),zoomed,'Turning to a neighbouring page keeps the zoom (#104)');
   await page.locator('button[data-atlas-sheet]').filter({hasText:/West/}).click();
   assert.equal(await page.locator('.atlas-sheet-navigation strong').innerText(),initial);
+  assert.equal(await page.locator('#atlas-zoom-level').innerText(),zoomed);
+  await page.locator('[data-atlas-zoom="-1"]').click();await page.locator('[data-atlas-zoom="-1"]').click();
+  assert.equal(await page.locator('#atlas-zoom-level').innerText(),'100%');
   await checkTextFit(app,page,'region-quadrant');
   const labels=await page.locator('.atlas-map').evaluate(map=>[...map.querySelectorAll('[data-street], [data-map-label="place"], [data-map-label="parking"]')].filter(label=>getComputedStyle(label).display!=='none').map(label=>{const r=label.getBoundingClientRect();return {name:label.textContent,left:r.left,right:r.right,top:r.top,bottom:r.bottom};}));
   for(let i=0;i<labels.length;i++)for(let j=i+1;j<labels.length;j++){
