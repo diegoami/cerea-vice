@@ -27,6 +27,8 @@ const {Parking}=createParking(context);
 const {Mission}=createMission(context);
 const makeWorld=()=>district.streaming?new StreamingWorld(context):new (createWorld(context).World)();
 const {Hud}=createHud(context,towns);
+/** A shift handed from one region to its neighbour across a gateway, read once by the next game (#112). */
+const CROSSING_KEY='cerea-crossing';
 class Game {
   private readonly timingPanel=context.profile.enabled?document.createElement("pre"):undefined;
   private timingRefresh=0;
@@ -53,6 +55,8 @@ class Game {
   private mainScreenButton!:HTMLButtonElement;
   /** Leaving a shift for the main screen takes a second, confirming press (#85). */
   private leavePending=false;
+  /** A gateway crossing arms only after the car has been clear of every gateway, so arriving cannot bounce back (#112). */
+  private gatewayArmed=false;
   private savedThisPause=false;
   private hasStarted=false;
   private readonly parking = new Parking();
@@ -131,6 +135,7 @@ class Game {
       );
     });
     this.cockpit.update(1, this.car, 0);
+    this.arriveFromCrossing();
     this.renderer.setAnimationLoop((time) => this.frame(time));
   }
 
@@ -249,6 +254,48 @@ class Game {
       localStorage.setItem(saveKey(context),JSON.stringify(value));
       this.saveStatus.textContent=`Saved ${this.mission.clockText}. A new shift keeps this save until you save again.`;this.savedThisPause=true;
     }catch{this.saveStatus.textContent='Save failed. Storage is unavailable or full; the previous save has been kept.';}
+  }
+
+  /** Region gateways (#112): reaching one with no fare booked carries the shift into the neighbouring region. */
+  private checkGateways(){
+    const gateways=district.gateways??[];if(!gateways.length)return;
+    const near=gateways.map(gateway=>({gateway,distance:Math.hypot(this.car.x-context.nodeById(gateway.nodeId).x,this.car.z-context.nodeById(gateway.nodeId).z)})).sort((a,b)=>a.distance-b.distance)[0];
+    if(!this.gatewayArmed){if(near.distance>40)this.gatewayArmed=true;return;}
+    if(near.distance>7)return;
+    const next=towns.find(town=>town.id===near.gateway.to);
+    this.gatewayArmed=false;
+    if(!next){this.hud.setHint('The road continues into a region this game does not have.');return;}
+    if(this.mission.hasRide||this.mission.boarding>0){this.hud.setHint(`The road continues to ${next.name}. Finish the fare before leaving this region.`);return;}
+    const m=this.mission.snapshot(),{x,z,heading,speed,gear}=this.car;
+    try{localStorage.setItem(CROSSING_KEY,JSON.stringify({version:1,from:district.id,to:next.id,nodeId:near.gateway.nodeId,savedAt:Date.now(),car:{x,z,heading,speed,gear},
+      mission:{elapsed:m.elapsed,totalElapsed:m.totalElapsed,earningsCents:m.earningsCents,bonusEarnedCents:m.bonusEarnedCents,receipts:m.receipts,directionRequests:m.directionRequests,randomState:m.randomState}}));}
+    catch{this.hud.setHint(`The road continues to ${next.name}, but the shift cannot be carried there: storage is unavailable.`);return;}
+    this.screen='paused';this.accumulator=0;
+    selectDistrict(towns,next.id);
+  }
+
+  /** Arriving through a gateway: the shift's clock, earnings and receipts carry on; fares, the fare list and the marker start fresh. */
+  private arriveFromCrossing(){
+    let record:any;
+    try{const text=localStorage.getItem(CROSSING_KEY);localStorage.removeItem(CROSSING_KEY);record=text?JSON.parse(text):undefined;}catch{return;}
+    if(!record||record.version!==1||record.to!==district.id||record.from===district.id||!(Date.now()-record.savedAt<10*60*1000))return;
+    const gateway=district.gateways?.find(entry=>entry.nodeId===record.nodeId);if(!gateway)return;
+    try{
+      this.mission.reset();
+      // The notice is what the HUD shows for the shift, so the arrival message lives there.
+      this.mission.restore({...this.mission.snapshot(),...record.mission,state:'active',
+        notice:`Entered ${district.name}. Fares here start a new list, and the atlas has no marked position until you ask for information. Free driving. Stop and request fares.`});
+    }catch{this.mission.reset();return;}
+    const node=context.nodeById(gateway.nodeId),road=(context.adjacency.get(gateway.nodeId)??[])[0];
+    const inner=context.nodeById(road.a===gateway.nodeId?road.b:road.a),length=Math.hypot(inner.x-node.x,inner.z-node.z)||1;
+    const step=Math.min(8,length/2),car=record.car;
+    this.car.reset();
+    Object.assign(this.car,{x:node.x+(inner.x-node.x)/length*step,z:node.z+(inner.z-node.z)/length*step,
+      heading:Number.isFinite(car?.heading)?car.heading:Math.atan2(inner.x-node.x,-(inner.z-node.z)),speed:Number.isFinite(car?.speed)?car.speed:0,gear:car?.gear==='R'?'R':'D'});
+    this.parking.reset();this.parking.update(0,this.car,this.car.speed);
+    this.hud.forgetAtlasMarker();this.world.updateFrame(this.car);
+    this.cockpit.reset();this.motion.reset();this.cockpit.update(1,this.car,0);
+    this.hasStarted=true;this.gatewayArmed=false;this.screen='running';this.accumulator=0;this.waitForDrivingRelease=true;
   }
 
   /** Back to the main screen to choose another district. The manual save is never touched; unsaved progress is lost after confirming. */
@@ -406,6 +453,7 @@ class Game {
       }
       this.world.updateFrame(this.car);
       this.cockpit.update(dt, this.car, actions.glance, actions);
+      if(this.screen==='running')this.checkGateways();
     }
     if(this.mission.revision!==this.missionRevision) {
       this.missionRevision=this.mission.revision;

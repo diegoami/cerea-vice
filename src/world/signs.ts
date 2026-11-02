@@ -121,7 +121,7 @@ function planEdgeSigns():{position:Point;angle:number;width:number;height:number
   const result:{position:Point;angle:number;width:number;height:number;boundary:boolean}[]=[];
   for(const node of nodes) {
     const links=(context.adjacency.get(node.id)??[]);
-    if(links.length!==1)continue;
+    if(links.length!==1||district.gateways?.some(gateway=>gateway.nodeId===node.id))continue;
     const road=links[0];if(road.oneWay&&road.a===node.id)continue;
     const path=approachPoints(node.id,road);
     const boundary=Math.min(node.x-district.bounds.minX,district.bounds.maxX-node.x,node.z-district.bounds.minZ,district.bounds.maxZ-node.z)<40;
@@ -175,5 +175,22 @@ function planPlaceSigns():{position:Point;angle:number;width:number;height:numbe
   }
   return result;
 }
-return {isMajorRoad,boardPoints,boardIsClear,planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,planPlaceSigns};
+/** At a region's gateway (#112), where its road ends at the neighbouring region: the places that road leads on to. */
+function planGatewaySigns():{position:Point;angle:number;width:number;height:number;rows:string[];nodeId:string}[] {
+  const result:{position:Point;angle:number;width:number;height:number;rows:string[];nodeId:string}[]=[];
+  for(const gateway of district.gateways??[]) {
+    const road=(context.adjacency.get(gateway.nodeId)??[])[0];if(!road)continue;
+    const path=approachPoints(gateway.nodeId,road),width=Math.max(3.2,Math.min(4.6,.26*Math.max(...gateway.sign.map(row=>row.length))+1));
+    let selected:typeof result[number]|undefined;
+    for(const setback of [10,14,18,6,24])for(const extra of [.5,1.5,3,5]) {
+      if(selected)break;
+      const {point,dx,dz}=pointBack(path,setback),offset=roadWidth(road)/2+width/2+extra;
+      const plan={position:{x:point.x-dz*offset,z:point.z+dx*offset},angle:Math.atan2(-dx,-dz),width,height:gateway.sign.length*1.3,rows:gateway.sign,nodeId:gateway.nodeId};
+      if(boardIsClear(plan))selected=plan;
+    }
+    if(selected)result.push(selected);
+  }
+  return result;
+}
+return {isMajorRoad,boardPoints,boardIsClear,planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,planPlaceSigns,planGatewaySigns};
 }

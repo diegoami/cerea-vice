@@ -1169,3 +1169,37 @@ test('pause offers the main screen, confirms before leaving and keeps the manual
   assert.deepEqual(errors,[]);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('driving to the end of the road north of Bovolone carries the shift into the region towards Verona (#112)', {timeout:240000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-crossing-'));
+ const plain=JSON.parse(await readFile('public/maps/lower-verona/manifest.json','utf8')),gateway=plain.gateways[0];
+ const nodes=new Map(plain.nodes.map(n=>[n.id,n])),gate=nodes.get(gateway.nodeId);
+ const road=plain.roads.find(r=>r.a===gateway.nodeId||r.b===gateway.nodeId),inner=nodes.get(road.a===gateway.nodeId?road.b:road.a);
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=lower-verona',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
+  // Put the taxi on Via Quaiotto, facing the end of the plain's road.
+  await page.evaluate(({inner,gate})=>{const s=JSON.parse(localStorage.getItem('cerea-save-lower-verona'));
+   Object.assign(s.car,{x:inner.x,z:inner.z,heading:Math.atan2(gate.x-inner.x,-(gate.z-inner.z)),speed:0,gear:'D'});s.mission.totalElapsed=600;s.mission.elapsed=600;
+   localStorage.setItem('cerea-save-lower-verona',JSON.stringify(s));},{inner,gate});
+  await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
+  await page.getByRole('button',{name:'Back to the road'}).click();await page.locator('#overlay').waitFor({state:'hidden'});
+  await frames(page);await frames(page);
+  // The edited save is 600 s into the shift: 07:00 plus 600 s at 30× is 12:00.
+  await page.waitForFunction(()=>document.querySelector('#timer').textContent>='12:00');const clock=await page.locator('#timer').innerText();
+  await page.keyboard.down('w');
+  await page.waitForFunction(()=>location.hash==='#district=verona-plain'&&document.querySelector('#hint')?.textContent.includes('Entered Verona and the plain to Oppeano'),null,{timeout:120000});
+  await page.keyboard.up('w');
+  assert.equal(await page.locator('.district-tag').innerText().then(t=>/VERONA AND THE PLAIN/.test(t)),true);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-crossing')),null,'The hand-over is read once');
+  const [h,m]=clock.split(':').map(Number),[h2,m2]=(await page.locator('#timer').innerText()).split(':').map(Number);
+  // The clock runs 30× real time, so a slow software-rendered drive can add an hour; it must not restart at 07:00.
+  assert.ok(h2*60+m2>=h*60+m&&h2*60+m2<=h*60+m+180,`The shift clock carries on (${clock} → ${h2}:${m2})`);
+  await page.waitForFunction(()=>document.querySelector('#speed').textContent==='00',null,{timeout:60000});await settled(page);
+  await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
+  assert.match(await page.locator('#atlas-marker-status').innerText(),/No position marked/,'The new region starts with no marked position');
+  assert.deepEqual(errors,[]);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
