@@ -34,7 +34,9 @@ xvfb-run -a sh -c 'xfwm4 --compositor=off >/tmp/cerea-review-wm.log 2>&1 & npm r
 
 The headless desktop check needs Xvfb and xfwm4; use the documented desktop
 command on a graphical machine otherwise. Report prerequisites and failures
-honestly. Controller automation simulates standard gamepad input; it does not
+honestly. On a software-rendered machine the smoke caps raised in #99 still
+leave little headroom, and overlapping desktop suites killed the X server here
+once — run one suite at a time. Controller automation simulates standard gamepad input; it does not
 replace physical controller testing. Keep `dist/`, `release/`, `node_modules/`,
 `.desktop-stage/` and `test-results/` out of git. OSM extracts and derived maps
 are intentionally tracked with provenance in `data/README.md`.
