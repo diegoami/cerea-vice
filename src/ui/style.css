@@ -764,7 +764,13 @@ h1 em {
   .regional-atlas .atlas-header h1 { font-size:24px; }
   .regional-atlas .atlas-edition,.regional-atlas .atlas-paused { font-size:14px; }
   .regional-atlas .atlas-tabs button { padding:7px; font-size:16px; }
-  .regional-atlas .atlas-margin { display:none; }
+  /* Short windows keep a compact margin: received information first, then the key. */
+  .regional-atlas .atlas-margin { width:190px;padding:10px 12px;overflow-y:auto; }
+  .regional-atlas .atlas-margin h3 { font-size:16px;margin:8px 0 4px; }
+  .regional-atlas .atlas-margin ul { font-size:16px;line-height:1.7;margin:0; }
+  .regional-atlas .atlas-margin > p { display:none; }
+  .regional-atlas .atlas-information-sidebar strong { font-size:15px; }
+  .regional-atlas .atlas-information-sidebar p { font-size:17px;line-height:1.45; }
   .regional-atlas .atlas-tools { padding:5px 10px; }
   .regional-atlas .atlas-tools > span { font-size:15px; }
   .regional-atlas .atlas-tools button { font-size:16px;padding:5px 8px; }
@@ -988,6 +994,12 @@ h1 { letter-spacing:0; line-height:1.05; }
  .district-tag { width:260px; }
  .objective { top:126px; }
  .atlas-margin { display:none; }
+}
+/* Mid-width windows drop the key, but received directions keep a narrow side column. */
+@media(max-width:1050px) and (min-width:761px) {
+ .atlas-book.has-information .atlas-margin { display:block;width:190px;padding:10px 12px;overflow-y:auto; }
+ .atlas-book.has-information .atlas-margin > :not(.atlas-information) { display:none; }
+ .atlas-book .atlas-information-sidebar p { font-size:17px;line-height:1.45;overflow-wrap:anywhere; }
 }
 @media(max-width:700px) {
  .overlay:not(.atlas-open) { padding:115px 12px 50vh; }
