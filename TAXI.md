@@ -97,7 +97,8 @@ See [the prototype report](docs/TILED_PROTOTYPE.md) for scope and measurements.
 ## Saving a shift
 
 The briefing and pause menus include **Continue saved shift**; the pause menu
-also enables **Save shift**. One manual slot per district stores the car and
+also enables **Save shift** and **Main screen** (back to the briefing to change
+district, after a confirming second press; the manual save is kept). One manual slot per district stores the car and
 gear, timers, earnings and receipts, information counts, free driving or the
 accepted ride, the fare list with its identities and quotes, boarding progress,
 dispatch random state, and the atlas cursor/marker/source. Saves are now

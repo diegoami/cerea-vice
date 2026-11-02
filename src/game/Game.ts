@@ -50,6 +50,10 @@ class Game {
   private controlsPanel!:ControlsPanel;
   private saveButton!:HTMLButtonElement;
   private saveStatus!:HTMLElement;
+  private mainScreenButton!:HTMLButtonElement;
+  /** Leaving a shift for the main screen takes a second, confirming press (#85). */
+  private leavePending=false;
+  private savedThisPause=false;
   private hasStarted=false;
   private readonly parking = new Parking();
   private readonly mission = new Mission();
@@ -94,6 +98,7 @@ class Game {
     this.settingsPanel.addAction('Change controls',()=>this.controlsPanel.open());
     this.saveButton=this.settingsPanel.addAction('Save shift',()=>this.save());
     this.settingsPanel.addAction('Continue saved shift',()=>this.load());
+    this.mainScreenButton=this.settingsPanel.addAction('Main screen',()=>this.leaveForMainScreen());
     this.saveStatus=document.createElement('p');this.saveStatus.setAttribute('role','status');this.saveStatus.className='save-status';
     this.saveButton.parentElement!.append(this.saveStatus);
     this.world.setDetail(this.settings.detail);
@@ -242,8 +247,19 @@ class Game {
         car:{x,z,heading,speed,gear,steering,collisions},unsafeStops:this.parking.unsafeStops,mission:this.mission.snapshot(),atlas:this.hud.saveAtlas()};
       decodeSave(context,JSON.stringify(value));
       localStorage.setItem(saveKey(context),JSON.stringify(value));
-      this.saveStatus.textContent=`Saved ${this.mission.clockText}. A new shift keeps this save until you save again.`;
+      this.saveStatus.textContent=`Saved ${this.mission.clockText}. A new shift keeps this save until you save again.`;this.savedThisPause=true;
     }catch{this.saveStatus.textContent='Save failed. Storage is unavailable or full; the previous save has been kept.';}
+  }
+
+  /** Back to the main screen to choose another district. The manual save is never touched; unsaved progress is lost after confirming. */
+  private leaveForMainScreen(){
+    if(this.screen!=='paused'||!this.hasStarted)return;
+    if(!this.leavePending){
+      this.leavePending=true;this.mainScreenButton.textContent='Confirm: leave shift';
+      this.saveStatus.textContent=`${this.savedThisPause||this.mission.finished?'Nothing is lost: your shift is saved.':'Progress since your last save will be lost.'} Choose again to leave for the main screen, or resume to keep driving.`;
+      return;
+    }
+    selectDistrict(towns,district.id);
   }
 
   private load(){
@@ -256,7 +272,7 @@ class Game {
       this.hud.restoreAtlas(value.atlas);this.world.updateFrame(this.car);
       this.cockpit.reset();this.motion.reset();this.cockpit.update(1,this.car,0);
       this.hasStarted=true;this.screen='paused';this.accumulator=0;this.waitForDrivingRelease=true;this.releaseMouseLook();
-      this.saveStatus.textContent=`Loaded ${this.mission.clockText}. Paused.`;
+      this.saveStatus.textContent=`Loaded ${this.mission.clockText}. Paused.`;this.savedThisPause=true;
     }catch(error){
       this.saveStatus.textContent=error instanceof MapVersionError
         ?`This save is for version ${error.saved} of the ${district.name} map; this game has version ${error.current}, so it cannot be loaded. The save and your current shift are kept.`
@@ -296,6 +312,8 @@ class Game {
     if(editing){actions.interact=false;actions.pause=false;actions.atlasPage=0;}
     if(this.settingsPanel.update(!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
     this.saveButton.disabled=!this.hasStarted||this.mission.finished;
+    this.mainScreenButton.disabled=this.screen!=='paused'||!this.hasStarted;
+    if(this.screen!=='paused'){this.savedThisPause=false;if(this.leavePending){this.leavePending=false;this.mainScreenButton.textContent='Main screen';}}
     if(this.screen==='running'&&this.waitForDrivingRelease&&this.input.drivingReleased===false){
       actions.interact=false;actions.information=false;actions.atlas=false;actions.reminder=false;actions.requestFares=false;actions.radioNext=false;actions.shiftGear=false;actions.glance=0;actions.resetLook=false;
     }

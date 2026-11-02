@@ -105,7 +105,10 @@ guaranteed payment. Up / down selects, **A / Enter** accepts, **B / Backspace**
 closes the list without accepting, and **Y / N** asks for a new list without a
 penalty. Reading the list pauses time. A closed list is kept, unchanged, until
 you accept a fare or ask for a new one. **Start / Escape** opens the pause menu,
-including **Save shift** and **Continue saved shift**.
+including **Save shift**, **Continue saved shift** and **Main screen**. Main
+screen returns to the briefing, where you can choose another district; it asks
+for a second press first, says whether progress since your last save would be
+lost, and never touches the manual save. Resuming cancels it.
 
 There is one manual save per district. Continue restores the car, gear, clocks,
 earnings, free driving or the accepted ride, the fare list, a passenger still
