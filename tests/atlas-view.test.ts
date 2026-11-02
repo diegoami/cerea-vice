@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import cerea from '../public/maps/cerea.json';
 import harbor from '../public/maps/harbor.json';
 import { createAtlasView } from "../src/navigation/AtlasView";
-import { createAtlas, pinnedGridLabels } from "../src/ui/Atlas";
+import { createAtlas, pinnedGridLabels, roadTier, roadTiersVisible } from "../src/ui/Atlas";
 import { District } from "../src/world/district";
 import contextHarbor from "../public/maps/harbor.json";
 import region from '../public/maps/lower-verona/manifest.json';
@@ -145,4 +145,19 @@ test('grid references stay readable while zoomed into the paper (#86)',()=>{
   assert.equal(atlasReference({x:frame.minX+cell*1.5,z:frame.minZ+cell*0.5}),'B1');
   assert.match(atlasMarkup('map'),/data-grid-letter="1"/);
   assert.match(atlasMarkup('map'),/id="atlas-view-reference"/);
+});
+
+test('road prominence rises with atlas zoom (#88)',()=>{
+  assert.equal(roadTier('primary'),1);assert.equal(roadTier('tertiary'),1);assert.equal(roadTier('unclassified'),1);
+  assert.equal(roadTier(undefined),1,'Authored districts without a class always print');
+  assert.equal(roadTier('residential'),2);assert.equal(roadTier('pedestrian'),2);
+  assert.equal(roadTier('service'),3);assert.equal(roadTier('steps'),3);assert.equal(roadTier('footway'),3);assert.equal(roadTier('mystery'),3,'Unknown classes stay hidden deepest');
+  assert.equal(roadTiersVisible(1),1);assert.equal(roadTiersVisible(2),2);assert.equal(roadTiersVisible(3.9),2);assert.equal(roadTiersVisible(4),3);assert.equal(roadTiersVisible(8),3);
+  useDistrict(verona);
+  const markup=atlasMarkup('map');
+  assert.ok(markup.includes('data-road-tier="1"')&&markup.includes('data-road-tier="3"'),'Roads print in three prominence groups');
+  assert.ok(markup.indexOf('data-road-tier="3"')<markup.indexOf('data-road-tier="1"'),'The major network prints on top of smaller streets');
+  useDistrict(cerea);
+  assert.match(atlasMarkup('map'),/data-street="[^"]+" data-road-tier="1"/);
+  assert.match(atlasMarkup('map'),/data-street="[^"]+" data-road-tier="2"/,'Street labels carry their prominence');
 });
