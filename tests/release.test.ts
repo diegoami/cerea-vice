@@ -29,3 +29,7 @@ test('portable archive rejects extraction traversal and an archive placed inside
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+test('package and lock versions agree, so a version bump can be released',async()=>{
+ const metadata=JSON.parse(await readFile('package.json','utf8')),lock=JSON.parse(await readFile('package-lock.json','utf8'));
+ assert.equal(lock.version,metadata.version);assert.equal(lock.packages[''].version,metadata.version);
+});
