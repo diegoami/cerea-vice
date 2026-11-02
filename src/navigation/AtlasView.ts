@@ -22,6 +22,16 @@ class AtlasView {
     this.base=sheet?{x:sheet.minX-14*u,z:sheet.minZ-17*u,width:sheet.span+28*u,height:sheet.span+28*u}:{...this.overview};
     this.reset();
   }
+  /** Turn to another detail page at the same zoom: a neighbouring page continues from the same ground, a distant one keeps the reader's place on the page. */
+  turnSheet(sheet:{minX:number;minZ:number;span:number}){
+    const zoom=this.zoom,ground={...this.centre},old=this.base;
+    const place={x:(ground.x-old.x)/old.width,z:(ground.z-old.z)/old.height};
+    this.setSheet(sheet);this.zoom=zoom;this.centre={...ground};this.clamp();
+    const box=this.box;
+    if(Math.abs(this.centre.x-ground.x)>box.width||Math.abs(this.centre.z-ground.z)>box.height){
+      this.centre={x:this.base.x+place.x*this.base.width,z:this.base.z+place.z*this.base.height};this.clamp();
+    }
+  }
   zoomAt(factor:number,anchor:Point=this.centre){
     const next=Math.max(1,Math.min(8,this.zoom*factor)),ratio=this.zoom/next;
     this.centre={x:anchor.x+(this.centre.x-anchor.x)*ratio,z:anchor.z+(this.centre.z-anchor.z)*ratio};this.zoom=next;this.clamp();

@@ -35,6 +35,9 @@ local A–D / 1–4 grid like the original Cerea atlas. North / south / east / w
 links lead to adjacent pages; LB / RB or Q / E turn through the quadrants and index.
 R3 / Home returns to the regional overview. The 1×–8× zoom applies to each local
 page, so it can reach street detail independently of the region's total size.
+Turning between detail pages keeps the zoom; a neighbouring page continues from
+the same ground, a distant one keeps the reader's place on the page. A page opened
+from the overview starts at 100%.
 The index gives page and local-grid references, distinguishes the same street
 name on different pages, and opens the chosen page when a street is located.
 Overlapping labels are suppressed on detail pages; a street lookup highlights

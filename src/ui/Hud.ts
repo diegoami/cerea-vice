@@ -109,7 +109,7 @@ class Hud {
         this.placeAtlasMarker();
         return;
       }
-      if(button.dataset.atlasSheet){this.openAtlasSheet(button.dataset.atlasSheet);return;}
+      if(button.dataset.atlasSheet){this.openAtlasSheet(button.dataset.atlasSheet,true);return;}
       if(button.dataset.atlasZoom) {this.zoomAtlas(Math.pow(1.5,Number(button.dataset.atlasZoom)));return;}
       // Keyboard and controller reach the fare list through Input; ignore synthetic Enter/Space clicks.
       if((button.dataset.fareOffer||button.dataset.fare)&&e.detail===0)return;
@@ -231,9 +231,11 @@ class Hud {
     this.atlasView.zoomAt(factor,anchor??this.atlasView.centre);this.updateAtlasView();
   }
   private resetAtlasView(){if(sheets.length)this.openAtlasSheet();else {this.atlasView.reset();this.updateAtlasView();}}
-  private openAtlasSheet(id?:string){
+  /** Open a detail page (or the overview). A turn from one detail page to another keeps the reader's zoom. */
+  private openAtlasSheet(id?:string,turn=false){
+    const from=this.atlasSheet;
     this.atlasSheet=sheets.find(sheet=>sheet.id===id);setAtlasSheet(this.atlasSheet?.id);
-    this.atlasView.setSheet(this.atlasSheet);this.atlasDrag=undefined;this.suppressAtlasClick=false;
+    if(turn&&from&&this.atlasSheet)this.atlasView.turnSheet(this.atlasSheet);else this.atlasView.setSheet(this.atlasSheet);this.atlasDrag=undefined;this.suppressAtlasClick=false;
     this.atlasPage='map';this.overlay.innerHTML=atlasMarkup('map');this.updateAtlasNotes();
     this.overlay.querySelector<HTMLButtonElement>('[data-atlas-page="map"]')?.focus({preventScroll:true});
   }
@@ -361,7 +363,7 @@ class Hud {
     if(sheets.length){
       const current=this.atlasPage==='index'?sheets.length+1:this.atlasSheet?sheets.indexOf(this.atlasSheet)+1:0;
       const next=(current+Math.sign(direction)+sheets.length+2)%(sheets.length+2);
-      if(next===sheets.length+1)this.setAtlasPage('index');else this.openAtlasSheet(sheets[next-1]?.id);
+      if(next===sheets.length+1)this.setAtlasPage('index');else this.openAtlasSheet(sheets[next-1]?.id,true);
       return;
     }
     this.setAtlasPage(direction < 0 ? "map" : "index");

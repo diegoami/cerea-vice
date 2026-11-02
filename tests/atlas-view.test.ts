@@ -161,3 +161,21 @@ test('road prominence rises with atlas zoom (#88)',()=>{
   assert.match(atlasMarkup('map'),/data-street="[^"]+" data-road-tier="1"/);
   assert.match(atlasMarkup('map'),/data-street="[^"]+" data-road-tier="2"/,'Street labels carry their prominence');
 });
+
+test('turning to another detail page keeps the reader\'s zoom and continues from the same ground (#104)',()=>{
+  const context=new District(verona),{sheetAt,neighbour,sheets}=createAtlasSheets(context),view=new (createAtlasView(context).AtlasView)();
+  const page=sheetAt(context.spawn)!,east=neighbour(page,1,0)!;
+  view.setSheet(page);view.zoomAt(2.25);view.pan(10000,0);
+  const edge=view.centre.x;
+  view.turnSheet(east);
+  assert.equal(view.zoom,2.25,'A page turn keeps the zoom');
+  assert.ok(view.box.x>=view.base.x-1e-6&&view.box.x+view.box.width<=view.base.x+view.base.width+1e-6,'The view stays on the new page');
+  assert.ok(view.centre.x-edge<view.box.width,'An eastward turn continues next to the ground just read');
+  const far=sheets.reduce((a,b)=>Math.hypot(b.minX-page.minX,b.minZ-page.minZ)>Math.hypot(a.minX-page.minX,a.minZ-page.minZ)?b:a);
+  view.setSheet(page);view.zoomAt(2);view.pan(-10000,-10000);
+  view.turnSheet(far);
+  assert.equal(view.zoom,2);
+  assert.ok(Math.abs(view.box.x-view.base.x)<1e-6&&Math.abs(view.box.z-view.base.z)<1e-6,'A distant page opens at the same place on the page, here its north-west corner');
+  view.turnSheet(page);view.zoom=1;view.turnSheet(east);
+  assert.deepEqual(view.box,{...view.base},'At 100% a turn shows the whole new page, as before');
+});
