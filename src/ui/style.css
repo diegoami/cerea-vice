@@ -778,6 +778,13 @@ h1 em {
 .atlas-index small { display: block; margin-top: 4px; color: #57695c; }
 .atlas-index .atlas-ref { font: bold 24px "Vice", monospace; }
 .atlas-index > p { font-size: 22px; line-height: 1.5; }
+.atlas-destination { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 16px; margin-bottom:20px; padding:10px 14px; border:2px solid #8f342c; background:#efe0c4; }
+.atlas-destination strong { flex-basis:100%; font:18px "Vice", monospace; letter-spacing:1px; color:#8f342c; }
+.atlas-destination p { flex:1 1 300px; margin:0; font-size:22px; line-height:1.4; }
+.atlas-destination .atlas-ref { font:bold 24px "Vice", monospace; }
+.atlas-index .atlas-destination-row { background:#efe0c4; }
+.atlas-index .atlas-destination-row th { font-weight:bold; }
+.atlas-index .atlas-destination-row th small { color:#8f342c; }
 @media (max-width: 760px) {
   .overlay.atlas-open { padding: 8px; }
   .atlas-book { height: calc(100dvh - 16px); }

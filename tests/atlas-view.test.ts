@@ -179,3 +179,17 @@ test('turning to another detail page keeps the reader\'s zoom and continues from
   view.turnSheet(page);view.zoom=1;view.turnSheet(east);
   assert.deepEqual(view.box,{...view.base},'At 100% a turn shows the whole new page, as before');
 });
+
+test('the place index names the current destination and marks its place and bay, never the map (#87)',()=>{
+  const context=new District(verona),atlas=createAtlas(context),stop=context.district.taxi!.stops[0];
+  const bay=context.parkingZones.find(zone=>zone.id===stop.bayId)!;
+  assert.doesNotMatch(atlas.atlasMarkup('index'),/atlas-destination/,'Free driving names no destination');
+  atlas.setAtlasJourney({objective:`Take Elena to ${stop.name}, ${stop.road}. Stop in ${bay.name}.`,bay});
+  const index=atlas.atlasMarkup('index');
+  assert.match(index,new RegExp(`CURRENT DESTINATION</strong><p>Take Elena to ${stop.name}`));
+  assert.ok(index.includes(`<span class="atlas-ref">${atlas.atlasReference(bay)}</span>`),'The destination carries its page and grid reference');
+  assert.equal(index.match(/aria-current="location"/g)?.length,2,'The stop\'s landmark and its bay are both marked in the list');
+  const map=atlas.atlasMarkup('map');
+  assert.doesNotMatch(map,/atlas-destination|Current destination/,'Nothing is drawn on the map');
+  atlas.setAtlasJourney();assert.doesNotMatch(atlas.atlasMarkup('index'),/atlas-destination/,'Clearing the journey clears the mark');
+});

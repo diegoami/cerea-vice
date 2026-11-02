@@ -193,6 +193,10 @@ test('fare choices, remapping and saved passenger/atlas state survive a complete
   await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
   await page.keyboard.down('d');await page.waitForTimeout(250);await page.keyboard.up('d');await page.keyboard.press('Enter');
   await page.waitForFunction(()=>document.querySelector('#atlas-marker-status').textContent.includes('Your estimated position'));
+  await page.locator('[data-atlas-page="index"]').click();
+  assert.match(await page.locator('.atlas-destination').innerText(),/CURRENT DESTINATION[\s\S]*Take Elena to[\s\S]*[A-D][1-4]/,'The index names the fare\'s destination with its grid reference (#87)');
+  assert.equal(await page.locator('.atlas-destination-row').count(),2,'Its place and stopping bay are marked in the list');
+  await page.locator('[data-atlas-page="map"]').click();assert.equal(await page.locator('.atlas-destination, .atlas-destination-row').count(),0,'Nothing marks the destination on the map');
   const pin=await page.locator('.atlas-pin').getAttribute('transform');await padButton(1,1);await padButton(1,0);await page.locator('#overlay').waitFor({state:'hidden'});
   assert.equal(await page.locator('#gear').innerText(),'R','Atlas B never shifts the remapped gear');
   await page.keyboard.press('p');await page.getByRole('button',{name:'Save shift',exact:true}).click();
@@ -316,7 +320,7 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     const manualPin = await page.locator('.atlas-pin').getAttribute('transform');
     await button(5,1); await button(5,0);
     await page.getByRole('heading', {name:'Places and parking'}).waitFor();
-    assert.equal(await page.getByRole('row', {name:/Blue Hotel East Quay Waterfront D2/}).count(), 1);
+    assert.equal(await page.getByRole('row', {name:/Blue Hotel Current destination East Quay Waterfront D2/}).count(), 1, 'The journey target is marked in the index (#87)');
     await button(4,1); await button(4,0);
     await page.locator('.atlas-map').waitFor();
     assert.equal(await page.locator('.atlas-pin').getAttribute('transform'), manualPin);
@@ -1049,6 +1053,14 @@ test('regional atlas has readable connected quadrants without moving knowledge o
   const clock=await page.locator('#timer').innerText(),marker=await page.locator('.atlas-pin').getAttribute('transform');
   assert.equal(await page.locator('[data-street]').count(),0,'Overview carries towns and page references, not all street names');
   await page.screenshot({path:'test-results/region-atlas-overview.png'});
+  const cerea=await page.locator('.atlas-town-labels text').filter({hasText:/^Centro di Cerea$/}).evaluate(label=>{const p=new DOMPoint(Number(label.getAttribute('x')),Number(label.getAttribute('y'))).matrixTransform(label.ownerSVGElement.getScreenCTM());return {x:p.x,y:p.y};});
+  await page.mouse.move(cerea.x,cerea.y);
+  for(let i=0;i<8&&await page.locator('.atlas-quadrants').count();i++){await page.mouse.wheel(0,-500);await frames(page);}
+  assert.match(await page.locator('.atlas-sheet-navigation strong').innerText(),/^[A-Z]+\d+ · .*Cerea/,'Zooming into the overview over Cerea turns to its detail page');
+  assert.equal(await page.locator('#atlas-zoom-level').innerText(),'200%','The page opens where streets and their names print');
+  assert.ok(await page.locator('[data-road-tier="2"][data-street]').evaluateAll(labels=>labels.filter(label=>getComputedStyle(label).display!=='none').length)>0,'Street names print once zoomed in');
+  assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),marker,'Zooming never moves the marker');
+  await page.keyboard.press('Home');await page.locator('.atlas-quadrants').waitFor();
   await page.evaluate(()=>{window.atlasPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.atlasPad],configurable:true});});
   const press=async index=>{await page.evaluate(index=>window.atlasPad.buttons[index].value=1,index);await frames(page);await page.evaluate(index=>window.atlasPad.buttons[index].value=0,index);await frames(page);};
   await press(0);await page.locator('.atlas-sheet-navigation strong').filter({hasText:/Cerea/}).waitFor();

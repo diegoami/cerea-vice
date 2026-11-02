@@ -16,7 +16,7 @@ export function createHud(context:District,towns:readonly Pick<TownEntry,"id"|"n
 const {district,areaAt}=context;
 const {AtlasView}=createAtlasView(context);
 const {AtlasNotes}=createAtlasNotes(context);
-const {atlasFrame,atlasStreetEntries,atlasReference,atlasMarkup,sheets,sheetAt,setAtlasSheet}=createAtlas(context);
+const {atlasFrame,atlasStreetEntries,atlasReference,atlasMarkup,sheets,sheetAt,setAtlasSheet,setAtlasJourney}=createAtlas(context);
 const {bearing,compass,nearestRoad}=createNavigation(context);
 const escapeHtml=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const formatMoney=(cents:number)=>`€${(cents/100).toFixed(2)}`;
@@ -225,7 +225,17 @@ class Hud {
 
   private zoomAtlas(factor:number,anchor?:Point) {
     if(this.currentScreen!=="atlas"||this.atlasPage!=="map")return;
-    this.atlasView.zoomAt(factor,anchor??this.atlasView.centre);this.updateAtlasView();
+    this.atlasView.zoomAt(factor,anchor??this.atlasView.centre);if(!this.openZoomedOverview())this.updateAtlasView();
+  }
+  /** Overviews print no street names: zooming one in to about two pages wide turns to the detail page under the view centre,
+   *  at least at 2×, where streets and their names print (#88). */
+  private openZoomedOverview(){
+    if(!sheets.length||this.atlasSheet)return false;
+    const centre={...this.atlasView.centre},width=this.atlasView.box.width;
+    const sheet=sheetAt(centre)??sheets.reduce((a,b)=>Math.hypot(b.minX+b.span/2-centre.x,b.minZ+b.span/2-centre.z)<Math.hypot(a.minX+a.span/2-centre.x,a.minZ+a.span/2-centre.z)?b:a);
+    if(width>2*sheet.span)return false;
+    this.openAtlasSheet(sheet.id);this.atlasView.focus(centre,Math.max(2,this.atlasView.base.width/width));this.updateAtlasView();
+    return true;
   }
   private resetAtlasView(){if(sheets.length)this.openAtlasSheet();else {this.atlasView.reset();this.updateAtlasView();}}
   /** Open a detail page (or the overview). A turn from one detail page to another keeps the reader's zoom. */
@@ -264,6 +274,7 @@ class Hud {
       if(Math.abs(zoom)>.08)this.atlasView.zoomAt(Math.exp(zoom*dt*1.25));
       if(panX||panY){const box=this.atlasView.box;this.atlasView.pan(panX*box.width*.55*dt,panY*box.height*.55*dt);}
     }
+    if((step||Math.abs(zoom)>.08)&&this.openZoomedOverview())return;
     if(overview||step||Math.abs(zoom)>.08||panX||panY)this.updateAtlasView();
   }
 
@@ -413,6 +424,7 @@ class Hud {
       return;
     }
     if (screen === "atlas") {
+      const target=mission.target;setAtlasJourney(target&&!mission.finished?{objective:mission.objective,bay:target.bay}:undefined);
       this.atlasPage = "map";
       this.overlay.innerHTML = atlasMarkup(this.atlasPage);
       this.updateAtlasNotes();
