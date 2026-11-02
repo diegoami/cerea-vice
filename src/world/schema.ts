@@ -45,6 +45,8 @@ export interface DistrictDefinition {
   waterAreas?: WaterArea[];
   pavedAreas?: PavedArea[];
   areas: (Rect & { name: string })[];
+  /** Where a road leaves this region for a neighbouring one (#112): a node both regions share, and the sign at its end. */
+  gateways?: { id: string; nodeId: string; to: string; sign: string[] }[];
   spawn: Point & { heading: number; name: string };
   taxi?:TaxiDefinition;
   mission: { name: string; objective: string; hint: string; duration: number; bayId: string; nodeId: string };

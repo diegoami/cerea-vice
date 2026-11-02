@@ -251,19 +251,35 @@ npm run build:verona-south     # tools/import-town.py, then tools/tile-district.
 `public/maps/verona-plain/` is the second region (#112), built in the same shared frame as the Lower
 Veronese plain (`regions/veronese.frame.json`), so the two will line up when the edge between them is
 joined north of Bovolone. Its towns are Verona centro–Borgo Roma (above), San Giovanni Lupatoto and
-Oppeano, at real scale, joined by their real main roads (36.8 km real, 19.1 km driven): 29 stops, 7,457
-road nodes, 15,106 buildings and 2,070 tiles. The stops of San Giovanni Lupatoto (six) and Oppeano (three,
+Oppeano, at real scale, joined by their real main roads and the road to the gateway (42.8 km real, 22.1 km
+driven): 29 stops, 7,554 road nodes, 15,106 buildings and 2,300 tiles. The stops of San Giovanni Lupatoto (six) and Oppeano (three,
 the town is sparsely mapped) are proposed for the owner to confirm in play.
 
 Left out, for the record: Ca' di David would sit inside Borgo Roma's zone after compression; Isola Rizza
 overlaps Oppeano as a town, and as a village it is off both corridors, so its streets would be an island.
 
 Its atlas keeps the region's kilometre pages in the countryside, but a page over the label budget is
-printed as 2 × 2 smaller pages, twice at most (Verona's centre reads on pages of about 350 m): 159 pages,
+printed as 2 × 2 smaller pages, twice at most (Verona's centre reads on pages of about 350 m): 171 pages,
 at most 86 street labels on any one. Page links follow geometry, so they work between pages of different
-sizes. The Lower Veronese plain has no page over budget and keeps its 135 pages. It needed the streamed-map
-budget raised to 16,000 buildings and 9 MB (owner decision, 2026-11-02), to be measured on Windows.
+sizes. The Lower Veronese plain has no page over budget and keeps one kilometre page each (150 since its map
+reaches the gateway north of Bovolone). The region needed the streamed-map budget raised to 16,000 buildings
+and 9 MB (owner decision, 2026-11-02), to be measured on Windows.
 
 ```sh
 npm run build:region:verona-plain     # tools/build-region.py, then tools/tile-district.mjs
 ```
+
+## Crossing between regions
+
+The two regions meet at a **gateway** north of Bovolone (#112): OSM node 1027266513 on Via Quaiotto, halfway
+between Bovolone and Oppeano. Each region spec lists it under `gateways` (the node, the town its road comes
+from, the neighbouring region and the sign at the road's end); the builder adds the real road from that town to
+the node and fixes the node at `k` times its real position, so both regions, built in the shared frame, put it
+in the same place. The Lower Veronese plain's sign there reads OPPEANO / VERONA; the other side's,
+BOVOLONE / CEREA.
+
+Driving to the end of that road with no fare booked loads the other region: the car arrives on the same road
+with its heading, speed and gear, and the shift carries on with its clock, earnings and receipts. Fares stay
+within a region (owner decision): with a passenger booked or aboard, the road simply ends and a hint says so.
+The fare list starts fresh, and the atlas has no marked position until you ask for information or mark your own
+estimate. The hand-over is a small record in local storage, read once by the next region.

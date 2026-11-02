@@ -34,6 +34,18 @@
       ]
     ]
   },
+  "gateways": [
+    {
+      "id": "quaiotto",
+      "node": "1027266513",
+      "town": "oppeano",
+      "to": "lower-verona",
+      "sign": [
+        "BOVOLONE",
+        "CEREA"
+      ]
+    }
+  ],
   "content": {
     "start": "verona-south:barbieri",
     "taxi": {

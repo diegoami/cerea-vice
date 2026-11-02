@@ -40,6 +40,9 @@
       ["legnago", "casaleone"]
     ]
   },
+  "gateways": [
+    {"id": "quaiotto", "node": "1027266513", "town": "bovolone", "to": "verona-plain", "sign": ["OPPEANO", "VERONA"]}
+  ],
   "content": {
     "start": "cerea:municipio",
     "taxi": {"startHour": 7, "endHour": 17, "clockRate": 30, "baseCents": 400, "perKmCents": 120, "maxBonusCents": 600},

@@ -327,6 +327,11 @@ class Hud {
     if (removeButton) removeButton.disabled = !marker;
   }
 
+  /** After crossing into another region the reader has no marked position until they ask or estimate (#112). */
+  forgetAtlasMarker() {
+    this.resetAtlasNotes();this.atlasNotes.remove();
+  }
+
   resetAtlasNotes() {
     this.atlasNotes.reset();
     this.atlasSheet=undefined;setAtlasSheet();this.atlasView.setSheet();this.selectedStreet="";this.indexStreet=-1;

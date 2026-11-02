@@ -33,6 +33,7 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   if (!plainText(data.mission.name)||!plainText(data.mission.objective)||!plainText(data.mission.hint)||!plainText(data.spawn.name)) throw new Error("Invalid journey text");
   if ([...data.landmarks,...data.parkingZones,...data.areas].some((place)=>!plainText(place.name))) throw new Error("Invalid place name");
   if (data.landmarks.some(place=>!plainText(place.road)||(place.kind!==undefined&&!plainText(place.kind))) || data.features.some(feature=>!plainText(feature.name))) throw new Error("Invalid map text");
+  if (data.gateways!==undefined&&(!Array.isArray(data.gateways)||data.gateways.some(gateway=>!plainText(gateway.id)||!ids.has(gateway.nodeId)||!/^[a-z0-9-]+$/.test(gateway.to)||!Array.isArray(gateway.sign)||!gateway.sign.length||gateway.sign.some(row=>!plainText(row))))) throw new Error("Invalid region gateway");
   if(data.taxi) {
     const taxi=data.taxi;
     if(!Number.isFinite(taxi.startHour)||!Number.isFinite(taxi.endHour)||taxi.startHour<0||taxi.endHour>24||taxi.startHour>=taxi.endHour||!Number.isFinite(taxi.clockRate)||taxi.clockRate<=0||taxi.clockRate>120)throw new Error("Invalid taxi shift clock");

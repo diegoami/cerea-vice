@@ -21,7 +21,8 @@ export function mapSignature(context:District){
 /** Signatures earlier builds wrote: the whole district including tile sizes, and maps whose tiles were since regenerated. */
 const supersededSignatures:Record<string,string[]>={
  // Up to 0.14.0-rc.1. Their tiles were regenerated for town signs and single direction rows (#84); the map data is unchanged.
- "lower-verona":["fabb226f"],
+ // The Lower Veronese plain then gained the road north of Bovolone to its gateway (#112, aabb8738); earlier saves still fit.
+ "lower-verona":["fabb226f","aabb8738"],
  "verona":["6834cb33"],
 };
 const matchesMap=(context:District,map:unknown)=>map===mapSignature(context)||map===hashText(JSON.stringify(context.district))||(supersededSignatures[context.district.id]??[]).includes(map as string);

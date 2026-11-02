@@ -30,7 +30,8 @@ def utm(lat,lon):
     return x,y
 def convergence(lat,lon):return math.atan(math.tan(math.radians(lon)-LON0)*math.sin(math.radians(lat)))
 
-REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','frame','zoneMargin','villages','villageMargin','towns','corridors','content','views'}
+REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','frame','zoneMargin','villages','villageMargin','towns','corridors','gateways','content','views'}
+GATEWAY_KEYS={'id','node','town','to','sign'}
 FRAME_KEYS={'specVersion','id','name','description','projection','origin','k'}
 def check_spec(region):
     """Reject unknown or missing settings, so a value the builder ignores cannot look meaningful."""
@@ -43,6 +44,9 @@ def check_spec(region):
     if 'villages' in region and not isinstance(region.get('villageMargin'),(int,float)):raise SystemExit('"villageMargin" is required with "villages"')
     for entry in region['towns']+region.get('villages',[]):
         if set(entry)!={'spec'}:raise SystemExit(f'A town entry takes only "spec"; got {sorted(entry)} (zones are each town\'s area plus "zoneMargin")')
+    for gateway in region.get('gateways',[]):
+        if set(gateway)!=GATEWAY_KEYS:raise SystemExit(f'A gateway takes {sorted(GATEWAY_KEYS)}; got {sorted(gateway)}')
+        if not (isinstance(gateway['sign'],list) and 1<=len(gateway['sign'])<=3 and all(isinstance(row,str) and row for row in gateway['sign'])):raise SystemExit(f'Gateway {gateway["id"]}: "sign" is one to three rows of text')
 
 def load_frame(path):
     """The shared regional frame: one origin and one k for every region."""
@@ -163,6 +167,20 @@ def main(argv=None):
         _,centre=path([ca],[cb]);real_km[(a,b)]=real_km[(b,a)]=centre/1000
         for p in (there,back):
             for u,v in zip(p,p[1:]):edges.add((u,v) if (u,v) in edge_way else (v,u))
+    # Gateways (#112): the real road from one of this region's towns to a node shared with the neighbouring region.
+    # The road ends there; the node is fixed at k times its real position, as a junction, so both regions, built in
+    # the same frame, put it in the same place.
+    gateway_nodes={}
+    for gateway in region.get('gateways',[]):
+        node=str(gateway['node']);tid=gateway['town']
+        if tid not in shared:raise SystemExit(f'Gateway {gateway["id"]}: "{tid}" is not a town of this region')
+        if node not in adj:raise SystemExit(f'Gateway {gateway["id"]}: node {node} is not on the corridor road network')
+        main_route,_=path(shared[tid],[node]);there,_=path(shared[tid],[node],directed);back,_=path([node],shared[tid],directed)
+        if main_route is None or there is None or back is None:raise SystemExit(f'Gateway {gateway["id"]}: no road in both directions between {tid} and node {node}')
+        for u,v in zip(main_route,main_route[1:]):primary.add((u,v) if (u,v) in edge_way else (v,u))
+        for p in (there,back):
+            for u,v in zip(p,p[1:]):edges.add((u,v) if (u,v) in edge_way else (v,u))
+        gateway_nodes[node]=gateway
     # Drop edges that a town already has as one of its own roads.
     town_edges={(r['a'],r['b']) for t in places for r in t['data']['roads']}|{(r['b'],r['a']) for t in places for r in t['data']['roads']}
     edges={e for e in edges|primary if e not in town_edges};primary={e for e in primary if e not in town_edges}
@@ -187,7 +205,7 @@ def main(argv=None):
     for n in sorted(graph):
         if n in owner:fixed[n]=world_of_town_node(n)
         elif (t:=zone_town(n)):x,z=town_local(t,n);fixed[n]=(x+t['offset'][0],z+t['offset'][1])
-        elif len(graph[n])>2:fixed[n]=(k*coord[n][0],k*coord[n][1])
+        elif len(graph[n])>2 or n in gateway_nodes:fixed[n]=(k*coord[n][0],k*coord[n][1])
     def map_with(fixed):
         mapped=dict(fixed);seen=set();transform={}
         for start in sorted(fixed):
@@ -376,7 +394,7 @@ def main(argv=None):
     district={'version':1,'id':region['id'],'dataVersion':region['dataVersion'],**({'subtitle':region['subtitle']} if region.get('subtitle') else {}),'stoppingPolicy':'anywhere','name':region['name'],'description':region['description'],
       'attribution':region['attribution'],'sourceUrl':region['sourceUrl'],'bounds':bounds,'nodes':nodes,'roads':roads,'parkingZones':bays,
       'taxi':{**content['taxi'],'stops':stops,'fares':[{'passenger':p,'pickupId':a,'destinationId':b} for p,a,b in content['fares']]},
-      'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water} if water else {}),'areas':areas,'spawn':spawn,
+      'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water} if water else {}),'areas':areas,**({'gateways':[{'id':g['id'],'nodeId':n,'to':g['to'],'sign':g['sign']} for n,g in sorted(gateway_nodes.items())]} if gateway_nodes else {}),'spawn':spawn,
       'mission':{'name':content['mission']['name'],'objective':content['mission']['objective'],'hint':content['mission']['hint'],'duration':content['mission']['duration'],'bayId':target_stop['bayId'],'nodeId':target_stop['nodeId']},
       'provenance':{'source':'OpenStreetMap / Overpass API: town extracts and the region\'s main roads','osmTimestamp':stamps[-1],'osmTimestamps':stamps,
         'frame':{'projection':'UTM zone 32N (EPSG:32632)','falseOrigin':{'lat':round(clat,6),'lon':round(clon,6),'easting':round(E0,2),'northing':round(N0,2)},'rotationDegrees':round(math.degrees(gamma),4)},
