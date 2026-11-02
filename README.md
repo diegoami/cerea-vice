@@ -122,8 +122,10 @@ keys and controller buttons, including **L3 for forward/reverse** and
 binding, press a new key/button, and resolve any reported conflict. Escape
 cancels capture; Start cancels controller capture. Restore defaults is always
 available with the fixed menu controls. Sticks retain steering/look axes. The
-atlas and menus retain their own controls; the help and driving prompts show
-your chosen bindings. Settings persist independently of shift saves.
+atlas, fare list and menus keep fixed controls, listed under the remappable
+bindings. Change controls is the one place that names keys and buttons: the
+briefing, driving prompts, fare list, pause screen and atlas describe actions
+only (#93). Settings persist independently of shift saves.
 
 ## Controls
 

@@ -1,5 +1,18 @@
 import {actionLabels,bindingConflict,bindingLabel,buttonNames,controlActions,defaultBindings,keyName,validButton,validKey,type Bindings,type ControlAction} from './Bindings';
 
+/** Controls that cannot be remapped. Screens name no bindings, so this is the one place they are listed. */
+function fixedControlsMarkup(bindings:Bindings){
+ const pad=(action:ControlAction)=>bindingLabel(bindings,action,true),key=(action:ControlAction)=>bindingLabel(bindings,action);
+ const groups:[string,[string,string,string][]][]=[
+  ['Driving',[['Look around','Right stick','Click the view, then move the mouse'],['Pause','Start','Esc / P']]],
+  ['Main screen',[['Change district','LB / RB','Q / E'],['Start the engine','A / Cross','Enter']]],
+  ['Fare list',[['Choose a fare','D-pad / left stick','Up / Down · W / S'],['Accept selected','A / Cross','Enter'],['New list','Y / Triangle','N'],['Close list','B / Circle','Backspace']]],
+  ['Atlas',[['Turn pages',`LB / RB`,'Q / E'],['Zoom','RT / LT','+ / − · mouse wheel'],['Pan','Right stick','I J K L · drag'],['Move the crosshair','Left stick / D-pad','Arrows · W A S D'],['Open quadrant / mark my position','A / Cross','Enter · click'],['Erase marker','X / Square','Delete'],['Ask for information',pad('information'),key('information')],['Return to the overview','R3','Home'],['Index: select a street','Right stick up / down','I / K'],['Index: locate the street','A / Cross','Enter · click'],['Index: scroll','Left stick / D-pad','Arrows · W / S'],['Close atlas',`B / Circle · ${pad('atlas')}`,`${key('atlas')} / Esc`]]],
+  ['Menus',[['Resume or confirm','A / Cross · Start','Enter'],['Back','B / Circle','Esc']]],
+ ];
+ return `<h3>Fixed controls</h3><div class="binding-table fixed-controls"><div class="control-heading"><span>Action</span><span>Controller</span><span>Keyboard / mouse</span></div>${groups.map(([title,rows])=>`<div class="fixed-group"><span>${title}</span></div>${rows.map(([action,controller,keyboard])=>`<div><span>${action}</span><span>${controller}</span><span>${keyboard}</span></div>`).join('')}`).join('')}</div>`;
+}
+
 export class ControlsPanel {
  private element=document.createElement('section');
  private index=0;private delay=0;
@@ -8,7 +21,7 @@ export class ControlsPanel {
  private heldButtons:boolean[]=[];
  private message='';
  visible=false;
- constructor(readonly bindings:Bindings,private changed:()=>void){
+ constructor(readonly bindings:Bindings,private changed:()=>void=()=>{}){
    this.element.className='controls-settings';this.element.hidden=true;this.element.setAttribute('role','dialog');this.element.setAttribute('aria-label','Change controls');
    document.querySelector('#hud')!.append(this.element);
    this.element.addEventListener('click',e=>{const button=(e.target as HTMLElement).closest<HTMLButtonElement>('button');if(!button)return;
@@ -42,7 +55,7 @@ export class ControlsPanel {
  }
  private activate(){const button=this.element.querySelectorAll<HTMLButtonElement>('button')[this.index];button?.click();}
  private highlight(){for(const [i,b] of [...this.element.querySelectorAll('button')].entries()){b.classList.toggle('controller-selected',i===this.index);if(i===this.index){b.focus({preventScroll:true});b.scrollIntoView({block:'nearest'});}}}
- private render(){let index=0;this.element.innerHTML=`<h2>Change controls</h2><p>Driving bindings only. Atlas and menus keep their own controls. Sticks steer/look; Start and Escape always pause. D-pad selects; A edits. B closes.</p><div class="binding-table">${controlActions.map(action=>`<div><span>${actionLabels[action]}</span><button data-control="${action}" data-device="key" data-index="${index++}">${bindingLabel(this.bindings,action)}</button>${this.bindings[action].button!==null?`<button data-control="${action}" data-device="pad" data-index="${index++}">${bindingLabel(this.bindings,action,true)}</button>`:'<span>Left stick</span>'}</div>`).join('')}</div><p role="status">${this.message||'L3 is free for forward / reverse.'}</p><button data-default-controls>Restore defaults</button><button data-close-controls>Back</button>`;}
+ private render(){let index=0;this.element.innerHTML=`<h2>Change controls</h2><p>Driving bindings can be changed here; the fixed controls below cannot. D-pad selects; A edits. B closes.</p><div class="binding-table">${controlActions.map(action=>`<div><span>${actionLabels[action]}</span><button data-control="${action}" data-device="key" data-index="${index++}">${bindingLabel(this.bindings,action)}</button>${this.bindings[action].button!==null?`<button data-control="${action}" data-device="pad" data-index="${index++}">${bindingLabel(this.bindings,action,true)}</button>`:'<span>Left stick</span>'}</div>`).join('')}</div>${fixedControlsMarkup(this.bindings)}<p role="status">${this.message||'L3 is free for forward / reverse.'}</p><button data-default-controls>Restore defaults</button><button data-close-controls>Back</button>`;}
  update(dt:number,pad:Gamepad|undefined){
    this.heldButtons=pad?.buttons.map(b=>b.value>.5)??[];
    if(!this.visible)return;

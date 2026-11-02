@@ -233,17 +233,6 @@ button:focus-visible {
 .interaction span {
   color: #d2d3c5;
 }
-kbd {
-  display: inline-block;
-  background: #e6e3d2;
-  color: #203036;
-  border-radius: 2px;
-  font: bold 20px "Vice", monospace;
-  min-width: 20px;
-  padding: 3px;
-  text-align: center;
-  margin-right: 5px;
-}
 .dashboard {
   position: absolute;
   height: 150px;
@@ -436,30 +425,6 @@ h1 em {
 .briefing-tip p {
   font-size: 20px;
 }
-.control-table {
-  font: 18px "Vice", monospace;
-}
-.control-table > div {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr;
-  gap: 8px;
-  border-top: 1px solid #71837622;
-  padding: 8px 0;
-}
-.control-table > div.control-heading {
-  font-size: 14px;
-  letter-spacing: 1px;
-  color: #879f95;
-  border: 0;
-  padding: 0 0 9px;
-}
-.control-table span {
-  color: #a4b5aa;
-}
-.control-table b {
-  font-weight: 400;
-  color: #e2e1ce;
-}
 .controller-note {
   display: block;
   color: #8fa399;
@@ -482,9 +447,6 @@ h1 em {
   font-size: 22px;
   line-height: 1.7;
   color: #b1c1b6;
-}
-.pause .control-table {
-  margin: 28px 0;
 }
 .result-stats {
   display: grid;
@@ -551,9 +513,6 @@ h1 em {
     margin: 16px 0;
     padding-top: 10px;
     padding-bottom: 10px;
-  }
-  .control-table > div {
-    padding: 6px 0;
   }
   .controller-note {
     margin-top: 10px;
@@ -774,10 +733,8 @@ h1 em {
   .regional-atlas .atlas-tools { padding:5px 10px; }
   .regional-atlas .atlas-tools > span { font-size:15px; }
   .regional-atlas .atlas-tools button { font-size:16px;padding:5px 8px; }
-  .regional-atlas .atlas-tools small,.regional-atlas .atlas-footer small { font-size:14px; }
   .regional-atlas .atlas-attribution { font-size:12px; }
   .regional-atlas .atlas-footer { padding:5px 10px; }
-  .regional-atlas .atlas-footer > span { font-size:14px; }
   .regional-atlas .atlas-footer button { padding:6px;font-size:16px; }
 }
 .atlas-map text { text-anchor: middle; fill: #29443f; }
@@ -812,9 +769,7 @@ h1 em {
 .atlas-key-water { background: #9cbfc1; }
 .atlas-margin .atlas-margin-note { font-style: italic; border-top: 1px solid #b4ad91; padding-top: 14px; }
 .atlas-footer { border-top: 1px solid #9d9f87; display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; gap: 10px; }
-.atlas-footer > span { font: 18px/1.7 "Vice", monospace; }
 .atlas-footer button { border: 1px solid #8b8e76; }
-.atlas-footer small { display: block; font: 16px "Vice", monospace; margin-top: 6px; }
 .atlas-index { width: 100%; padding: 24px 36px; overflow: auto; }
 .atlas-index table { width: 100%; border-collapse: collapse; text-align: left; font-size: 24px; }
 .atlas-index th, .atlas-index td { padding: 10px; border-bottom: 1px solid #b4ad91; }
@@ -843,7 +798,6 @@ h1 em {
 .atlas-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; border-top: 1px solid #9d9f87; padding: 8px 18px; }
 .atlas-tools > span { margin-right: auto; font: 20px/1.5 "Vice", monospace; }
 .atlas-tools button { padding: 8px 12px; border: 1px solid #8b8e76; }
-.atlas-tools small { display: block; font: 16px "Vice", monospace; margin-top: 4px; }
 .atlas-tools button:disabled { opacity: 0.45; cursor: default; }
 @media (max-width: 760px) {
   .atlas-tools { padding: 6px 8px; gap: 4px; }
@@ -853,7 +807,8 @@ h1 em {
 .district-switch { display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px;max-height:8.5em;overflow-y:auto; }
 .modal .district-switch button { padding:10px;font:20px "Vice", monospace;justify-content:center;background:#30453f;color:#dce4cf; }
 .modal .district-switch button[aria-pressed="true"] { background:var(--accent);color:#17262c; }
-.atlas-attribution { font:16px/1.4 "Vice", monospace; padding:4px 18px;color:#516254; }
+.atlas-attribution { flex:1;min-width:0;font:16px/1.4 "Vice", monospace; color:#516254; }
+.atlas-footer button { flex:none; }
 .map-credit { position:absolute;right:16px;bottom:5px;font:16px "Vice", monospace;color:#c7cbb9;z-index:3;background:#17252cd9;padding:3px 6px; }
 /* Street plates use native-resolution rendering rather than nearest-neighbour upscaling. */
 #viewport { image-rendering: auto; }
@@ -941,7 +896,6 @@ h1 { letter-spacing:0; line-height:1.05; }
 .district-tag { width:300px; letter-spacing:1px; }
 .district-tag small { font-size:16px; }
 .deadline span { font-size:18px; }
-.control-table { font-size:20px; line-height:1.1; }
 .modal { border:2px solid #819582; box-shadow:6px 6px 0 #07171d; }
 .overlay:not(.atlas-open) { padding:120px 24px 30px 362px; align-items:start; }
 .briefing { display:block; max-width:900px; }
@@ -964,6 +918,8 @@ h1 { letter-spacing:0; line-height:1.05; }
 .controls-settings button { font:24px Vice,monospace; background:#304b47; color:#f4e6bb; padding:8px 14px; border:1px solid #819582; cursor:pointer; }
 .controls-settings h2 { margin:0; }
 .binding-table > div { display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:16px; align-items:center; border-bottom:1px solid #81958255; padding:8px; }
+.controls-settings h3 { margin:24px 0 4px; }
+.fixed-controls .control-heading, .fixed-controls .fixed-group { color:#879f95; font-size:18px; letter-spacing:1px; text-transform:uppercase; }
 .fare-board { padding:26px; max-width:860px; max-height:calc(100dvh - 150px); overflow:auto; }
 .fare-board h1 { font-size:42px; margin:10px 0; }
 .fare-board p { font-size:22px; }
@@ -990,7 +946,6 @@ h1 { letter-spacing:0; line-height:1.05; }
  .briefing-main, .briefing-side, .pause, .result { padding:20px; }
  .briefing h1, .pause h1 { font-size:38px; }
  .navigation-message { width:50vw; }
- .control-table > div { grid-template-columns:1fr 1fr 1fr; gap:6px; }
  .district-tag { width:260px; }
  .objective { top:126px; }
  .atlas-margin { display:none; }

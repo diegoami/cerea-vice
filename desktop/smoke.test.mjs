@@ -29,6 +29,20 @@ const clippedText=page=>page.evaluate(()=>{
   }
   return bad;
 });
+/** Screens explain actions, never bindings: the full mapping lives under Change controls (#93). */
+const mappingText=/\b[ABXY] \/ (Cross|Circle|Square|Triangle|Enter)\b|\b(LB|RB|RT|LT|R3|L3)\b|D-pad|(Left|Right) stick|\bEsc(ape)? \/|\/ START|ENTER TO|\bpress [A-Z0-9]\b(?! key)/i;
+async function assertNoMappingText(page,where){
+  for(const selector of ['#overlay','#prompt','#hint','#objective-title','.dashboard']){
+    const text=await page.locator(selector).first().evaluate(element=>element.offsetParent===null&&getComputedStyle(element).position!=='fixed'?'':element.innerText);
+    assert.doesNotMatch(text,mappingText,`${where}: ${selector} names no bindings`);
+  }
+}
+async function controlsPanelBinding(page,action,device){
+  await page.getByRole('button',{name:'Change controls',exact:true}).click();
+  const text=await page.locator(`[data-control=${action}][data-device=${device}]`).innerText();
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  return text;
+}
 /** Resize through every supported window size, asserting no clipped text, with screenshots at both ends. */
 async function checkTextFit(app,page,label){
   for(const [width,height] of windowSizes){
@@ -140,11 +154,17 @@ test('fare choices, remapping and saved passenger/atlas state survive a complete
   await faresKey.click();await page.keyboard.press('f');await page.getByRole('status').filter({hasText:/assigned to Information/}).waitFor();
   await page.keyboard.press('h');await page.locator('[data-control=requestFares][data-device=key]').filter({hasText:'H'}).waitFor();
   await page.getByRole('button',{name:'Back',exact:true}).click();
-  assert.match(await page.locator('.control-table').innerText(),/Request fares \(while stopped\)\s+D-pad down\s+H\b/);
+  await assertNoMappingText(page,'briefing');
+  await page.getByRole('button',{name:'Change controls',exact:true}).click();
+  const fixed=await page.locator('.fixed-controls').innerText();
+  for(const row of [/Turn pages\s+LB \/ RB\s+Q \/ E/,/Close atlas\s+B \/ Circle · Y \/ Triangle\s+T \/ Esc/,/Accept selected\s+A \/ Cross\s+Enter/,/Change district\s+LB \/ RB\s+Q \/ E/,/Pause\s+Start\s+Esc \/ P/])assert.match(fixed,row,'Change controls lists the fixed controls the screens no longer show');
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  assert.equal(await controlsPanelBinding(page,'requestFares','key'),'H');assert.equal(await controlsPanelBinding(page,'requestFares','pad'),'D-pad down');
   await page.getByRole('button',{name:'Start the engine'}).click();
   await settled(page);await page.keyboard.press('o');await frames(page);assert.equal(await page.locator('.fare-board').isVisible(),false,'The replaced default key does nothing');
-  assert.match(await page.locator('#prompt').innerText(),/D-pad down\s*Request fares|H\s*Request fares/);
+  assert.match(await page.locator('#prompt').innerText(),/Request fares/);await assertNoMappingText(page,'stopped driving prompt');
   await requestFares(page,'h');const offerClock=await page.locator('#timer').innerText();
+  await assertNoMappingText(page,'fare list');
   const original=await listed(page);await page.waitForTimeout(900);assert.equal(await page.locator('#timer').innerText(),offerClock);
   await padButton(1,1);await padButton(1,0);await page.locator('#overlay').waitFor({state:'hidden'});
   assert.equal(await page.locator('#gear').innerText(),'D','B closes the list without changing the gear or earning');assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
@@ -182,7 +202,7 @@ test('fare choices, remapping and saved passenger/atlas state survive a complete
   assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-save-cerea')),saved);
   assert.equal(await page.locator('#gear').innerText(),'R');assert.match(await page.locator('#objective-stage').innerText(),/PASSENGER ABOARD/);
   const loadedClock=await page.locator('#timer').innerText();await page.waitForTimeout(700);assert.equal(await page.locator('#timer').innerText(),loadedClock);
-  assert.match(await page.locator('.control-table').innerText(),/L3/);
+  await assertNoMappingText(page,'pause');assert.equal(await controlsPanelBinding(page,'shiftGear','pad'),'L3','The remapped button survives a relaunch');
   await page.getByRole('button',{name:'Back to the road'}).click();await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
   assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),pin);assert.match(await page.locator('#atlas-marker-status').innerText(),/Your estimated position/);
   await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.press('p');
@@ -420,8 +440,8 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
     assert.equal(await page.locator('.car-badge').count(),0,'No decorative badge in the HUD');
     assert.match(await page.locator('#objective-stage').innerText(),/FREE DRIVING/);assert.equal(await page.locator('.fare-board').count(),0);
-    await page.keyboard.press('Enter');await page.waitForFunction(()=>/No passenger booked.*O to see available fares/.test(document.querySelector('#hint').textContent));
-    assert.match(await page.locator('#prompt').innerText(),/O\s*Request fares/);
+    await page.keyboard.press('Enter');await page.waitForFunction(()=>/No passenger booked\. Stop and request fares/.test(document.querySelector('#hint').textContent));
+    assert.match(await page.locator('#prompt').innerText(),/Request fares/);await assertNoMappingText(page,'Cerea stopped prompt');
     await requestFares(page);
     await page.screenshot({path:'test-results/cerea-fare-board.png'});
     await page.locator('[data-fare-offer]').first().click();await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});
@@ -927,7 +947,7 @@ test('the radio plays a chosen local folder, skips a broken track, survives a re
   assert.equal(await page.evaluate(()=>typeof process+typeof require),'undefinedundefined');
   assert.equal(await page.locator('#sound-state').innerText(),'SOUND 75% · RADIO OFF');
   assert.match(await status(page),/No music folder chosen/);
-  assert.match(await page.locator('.control-table').innerText(),/Radio: next track \(music folder\)\s+D-pad right\s+V/);
+  assert.equal(await controlsPanelBinding(page,'radioNext','key'),'V');assert.equal(await controlsPanelBinding(page,'radioNext','pad'),'D-pad right');
   // The native dialog is the only way to pick a folder; stand in for the player's choice.
   await app.evaluate(({dialog},dir)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[dir]});},music);
   await page.getByRole('button',{name:'Choose music folder…'}).click();
@@ -1067,6 +1087,7 @@ test('regional atlas has readable connected quadrants without moving knowledge o
   assert.equal(await page.locator('#timer').innerText(),clock);
   await page.screenshot({path:'test-results/region-atlas-street-lookup.png'});
   await page.keyboard.press('f');await page.locator('#atlas-marker-status').filter({hasText:/Last information received/}).waitFor();
+  await assertNoMappingText(page,'regional atlas');
   await checkAtlasInformation(app,page,/facing/);
   await checkTextFit(app,page,'region-information');
   await page.locator('[data-atlas-close]').click();assert.equal(await page.locator('#speed').innerText(),'00','Atlas inputs never accelerate the taxi');
