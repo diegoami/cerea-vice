@@ -32,7 +32,7 @@ function harness(data:unknown=contextHarbor){
  const game=Object.create(Game.prototype) as Harness;
  const noop=()=>{};
  Object.assign(game,{
-  controlsPanel:{visible:false,update:noop},saveButton:{disabled:false},people:{update:noop},
+  controlsPanel:{visible:false,update:noop},saveButton:{disabled:false},mainScreenButton:{disabled:false,textContent:"Main screen"},people:{update:noop},
   streamStatus:{hidden:true,textContent:''},screen:'running',car:new Car(),parking:new Parking(),mission:new Mission(),previousTime:1000,accumulator:0,
   districtSwitchReady:false,ignorePauseUntil:0,missionRevision:-1,waitForDrivingRelease:false,
   input:{bindings:structuredClone(defaultBindings),settingsInput:{move:0,confirm:false,keyboardConfirm:false},poll:()=>({...actions}),controllerDisconnected:false,setMouseCaptured:noop,menuHeld:false,drivingReleased:true},

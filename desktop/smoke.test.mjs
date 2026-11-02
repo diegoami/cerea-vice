@@ -1129,3 +1129,43 @@ test('Verona centro streams, starts by Palazzo Barbieri, drives offline and show
   console.log(`verona ready in ${ready} ms`);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
+
+test('pause offers the main screen, confirms before leaving and keeps the manual save (#85)', {timeout:120000}, async()=>{
+ const profile=await mkdtemp(path.join(tmpdir(),'cerea-main-screen-'));
+ const app=await _electron.launch({args:[path.resolve('.'),'--district=harbor',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
+ try{
+  const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const mainScreen=page.locator('.presentation-settings button').filter({hasText:/Main screen|Confirm: leave shift/});
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.equal(await mainScreen.isDisabled(),true,'Nothing to leave before a shift starts');
+  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  await mainScreen.click();
+  assert.equal(await mainScreen.innerText(),'Confirm: leave shift');
+  assert.match(await page.locator('.save-status:not(.radio-status)').innerText(),/Progress since your last save will be lost/);
+  await page.getByRole('button',{name:'Back to the road'}).click();await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Back to the road'}).waitFor();
+  assert.equal(await mainScreen.innerText(),'Main screen','Resuming cancels the pending leave');
+  await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
+  const saved=await page.evaluate(()=>localStorage.getItem('cerea-save-harbor'));assert.ok(saved);
+  // Controller path: D-pad to the action, A twice.
+  await page.evaluate(()=>{window.leavePad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.leavePad],configurable:true});});
+  const selected=()=>page.evaluate(()=>[...document.querySelectorAll('.presentation-settings .controller-selected')].map(e=>e.outerHTML).join());
+  for(let i=0;i<30&&!await mainScreen.evaluate(button=>button.classList.contains('controller-selected'));i++){
+   const before=await selected();await page.evaluate(()=>window.leavePad.buttons[13].value=1);
+   await page.waitForFunction(before=>[...document.querySelectorAll('.presentation-settings .controller-selected')].map(e=>e.outerHTML).join()!==before,before);
+   await page.evaluate(()=>window.leavePad.buttons[13].value=0);await frames(page);
+  }
+  assert.equal(await mainScreen.evaluate(button=>button.classList.contains('controller-selected')),true,'The D-pad reaches Main screen');
+  await page.evaluate(()=>window.leavePad.buttons[0].value=1);
+  await page.locator('.save-status:not(.radio-status)').filter({hasText:/Nothing is lost: your shift is saved/}).waitFor();
+  await page.evaluate(()=>window.leavePad.buttons[0].value=0);await frames(page);await frames(page);
+  assert.equal(await page.getByRole('button',{name:'Back to the road'}).isVisible(),true,'Confirming is a second press; the first leaves the pause screen in place');
+  await page.evaluate(()=>window.leavePad.buttons[0].value=1);
+  await page.waitForFunction(()=>document.querySelector('.briefing')!==null&&!document.querySelector('#overlay').hidden,null,{timeout:60000});
+  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Harbor District','The main screen offers the district list');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-save-harbor')),saved,'Leaving never touches the manual save');
+  assert.deepEqual(errors,[]);
+ }finally{await app.close();await rm(profile,{recursive:true,force:true});}
+});
