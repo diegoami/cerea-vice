@@ -340,7 +340,8 @@ bay counts as accessible when a path at the car's 1.05 m margin leads from its s
 
 **Budgets** (from the region spike): a single-file district up to 1.6 MB, 3,500 buildings, 2,000 road
 segments and 150 MiB of street-name textures (about 0.25 MiB per name). A tiled district keeps its
-manifest resident (up to 6 MB, 12,000 buildings, 9,000 road segments), tiles up to 250 kB, and at most
+manifest resident (up to 9 MB, 16,000 buildings, 9,000 road segments; raised from 6 MB and 12,000 on
+2026-11-02 by owner decision for the region from Verona to Oppeano, to be measured on Windows, #51), tiles up to 250 kB, and at most
 150 MiB of street-name textures for the tiles within 400 m of any one place (tiles build their plates
 within 300 m of the car and free them beyond 400 m). The region today: 5.1 MB, 9,795 buildings, 6,874
 segments, largest tile 92 kB, at most 102 street names resident (about 26 MiB). Verona centro: 2.1 MB,

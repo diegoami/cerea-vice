@@ -1,0 +1,126 @@
+{
+  "specVersion": 1,
+  "id": "oppeano",
+  "name": "Oppeano",
+  "description": "Oppeano: real streets, named stops and simplified scenery, part of the region between Verona and Oppeano.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/oppeano-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.3062,
+      "lon": 11.1823
+    },
+    "bbox": {
+      "south": 45.3017,
+      "west": 11.176,
+      "north": 45.3107,
+      "east": 11.1888
+    }
+  },
+  "output": "build/towns/oppeano.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "landmarks": [
+    {
+      "osmId": 314336410,
+      "id": "sangiovanni",
+      "name": "Chiesa di San Giovanni",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 24
+    },
+    {
+      "osmId": 3937670685,
+      "id": "farmacia",
+      "name": "Farmacia Bacchielli",
+      "road": "Via XXVI Aprile",
+      "kind": "pharmacy",
+      "point": true
+    },
+    {
+      "osmId": 12875991487,
+      "id": "banca",
+      "name": "UniCredit",
+      "road": "Via Roma",
+      "kind": "civic",
+      "point": true
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "sangiovanni",
+      "bay": "Sosta San Giovanni"
+    },
+    {
+      "landmark": "farmacia",
+      "bay": "Sosta Farmacia"
+    },
+    {
+      "landmark": "banca",
+      "bay": "Sosta Banca"
+    }
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "Oppeano"
+    }
+  ],
+  "content": {
+    "start": "sangiovanni",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "sangiovanni",
+        "farmacia"
+      ],
+      [
+        "Marco",
+        "farmacia",
+        "banca"
+      ],
+      [
+        "Giulia",
+        "banca",
+        "sangiovanni"
+      ]
+    ],
+    "mission": {
+      "name": "Oppeano Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "farmacia"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated.",
+    "Proposed stops (2026-11-02, #112), for the owner to confirm in play."
+  ]
+}

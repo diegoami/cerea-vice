@@ -18,7 +18,8 @@
     "town:check": "node --import tsx tools/town-check.ts",
     "build:verona": "python3 tools/import-town.py towns/verona.town.json",
     "build:verona-south": "python3 tools/import-town.py towns/verona-south.town.json",
-    "build:region": "python3 tools/build-region.py regions/lower-verona.region.json && node --import tsx tools/tile-district.mjs build/regions/lower-verona.json public/maps/lower-verona build/regions/lower-verona.tiling.json"
+    "build:region": "python3 tools/build-region.py regions/lower-verona.region.json && node --import tsx tools/tile-district.mjs build/regions/lower-verona.json public/maps/lower-verona build/regions/lower-verona.tiling.json",
+    "build:region:verona-plain": "python3 tools/build-region.py regions/verona-plain.region.json && node --import tsx tools/tile-district.mjs build/regions/verona-plain.json public/maps/verona-plain build/regions/verona-plain.tiling.json"
   },
   "dependencies": {
     "three": "^0.180.0"

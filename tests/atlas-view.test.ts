@@ -206,3 +206,19 @@ test('a single long city gets density pages within the label budget; only a regi
   const book=createAtlasSheets(new District(region));
   assert.equal(book.sheets.length,135);assert.ok(book.sheets.every(sheet=>sheet.span===1200),'The region keeps its fixed grid');
 });
+
+test('a region with a dense city prints that city on smaller pages within the label budget, linked by geometry (#112)',async()=>{
+  const plain=new District((await import('../public/maps/verona-plain/manifest.json',{with:{type:'json'}})).default);
+  const atlas=createAtlas(plain),perPage=new Map<string,number>();
+  for(const street of atlas.atlasStreetEntries())perPage.set(street.sheet!,(perPage.get(street.sheet!)??0)+1);
+  assert.ok(Math.max(...perPage.values())<=90,`Every page stays within the label budget (worst ${Math.max(...perPage.values())})`);
+  const {sheets,sheetAt,neighbour}=createAtlasSheets(plain);
+  assert.ok(sheets.some(sheet=>sheet.span===1200)&&sheets.some(sheet=>sheet.span<700),'Countryside keeps kilometre pages; Verona gets smaller ones');
+  for(const point of [...plain.nodes,...plain.parkingZones]){const sheet=sheetAt(point)!;assert.ok(point.x>=sheet.minX&&point.x<=sheet.minX+sheet.span&&point.z>=sheet.minZ&&point.z<=sheet.minZ+sheet.span,`${sheet.id} holds its points`);}
+  assert.equal(new Set(sheets.map(sheet=>sheet.id)).size,sheets.length,'Page references are unique');
+  // From a small Verona page east, and back west, returns to a page that holds the starting page's east edge.
+  const small=sheetAt(plain.spawn)!;assert.ok(small.span<700);
+  const east=neighbour(small,1,0)!;assert.ok(east&&east!==small);
+  const back=neighbour(east,-1,0)!;assert.ok(back.minX+back.span>=small.minX+small.span-small.overlap,'West of the east page is back beside the start');
+  assert.ok(sheets.every(sheet=>!sheet.name.includes('undefined')));
+});

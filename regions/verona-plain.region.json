@@ -1,0 +1,101 @@
+{
+  "specVersion": 1,
+  "id": "verona-plain",
+  "name": "Verona and the plain to Oppeano",
+  "description": "Verona from the Adige loop to Borgo Roma, San Giovanni Lupatoto and Oppeano at real scale, joined by their real main roads, shortened so neighbouring towns are a few minutes apart. It is to meet the Lower Veronese plain north of Bovolone (#112).",
+  "dataVersion": 1,
+  "subtitle": "REAL TOWNS / SHORTENED ROADS",
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "output": "public/maps/verona-plain/manifest.json",
+  "frame": "regions/veronese.frame.json",
+  "zoneMargin": 200,
+  "towns": [
+    {
+      "spec": "towns/verona-south.town.json"
+    },
+    {
+      "spec": "towns/san-giovanni-lupatoto.town.json"
+    },
+    {
+      "spec": "towns/oppeano.town.json"
+    }
+  ],
+  "corridors": {
+    "extract": "data/sources/verona-plain-main-roads.json",
+    "pairs": [
+      [
+        "verona-south",
+        "san-giovanni-lupatoto"
+      ],
+      [
+        "san-giovanni-lupatoto",
+        "oppeano"
+      ]
+    ]
+  },
+  "content": {
+    "start": "verona-south:barbieri",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "verona-south:arena",
+        "san-giovanni-lupatoto:municipio"
+      ],
+      [
+        "Marco",
+        "san-giovanni-lupatoto:sangiovanni",
+        "oppeano:sangiovanni"
+      ],
+      [
+        "Sara",
+        "verona-south:portanuova",
+        "san-giovanni-lupatoto:astra"
+      ],
+      [
+        "Luca",
+        "san-giovanni-lupatoto:madonnina",
+        "verona-south:duomo"
+      ],
+      [
+        "Giulia",
+        "oppeano:farmacia",
+        "verona-south:caliari"
+      ],
+      [
+        "Paolo",
+        "oppeano:banca",
+        "verona-south:policlinico"
+      ]
+    ],
+    "mission": {
+      "name": "Verona and the plain taxi shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00 from Verona to Oppeano. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "san-giovanni-lupatoto:municipio"
+    }
+  },
+  "views": [
+    {
+      "name": "verona",
+      "bay": "verona-south:barbieri"
+    },
+    {
+      "name": "lupatoto",
+      "bay": "san-giovanni-lupatoto:municipio"
+    },
+    {
+      "name": "oppeano",
+      "bay": "oppeano:sangiovanni"
+    }
+  ]
+}

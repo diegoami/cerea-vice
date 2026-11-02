@@ -24,10 +24,13 @@ export const PLATE_TEXTURE_BYTES=512*96*4*4/3;
  * 1.5 MB, 3,200 building masses, 1,800 road segments and 130 street names (Legnago). A tiled
  * district keeps all collision resident in its manifest, and its tiles stream; what is resident
  * at once is the manifest plus the tiles and street-name textures within the retain radius.
+ * The tiled budget was raised on 2026-11-02 (owner decision, #112) for the region from Verona to
+ * Oppeano (15,106 buildings, 8.0 MB) after Verona centro–Borgo Roma (11,407) played well on Windows;
+ * the region itself is to be measured there before the next release (#51).
  */
 export const BUDGETS={
  single:{bytes:1_600_000,buildings:3_500,roads:2_000,plateMiB:150},
- tiled:{manifestBytes:6_000_000,buildings:12_000,roads:9_000,tileBytes:250_000,residentPlateMiB:150},
+ tiled:{manifestBytes:9_000_000,buildings:16_000,roads:9_000,tileBytes:250_000,residentPlateMiB:150},
 };
 
 const cap=(list:string[],limit=12)=>list.length>limit?[...list.slice(0,limit),`… and ${list.length-limit} more`]:list;

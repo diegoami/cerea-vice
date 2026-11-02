@@ -1,0 +1,179 @@
+{
+  "specVersion": 1,
+  "id": "san-giovanni-lupatoto",
+  "name": "San Giovanni Lupatoto",
+  "description": "San Giovanni Lupatoto: real streets, named stops and simplified scenery, part of the region between Verona and Oppeano.",
+  "dataVersion": 1,
+  "source": {
+    "extract": "data/sources/san-giovanni-lupatoto-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "area": {
+    "origin": {
+      "lat": 45.382,
+      "lon": 11.0449
+    },
+    "bbox": {
+      "south": 45.376,
+      "west": 11.036,
+      "north": 45.388,
+      "east": 11.054
+    }
+  },
+  "output": "build/towns/san-giovanni-lupatoto.json",
+  "stoppingPolicy": "anywhere",
+  "preset": "town",
+  "landmarks": [
+    {
+      "osmId": 1417165902,
+      "id": "municipio",
+      "name": "Municipio di San Giovanni Lupatoto",
+      "road": "Via Roma",
+      "kind": "civic",
+      "point": true
+    },
+    {
+      "osmId": 145992822,
+      "id": "sangiovanni",
+      "name": "San Giovanni Battista in Nativitate",
+      "road": "Via Antonio Fogazzaro",
+      "kind": "church",
+      "height": 26
+    },
+    {
+      "osmId": 145992247,
+      "id": "madonnina",
+      "name": "Santuario della Madonnina",
+      "road": "(nearest street)",
+      "kind": "church",
+      "frontage": "nearest",
+      "height": 20
+    },
+    {
+      "osmId": 1107546559,
+      "id": "astra",
+      "name": "Teatro Astra",
+      "road": "Via Roma",
+      "kind": "theatre",
+      "point": true
+    },
+    {
+      "osmId": 348174417,
+      "id": "poste",
+      "name": "Ufficio postale",
+      "road": "(nearest street)",
+      "kind": "post",
+      "frontage": "nearest",
+      "height": 9
+    },
+    {
+      "osmId": 145993546,
+      "id": "marconi",
+      "name": "Scuola Guglielmo Marconi",
+      "road": "(nearest street)",
+      "kind": "school",
+      "frontage": "nearest",
+      "height": 12
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "municipio",
+      "bay": "Sosta Municipio"
+    },
+    {
+      "landmark": "sangiovanni",
+      "bay": "Sosta San Giovanni Battista"
+    },
+    {
+      "landmark": "madonnina",
+      "bay": "Sosta Madonnina"
+    },
+    {
+      "landmark": "astra",
+      "bay": "Sosta Teatro Astra"
+    },
+    {
+      "landmark": "poste",
+      "bay": "Sosta Poste"
+    },
+    {
+      "landmark": "marconi",
+      "bay": "Sosta Scuola Marconi"
+    }
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "waterWidths": {},
+    "unnamed": {
+      "water": "Canale",
+      "rail": "Ferrovia",
+      "waterArea": "Acqua"
+    }
+  },
+  "areas": [
+    {
+      "name": "San Giovanni Lupatoto"
+    }
+  ],
+  "content": {
+    "start": "municipio",
+    "taxi": {
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Elena",
+        "municipio",
+        "madonnina"
+      ],
+      [
+        "Marco",
+        "astra",
+        "poste"
+      ],
+      [
+        "Giulia",
+        "sangiovanni",
+        "marconi"
+      ],
+      [
+        "Paolo",
+        "poste",
+        "municipio"
+      ],
+      [
+        "Sara",
+        "madonnina",
+        "astra"
+      ],
+      [
+        "Luca",
+        "marconi",
+        "sangiovanni"
+      ]
+    ],
+    "mission": {
+      "name": "San Giovanni Lupatoto Taxi Shift",
+      "objective": "Work a taxi shift from 07:00 to 17:00. Collect passengers and earn fares.",
+      "hint": "Stop and request fares when you want a passenger.",
+      "duration": 360,
+      "target": "sangiovanni"
+    }
+  },
+  "notes": [
+    "Modern road geometry at local metre scale; no claim of historical reconstruction.",
+    "Designated stopping bays are gameplay placements, not verified real parking permissions.",
+    "Building footprints are sourced; heights, materials and landmark silhouettes are simplified.",
+    "One-way tags are used for directions; road-rule enforcement and traffic are not simulated.",
+    "Proposed stops (2026-11-02, #112), for the owner to confirm in play."
+  ]
+}
