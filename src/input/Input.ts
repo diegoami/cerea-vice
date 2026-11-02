@@ -118,7 +118,8 @@ export class Input {
         if (matches("atlas",["KeyT"])) this.queuedAtlas = true;
         if (event.code === "Escape" || (this.context==='menu'&&event.code==='Backspace')) this.queuedBack = true;
         if (this.context==='menu'&&event.code==='Backspace') this.queuedDeclineOffer = true;
-        if (event.code === "Delete" || event.code === "Backspace") this.queuedClearMarker = true;
+        // Only Delete erases the marker: Backspace reads as "back" and must never drop placed knowledge (#111).
+        if (event.code === "Delete") this.queuedClearMarker = true;
         if (event.code === "KeyQ") this.queuedAtlasPage = -1;
         if (event.code === "KeyE") this.queuedAtlasPage = 1;
         if (matches("reminder",["Tab","KeyM"]))
@@ -213,7 +214,7 @@ export class Input {
     this.menuHeld=down('Enter','Backspace','KeyN','ArrowUp','ArrowDown','KeyW','KeyS')||[0,1,3,12,13].some(i=>button(i)>.5)||Math.abs(pad?.axes[1]??0)>.5;
     const shiftGear = active('shiftGear',['KeyR'],1);
     const resetLook = active('resetLook',['KeyC','Home'],11);
-    const clearMarker = down("Delete", "Backspace") || button(2) > 0.5;
+    const clearMarker = down("Delete") || button(2) > 0.5;
     const keyboardSteer =
       Number(down("KeyD", "ArrowRight")) - Number(down("KeyA", "ArrowLeft"));
     const actions: Actions = {

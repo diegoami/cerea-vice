@@ -171,6 +171,7 @@ test('only B and Backspace decline in menus; handbrake and atlas erasing remain 
  buttons[1].value=1;assert.equal(input.poll().declineOffer,true);assert.equal(input.poll().declineOffer,false);buttons[1].value=0;input.poll();
  tap('Backspace');assert.equal(input.poll().declineOffer,true);assert.equal(input.poll().declineOffer,false);
  input.context='atlas';buttons[2].value=1;actions=input.poll();assert.equal(actions.clearMarker,true);assert.equal(actions.declineOffer,false);
+ buttons[2].value=0;input.poll();tap('Backspace');assert.equal(input.poll().clearMarker,false,'Backspace never erases the atlas marker (#111)');
  input.context='driving';buttons[1].value=1;input.poll();input.context='menu';assert.equal(input.poll().declineOffer,false,'Holding the gear button as an offer opens is not a new decline');
  buttons[1].value=0;input.poll();buttons[1].value=1;assert.equal(input.poll().declineOffer,true);
 });

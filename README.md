@@ -156,7 +156,7 @@ Driving defaults are shown below; use **Change controls** to customize them.
 | Move atlas crosshair               | Left stick / D-pad    | WASD / arrow keys            |
 | Mark estimated position            | A / Cross             | Enter / click map            |
 | Ask for information (road or atlas) | View / Select (PS Share) | F / information button       |
-| Erase atlas marker                 | X / Square            | Delete / Backspace           |
+| Erase atlas marker                 | X / Square            | Delete                       |
 | Close atlas                        | B / Circle            | Escape                       |
 | Repeat mission and time remaining  | D-pad up              | Tab or M                     |
 | Radio: next track (music folder, driving) | D-pad right by default | V by default          |
@@ -199,7 +199,7 @@ Use **LB / RB** or **Q / E** to change pages. The page tabs also work with the m
 
 The atlas marker changes only when you **successfully ask for information while stopped**, or **move it yourself** to where you think you are. Simply driving, parking in a bay, opening the atlas or repeating the mission reminder does not update it. Rejected requests while moving do not update it either. Information can be requested at any settled stop, including outside a legal bay.
 
-A successful View / Select or F information request records that position as a snapshot, labelled **Last information received**. While the atlas is open, press **F**, **View / Select (PS Share)**, or its **Ask for information** button. The directions appear beside the map, the marker updates, and the car and timer stay paused. A / Enter still places your manual estimate in the atlas. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete / Backspace erases it. The marker remains fixed until the next successful information request or manual change. A new drive starts with its given starting position: Sosta Municipio in Cerea or Harbor lay-by in Harbor District. It never follows the car or creates a route line.
+A successful View / Select or F information request records that position as a snapshot, labelled **Last information received**. While the atlas is open, press **F**, **View / Select (PS Share)**, or its **Ask for information** button. The directions appear beside the map, the marker updates, and the car and timer stay paused. A / Enter still places your manual estimate in the atlas. Manual placement is labelled **Your estimated position**, which can be wrong. To place an estimate, click the map or move the crosshair with the left stick / D-pad / WASD / arrow keys and press A / Cross / Enter. A new placement moves the existing marker; X / Square / Delete erases it; Backspace does not. The marker remains fixed until the next successful information request or manual change. A new drive starts with its given starting position: Sosta Municipio in Cerea or Harbor lay-by in Harbor District. It never follows the car or creates a route line.
 
 ## Harbor District
 
