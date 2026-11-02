@@ -147,9 +147,15 @@ of close towns overlap (Cerea and Casaleone are 2.6 km apart), at every k and ba
   nearest primary corridor chain, so they stay parallel to it.
 
 **Region spec.** One file per region, for example `regions/lower-verona.region.json`: the town specs, the
-town pairs whose corridors are kept, `k`, `zoneMargin` and the shift content. The builder rejects any
-other setting, so a value it would ignore cannot look meaningful. `C` is computed from the town origins.
+town pairs whose corridors are kept, the shared frame, `zoneMargin` and the shift content. The builder rejects any
+other setting, so a value it would ignore cannot look meaningful.
 A region is delivered in 250 m tiles; its logical geometry and collision stay resident for now (#51).
+
+**Shared frame (#112).** Every region names the same frame file, `regions/veronese.frame.json`: the UTM
+projection, the origin (false origin, rotation point and compression centre `C`) and `k`. A region may not
+set its own `k`. Because every region places its towns and corridor junctions at `C + k (c − C)` about the
+same `C`, neighbouring regions meet by construction. The origin is the centre of the Lower Veronese
+plain's six town origins, kept exactly, so that region built unchanged when the frame was introduced.
 
 ## First region: the lower Veronese plain
 

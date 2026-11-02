@@ -184,8 +184,8 @@ Recovery retains the existing trip, atlas knowledge and pause state.
 
 `public/maps/lower-verona/` is a streamed district joining six real towns: Cerea, Legnago, Bovolone,
 Sanguinetto, Nogara and Casaleone. Each town keeps its real streets at real scale and is placed rigidly at
-`k` times its position in the regional frame (UTM zone 32N, false origin at the region centre, turned by
-the grid convergence there). The real main roads between towns are kept with their junctions, one-way
+`k` times its position in the regional frame (UTM zone 32N, false origin at the shared frame's origin,
+turned by the grid convergence there). The real main roads between towns are kept with their junctions, one-way
 tags and names, and shortened by `k = 0.6`, so neighbouring towns are a few minutes apart (Cerea–Legnago
 about 5 minutes at 17 m/s). Direction boards where a road leaves a town give the real road distance to
 the next town. Six villages and hamlets on those roads (Concamarise, Aselogna, Venera, Belfiore,
@@ -199,7 +199,9 @@ npm run build:region     # tools/build-region.py, then tools/tile-district.mjs
 ```
 
 `regions/lower-verona.region.json` lists the towns (each from its own spec in `towns/`), the town pairs
-whose corridors are kept, `k`, and the shift content. The builder fails if towns overlap, if mapping
+whose corridors are kept, the shared frame and the shift content. Every region names
+`regions/veronese.frame.json`, which holds the origin and `k` for all of them, so neighbouring regions
+line up (#112). The builder fails if towns overlap, if mapping
 creates a road crossing, or if a town-to-town bearing moves by more than 1°; it is deterministic. See
 [docs/TOWNS.md](docs/TOWNS.md) and the measurements in [docs/REGION_SPIKE.md](docs/REGION_SPIKE.md).
 

@@ -1,0 +1,9 @@
+{
+  "specVersion": 1,
+  "id": "veronese",
+  "name": "Veronese regional frame",
+  "description": "The one frame every region is built in, so neighbouring regions meet by construction (#112). Its origin is the false origin and the compression centre C: every town and corridor junction is placed at C + k (c - C). The origin is the centre of the Lower Veronese plain's six town origins, kept exactly so that region builds unchanged.",
+  "projection": "UTM zone 32N (EPSG:32632)",
+  "origin": { "lat": 45.196, "lon": 11.175816666666668 },
+  "k": 0.6
+}

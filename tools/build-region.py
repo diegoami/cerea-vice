@@ -5,7 +5,9 @@
 
 Design: docs/TOWNS.md ("Regions and compression"), measured in docs/REGION_SPIKE.md.
 - Every town keeps its own streets unchanged and moves rigidly to k x its position in the regional frame
-  (UTM zone 32N, false origin at the region centre, turned by the grid convergence there).
+  (UTM zone 32N, false origin at the shared frame's origin, turned by the grid convergence there). Every
+  region names the same frame file (regions/veronese.frame.json), which holds the origin and k, so
+  neighbouring regions line up by construction (#112).
 - The corridor roads between towns are the shortest real main-road paths between the towns' own road
   networks, joined through shared OSM node ids. Each chain of corridor road between two fixed points
   (town nodes, or junctions outside towns) is mapped by one similarity transform, so its shape is kept.
@@ -28,17 +30,30 @@ def utm(lat,lon):
     return x,y
 def convergence(lat,lon):return math.atan(math.tan(math.radians(lon)-LON0)*math.sin(math.radians(lat)))
 
-REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','k','zoneMargin','villages','villageMargin','towns','corridors','content','views'}
+REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','frame','zoneMargin','villages','villageMargin','towns','corridors','content','views'}
+FRAME_KEYS={'specVersion','id','name','description','projection','origin','k'}
 def check_spec(region):
     """Reject unknown or missing settings, so a value the builder ignores cannot look meaningful."""
+    if 'k' in region:raise SystemExit('"k" belongs to the shared frame, not to a region: name the frame with "frame"')
     unknown=set(region)-REGION_KEYS
     if unknown:raise SystemExit(f'Unknown region settings: {", ".join(sorted(unknown))}')
-    for key in ('id','name','k','zoneMargin','towns','corridors','content','output'):
+    for key in ('id','name','frame','zoneMargin','towns','corridors','content','output'):
         if key not in region:raise SystemExit(f'Region spec is missing "{key}"')
     if not isinstance(region['zoneMargin'],(int,float)) or region['zoneMargin']<0:raise SystemExit('"zoneMargin" must be a non-negative number of metres')
     if 'villages' in region and not isinstance(region.get('villageMargin'),(int,float)):raise SystemExit('"villageMargin" is required with "villages"')
     for entry in region['towns']+region.get('villages',[]):
         if set(entry)!={'spec'}:raise SystemExit(f'A town entry takes only "spec"; got {sorted(entry)} (zones are each town\'s area plus "zoneMargin")')
+
+def load_frame(path):
+    """The shared regional frame: one origin and one k for every region."""
+    frame=json.loads(path.read_text())
+    unknown=set(frame)-FRAME_KEYS
+    if unknown:raise SystemExit(f'Unknown frame settings: {", ".join(sorted(unknown))}')
+    for key in ('id','origin','k'):
+        if key not in frame:raise SystemExit(f'Frame is missing "{key}"')
+    if not (0<frame['k']<=1):raise SystemExit('k must be in (0, 1]')
+    if set(frame['origin'])!={'lat','lon'}:raise SystemExit('A frame origin takes "lat" and "lon"')
+    return frame
 
 def town_inputs(spec_path,spec):
     """Hash of everything a town build depends on: its spec, its extract and the import tools."""
@@ -62,8 +77,8 @@ def main(argv=None):
     parser.add_argument('spec',type=Path);parser.add_argument('--output',type=Path,help='merged district, before tiling (default build/regions/<id>.json)')
     parser.add_argument('--towns-only',action='store_true',help='bring the town builds up to date, then stop')
     args=parser.parse_args(argv)
-    region=json.loads(args.spec.read_text());check_spec(region);k=region['k'];zone_margin=region['zoneMargin']
-    if not (0<k<=1):raise SystemExit('k must be in (0, 1]')
+    region=json.loads(args.spec.read_text());check_spec(region);zone_margin=region['zoneMargin']
+    frame_spec=load_frame(ROOT/region['frame']);k=frame_spec['k']
     towns=[];villages=[]
     for entry in region['towns']:
         spec=ensure_town((ROOT/entry['spec']).resolve())
@@ -76,9 +91,8 @@ def main(argv=None):
     if args.towns_only:return
     places=towns+villages
     ids=[t['spec']['id'] for t in towns]
-    # Regional frame: false origin and rotation at the centre of the town origins.
-    origins=[(t['spec']['area']['origin']['lat'],t['spec']['area']['origin']['lon']) for t in towns]
-    clat,clon=sum(o[0] for o in origins)/len(origins),sum(o[1] for o in origins)/len(origins)
+    # Regional frame: false origin, rotation and compression centre at the shared frame's origin.
+    clat,clon=frame_spec['origin']['lat'],frame_spec['origin']['lon']
     E0,N0=utm(clat,clon);gamma=convergence(clat,clon);cg,sg=math.cos(gamma),math.sin(gamma)
     def frame(lat,lon):
         e,n=utm(lat,lon);de,dn=e-E0,n-N0

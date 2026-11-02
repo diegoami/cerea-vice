@@ -8,7 +8,7 @@
   "attribution": "© OpenStreetMap contributors · ODbL 1.0",
   "sourceUrl": "https://www.openstreetmap.org/copyright",
   "output": "public/maps/lower-verona/manifest.json",
-  "k": 0.6,
+  "frame": "regions/veronese.frame.json",
   "zoneMargin": 200,
   "villageMargin": 50,
   "towns": [
