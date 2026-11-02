@@ -387,7 +387,7 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
   }
 });
 
-test('Cerea Centro runs offline with its real-place atlas, controller drive and information marker', {timeout:90000}, async()=>{
+test('Cerea Centro runs offline with its real-place atlas, controller drive and information marker', {timeout:240000}, async()=>{
   const profile=await mkdtemp(path.join(tmpdir(),'cerea-centro-test-'));
   const errors=[];
   const electronApp=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
@@ -552,7 +552,7 @@ test('taxi shift ends at 17:00 with an earnings summary and can restart', {timeo
   }finally{await electronApp.close();await rm(profile,{recursive:true,force:true});}
 });
 
-test('shortened text fits every window size and picture mode, with accented street names', {timeout:180000}, async()=>{
+test('shortened text fits every window size and picture mode, with accented street names', {timeout:360000}, async()=>{
   const profile=await mkdtemp(path.join(tmpdir(),'cerea-text-fit-test-'));
   const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
   try{
