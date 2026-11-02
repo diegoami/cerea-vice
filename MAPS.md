@@ -245,3 +245,25 @@ Its atlas uses density pages like Verona centro's: the fixed kilometre grid is n
 ```sh
 npm run build:verona-south     # tools/import-town.py, then tools/tile-district.mjs
 ```
+
+## Regions: Verona and the plain to Oppeano
+
+`public/maps/verona-plain/` is the second region (#112), built in the same shared frame as the Lower
+Veronese plain (`regions/veronese.frame.json`), so the two will line up when the edge between them is
+joined north of Bovolone. Its towns are Verona centro–Borgo Roma (above), San Giovanni Lupatoto and
+Oppeano, at real scale, joined by their real main roads (36.8 km real, 19.1 km driven): 29 stops, 7,457
+road nodes, 15,106 buildings and 2,070 tiles. The stops of San Giovanni Lupatoto (six) and Oppeano (three,
+the town is sparsely mapped) are proposed for the owner to confirm in play.
+
+Left out, for the record: Ca' di David would sit inside Borgo Roma's zone after compression; Isola Rizza
+overlaps Oppeano as a town, and as a village it is off both corridors, so its streets would be an island.
+
+Its atlas keeps the region's kilometre pages in the countryside, but a page over the label budget is
+printed as 2 × 2 smaller pages, twice at most (Verona's centre reads on pages of about 350 m): 159 pages,
+at most 86 street labels on any one. Page links follow geometry, so they work between pages of different
+sizes. The Lower Veronese plain has no page over budget and keeps its 135 pages. It needed the streamed-map
+budget raised to 16,000 buildings and 9 MB (owner decision, 2026-11-02), to be measured on Windows.
+
+```sh
+npm run build:region:verona-plain     # tools/build-region.py, then tools/tile-district.mjs
+```

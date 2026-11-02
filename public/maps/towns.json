@@ -124,6 +124,31 @@
       "taxi": true,
       "provenance": true,
       "spec": "towns/verona-south.town.json"
+    },
+    {
+      "id": "verona-plain",
+      "name": "Verona and the plain to Oppeano",
+      "map": "verona-plain/manifest.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "regional",
+      "taxi": true,
+      "provenance": true,
+      "spec": "regions/verona-plain.region.json",
+      "views": [
+        {
+          "name": "verona",
+          "bay": "verona-south:barbieri"
+        },
+        {
+          "name": "lupatoto",
+          "bay": "san-giovanni-lupatoto:municipio"
+        },
+        {
+          "name": "oppeano",
+          "bay": "oppeano:sangiovanni"
+        }
+      ]
     }
   ]
 }

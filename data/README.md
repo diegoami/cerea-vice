@@ -93,3 +93,18 @@ amenity, tourism, historic, leisure and place features; `out geom`). The spec `t
 keeps 45.4030–45.4495 N, 10.9800–11.0090 E. The 13 Adige-loop stops are Verona centro's (owner-confirmed
 2026-10-29); the seven southern stops are proposed and await the owner's confirmation. Built with
 `npm run build:verona-south` into `public/maps/verona-south/` (tiled). Same ODbL 1.0 terms and attribution.
+
+## Verona and the plain to Oppeano
+
+Fetched 2026-11-02 from `https://overpass-api.de/api/interpreter` for the second region (#112); each file's
+`osm3s.timestamp_osm_base` records its OSM data time:
+
+| File | Area (south, west, north, east) | Contents |
+| --- | --- | --- |
+| `sources/san-giovanni-lupatoto-osm.json` | 45.3760, 11.0360, 45.3880, 11.0540 | as for the Lower Veronese plain towns |
+| `sources/oppeano-osm.json` | 45.3017, 11.1760, 45.3107, 11.1888 | as above |
+| `sources/verona-plain-main-roads.json` | 45.24, 10.96, 45.45, 11.25 | places and `trunk`/`primary`/`secondary`/`tertiary` roads, for the corridors |
+
+Verona's part is `sources/verona-south-osm.json` (above). Town specs are `towns/san-giovanni-lupatoto.town.json`
+and `towns/oppeano.town.json`, with proposed stops awaiting the owner's confirmation; the region spec is
+`regions/verona-plain.region.json`. Same ODbL 1.0 terms and attribution.

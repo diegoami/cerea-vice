@@ -79,20 +79,42 @@ export function createAtlasSheets(context:District) {
   const startZ=anchor.z-stride/2+Math.floor((bounds.minZ-anchor.z+stride/2)/stride)*stride;
   const columns=Math.ceil((bounds.maxX-startX)/stride),rows=Math.ceil((bounds.maxZ-startZ)/stride);
   const letters=(column:number):string=>column<26?String.fromCharCode(65+column):letters(Math.floor(column/26)-1)+letters(column%26);
-  const sheets:AtlasSheet[]=regional?Array.from({length:columns*rows},(_,index)=>{
+  const placeNames=(minX:number,minZ:number,size:number)=>areas.filter(area=>area.x+area.width/2>minX&&area.x-area.width/2<minX+size&&area.z+area.depth/2>minZ&&area.z-area.depth/2<minZ+size).map(area=>area.name).join(' / ')||'Countryside';
+  // A kilometre page over the label budget (a dense city in a region, #112) is printed as 2 × 2 smaller pages, twice at
+  // most (about 600 m, then 300 m): a, b, c, d run north-west, north-east, south-west, south-east.
+  interface Page {sheet:AtlasSheet;ownX:number;ownZ:number;own:number;children?:Page[]}
+  function refine(page:Page,depth:number):Page {
+    if(depth>=2||clippedStreetCount(context,page.sheet.minX,page.sheet.minZ,page.sheet.span)<=MAX_PAGE_LABELS)return page;
+    const own=page.own/2;
+    page.children=[0,1,2,3].map(index=>{
+      const ownX=page.ownX+(index%2)*own,ownZ=page.ownZ+Math.floor(index/2)*own,minX=ownX-EDGE_OVERLAP/2,minZ=ownZ-EDGE_OVERLAP/2,size=own+EDGE_OVERLAP;
+      return refine({sheet:{id:page.sheet.id+'abcd'[index],column:page.sheet.column,row:page.sheet.row,minX,minZ,span:size,name:placeNames(minX,minZ,size),overlap:EDGE_OVERLAP},ownX,ownZ,own},depth+1);
+    });
+    return page;
+  }
+  const pages:Page[]=regional?Array.from({length:columns*rows},(_,index)=>{
     const column=index%columns,row=Math.floor(index/columns);
     const minX=startX+column*stride-100,minZ=startZ+row*stride-100;
-    const names=areas.filter(area=>area.x+area.width/2>minX&&area.x-area.width/2<minX+span&&area.z+area.depth/2>minZ&&area.z-area.depth/2<minZ+span).map(area=>area.name);
-    return {id:`${letters(column)}${row+1}`,column,row,minX,minZ,span,name:names.join(' / ')||'Countryside',overlap:200};
+    return refine({sheet:{id:`${letters(column)}${row+1}`,column,row,minX,minZ,span,name:placeNames(minX,minZ,span),overlap:200},ownX:minX+100,ownZ:minZ+100,own:stride},0);
   }):[];
+  const leaves=(page:Page):AtlasSheet[]=>page.children?page.children.flatMap(leaves):[page.sheet];
   const adaptive=regional?null:densitySheets(context,letters);
-  const allSheets=regional?sheets:adaptive!.sheets;
+  const allSheets=regional?pages.flatMap(leaves):adaptive!.sheets;
   function sheetAt(point:Point){
     if(!regional)return adaptive!.locate?.(point);
     const column=Math.max(0,Math.min(columns-1,Math.floor((point.x-startX)/stride)));
     const row=Math.max(0,Math.min(rows-1,Math.floor((point.z-startZ)/stride)));
-    return sheets[row*columns+column];
+    let page=pages[row*columns+column];
+    while(page.children){const half=page.own/2;page=page.children[(point.x>=page.ownX+half?1:0)+(point.z>=page.ownZ+half?2:0)];}
+    return page.sheet;
   }
-  const neighbour=(sheet:AtlasSheet,dx:number,dz:number)=>allSheets.find(other=>other.column===sheet.column+dx&&other.row===sheet.row+dz);
+  /** The page across one edge: by grid position in a density book; by geometry in a region, where pages differ in size. */
+  function neighbour(sheet:AtlasSheet,dx:number,dz:number){
+    if(!regional)return allSheets.find(other=>other.column===sheet.column+dx&&other.row===sheet.row+dz);
+    const own=sheet.span-sheet.overlap,centre={x:sheet.minX+sheet.span/2,z:sheet.minZ+sheet.span/2};
+    const point={x:centre.x+dx*(own/2+1),z:centre.z+dz*(own/2+1)};
+    if(point.x<startX||point.x>=startX+columns*stride||point.z<startZ||point.z>=startZ+rows*stride)return undefined;
+    const next=sheetAt(point);return next===sheet?undefined:next;
+  }
   return {sheets:allSheets,sheetAt,neighbour,stride};
 }
