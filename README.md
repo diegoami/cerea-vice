@@ -1,5 +1,8 @@
 # Cerea Vice — driving and navigation prototype
 
+[Play in your browser](https://diegoami.github.io/cerea-vice/) ·
+[Illustrated player guide](https://diegoami.github.io/home/guides/cerea-vice/)
+
 [Game vision](VISION.md) defines the direction and scope. [Loadable districts](MAPS.md) describes the map format, sources and the new real-place pilot.
 
 **Cerea Centro** now offers a [taxi shift](TAXI.md): work from 07:00 to 17:00, collect passengers and follow their requests to nine real places across an expanded neighbourhood with 51 named streets. Completed rides pay a base fare plus a speed bonus. The accelerated day takes about 20 active minutes; the atlas and pause screens stop the clock. Start at the Municipio free to drive. When you want work, stop and request fares to compare a list of randomized pickups, destinations and guaranteed payments, accept one, then collect the passenger, who walks from a nearby doorway into the seat beside you. The library is now just one of several places to learn.
@@ -370,3 +373,12 @@ your trip and pause state. All data is bundled locally.
 See [prototype scope, reproduction, measurements and ten-town limits](docs/TILED_PROTOTYPE.md).
 The experiment streams rendering, while logical collision/atlas data remain
 resident. It is not yet a production multi-town world.
+
+## GitHub Pages
+
+The workflow tests and builds the existing browser game with
+`npm run build -- --base=/cerea-vice/`, then publishes only `dist/`.
+Choose **GitHub Actions** in Settings → Pages. Pull requests build and test;
+main-branch changes deploy. No map data, signatures or game rules are changed.
+The browser mirror keeps its own local saves and settings; it does not import
+the desktop profile. A desktop browser with WebGL 2 is recommended.
