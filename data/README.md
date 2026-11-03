@@ -10,6 +10,11 @@ The Cerea Centro pilot uses a modern OpenStreetMap subset around Via Paride, Pia
 - Derived district: `public/maps/cerea.json`.
 - Rebuild offline: `python3 tools/import-cerea.py`.
 
+Fetching new extracts: the Overpass queries are not checked in; each section below records the box and the
+contents (ways and relations with `out geom`). Overpass answers HTTP 406 to requests without a descriptive
+User-Agent, and is often at capacity (502/504), so send a User-Agent naming the project and retry with
+backoff.
+
 © OpenStreetMap contributors. The source extract and derived OpenStreetMap database content are provided under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/). See [OpenStreetMap copyright and attribution](https://www.openstreetmap.org/copyright). The game displays attribution in the driving view, briefing and atlas.
 
 Road shape points, shared junction IDs, street names, highway classes and one-way tags are retained. Highway classes distinguish major-road direction boards from normal street-name plates. The largest connected named-road component within the boundary is used. Boundary stubs are marked as leaving the playable area. No live map service is required by the game.

@@ -26,7 +26,14 @@ client, built from WSL with `npm run desktop:win`.
 ## Validation and artifacts
 
 Use Node >=22.12 and `npm ci`. Run `npm test` and `npm run build` for code
-changes. For changes to input, screens, rendering or desktop behavior also run:
+changes.
+
+Saves are signed by map content (`mapSignature` in `src/game/Save.ts`; tile
+sizes are left out). Any change to a shipped map's manifest, even provenance
+text or a new road, makes older saves of that map refuse to load. When the map
+stays compatible, add the previous signature to `supersededSignatures` there,
+with a test; otherwise bump the map's `dataVersion` and say so in the release
+notes. For changes to input, screens, rendering or desktop behavior also run:
 
 ```bash
 xvfb-run -a sh -c 'xfwm4 --compositor=off >/tmp/cerea-review-wm.log 2>&1 & npm run test:desktop'
@@ -53,10 +60,11 @@ implementer or reviewer model on your own; ask when a model is needed.
 **Reviews are run by hand** (the owner, 2026-10-28, as in malpaco). Never start
 a reviewer or a re-review yourself, and do not pair a reviewer with each task.
 
-- **Per PR: optional.** Say when a PR deserves a review (input or controls,
-  saves, the desktop shell or its security boundary, map data or game rules,
-  a release candidate) and give the owner a ready prompt naming the PR and its
-  head SHA (`.claude/skills/review-pr/SKILL.md`), filled in from
+- **Per PR: only when the owner asks.** Since 2026-11-02 the owner reviews at
+  milestones only: merge on the owner's go-ahead without proposing per-PR
+  reviews, and list those PRs in the milestone issue. When the owner does ask
+  for one, give a ready prompt naming the PR and its head SHA
+  (`.claude/skills/review-pr/SKILL.md`), filled in from
   `docs/review-prompts.md`. Prompts name no tool or model; the owner chooses
   both. The reviewer follows `docs/review-pr.md` and posts one review on the
   PR. One round: fix real defects in what the PR delivers; everything else

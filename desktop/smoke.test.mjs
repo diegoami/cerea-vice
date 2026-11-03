@@ -1186,6 +1186,7 @@ test('driving to the end of the road north of Bovolone carries the shift into th
    localStorage.setItem('cerea-save-lower-verona',JSON.stringify(s));},{inner,gate});
   await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
   await page.getByRole('button',{name:'Back to the road'}).click();await page.locator('#overlay').waitFor({state:'hidden'});
+  // A loaded shift ignores the accelerator until it has seen it released, so let frames pass before pressing W.
   await frames(page);await frames(page);
   // The edited save is 600 s into the shift: 07:00 plus 600 s at 30× is 12:00.
   await page.waitForFunction(()=>document.querySelector('#timer').textContent>='12:00');const clock=await page.locator('#timer').innerText();
