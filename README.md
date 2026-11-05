@@ -30,6 +30,9 @@ and service rules. After closing time it keeps exploring; it never resets on a t
 **Start** freezes it for rules and current controls. **Begin game** discards the demo and starts
 fresh once held controls are released. The instructions retain settings
 and **Continue saved shift**; the demo never saves or changes your dispatch history.
+The driving header shows only the current goal’s landmark, town and street, with earnings
+beside the clock. Taxi-radio updates stay brief at stops and disappear in motion. The
+demo badge reads `DEMO  MODE`.
 Scroll the instructions with arrows, Page Up/Down, the wheel, touch swipe or the controller's
 right stick. Driving supports keyboard/mouse and standard controllers; touch is for menus.
 Use `npm run test:browser` for the production browser opening and

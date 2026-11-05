@@ -130,7 +130,7 @@ test('review regressions: focused settings resume by keyboard and only advertise
   await button(3,1);await button(3,0);await page.waitForFunction(before=>document.querySelector('[data-fare-offer]').innerText!==before,offers[0]);
   const replaced=await listed(page);assert.notDeepEqual(replaced,offers,'Y explicitly asks for a new list');
   await button(13,1);await button(13,0);await button(0,1);await button(0,0);await page.locator('#overlay').waitFor({state:'hidden'});
-  assert.match(await page.locator('#objective-title').innerText(),new RegExp(`Collect ${replaced[1].split('\n')[0]}`));
+  assert.equal(await page.locator('#objective-title').innerText(),replaced[1].split('\n').find(line=>line.startsWith('From ')).slice(5).split(', ')[0].replace(/\s*\([^)]+\)$/,''));
   await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
   // Mouse save must return focus to the game rather than retaining an action trap.
   await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
@@ -452,7 +452,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     page.on('pageerror',error=>errors.push(error.message));
     page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
     await seedDispatch(page);
-    await page.locator('.district-tag').filter({hasText:'CEREA CENTRO'}).waitFor();
+    await page.locator('#hud[data-district=cerea]').waitFor();
     await page.getByRole('heading',{name:/Taxi shift/}).waitFor();
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
@@ -467,7 +467,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await requestFares(page);
     await page.screenshot({path:'test-results/cerea-fare-board.png'});
     await page.locator('[data-fare-offer]').first().click();await page.locator('[data-fare=accept]').click();await page.locator('#overlay').waitFor({state:'hidden'});
-    assert.match(await page.locator('#objective-title').innerText(),/Collect Elena/);
+    assert.equal(await page.locator('#objective-title').innerText(),'Municipio di Cerea');
     assert.match(await page.locator('#taxi-status').innerText(),/€0.00 earned/);
     assert.match(await page.locator('#timer').innerText(),/^07:/);
     await page.keyboard.press('Enter');
@@ -1211,7 +1211,7 @@ test('driving to the end of the road north of Bovolone carries the shift into th
   await page.keyboard.down('w');
   await page.waitForFunction(()=>location.hash==='#district=verona-plain'&&document.querySelector('#hint')?.textContent.includes('Entered Verona and the plain to Oppeano'),null,{timeout:120000});
   await page.keyboard.up('w');
-  assert.equal(await page.locator('.district-tag').innerText().then(t=>/VERONA AND THE PLAIN/.test(t)),true);
+  assert.equal(await page.locator('#hud').getAttribute('data-district'),'verona-plain');
   assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-crossing')),null,'The hand-over is read once');
   const [h,m]=clock.split(':').map(Number),[h2,m2]=(await page.locator('#timer').innerText()).split(':').map(Number);
   // The clock runs 30× real time, so a slow software-rendered drive can add an hour; it must not restart at 07:00.

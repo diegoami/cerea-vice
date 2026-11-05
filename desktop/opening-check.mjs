@@ -1,3 +1,4 @@
+import {checkHudLayout} from './hud-check.mjs';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 export async function checkOpening(page,resize,label,district='cerea'){
@@ -12,11 +13,11 @@ export async function checkOpening(page,resize,label,district='cerea'){
  await page.waitForFunction(()=>/PASSENGER|COLLECT|DROP|FARE/.test(document.querySelector('#objective-stage').textContent));
  await page.keyboard.up('w');await page.keyboard.up('f');await page.keyboard.up('t');
  assert.equal(await page.locator('#overlay').isHidden(),true,'Gameplay keys cannot open the atlas in the demo');
- assert.match(await page.locator('.demo-label').innerText(),/DEMO MODE — playing automatically/);
+ assert.equal(await page.locator('.demo-label').textContent(),'DEMO  MODE');
  assert.match(await page.locator('#objective-stage').innerText(),/PASSENGER|COLLECT|DROP|FARE/,'The autonomous driver accepts and services real taxi work');
  assert.equal(await page.evaluate(()=>JSON.stringify(localStorage)),before,'Demo does not write saves, dispatch history or crossing state');
  await mkdir('test-results',{recursive:true});
- for(const [w,h] of [[960,640],[1440,900]]){await resize(w,h);await page.screenshot({path:`test-results/opening-${label}-demo-${w}.png`});}
+ for(const [w,h] of [[960,640],[1280,900],[1440,900],[1920,1080]]){await resize(w,h);await checkHudLayout(page);await page.screenshot({path:`test-results/opening-${label}-demo-${w}.png`});}
  // Held Enter can open the rules only once; repeated keydowns cannot confirm.
  await page.keyboard.down('Enter');await page.getByRole('button',{name:'Begin game'}).waitFor();
  const frozen=await page.locator('#timer').innerText();
@@ -54,6 +55,7 @@ export async function checkOpening(page,resize,label,district='cerea'){
  await page.locator('#stream-status').waitFor({state:'hidden'});
  await page.keyboard.down('w');await page.waitForTimeout(1200);await page.keyboard.up('w');
  assert.doesNotMatch(await page.locator('#stop-state').innerText(),/STOP/,'Fresh player controls drive the car');
+ assert.equal(await page.locator('#prompt').isHidden(),true,'Travel does not repeat stopped-control instructions');
  await page.screenshot({path:`test-results/opening-${label}-playing.png`});
  await page.keyboard.press('p');await page.getByRole('button',{name:'Save shift',exact:true}).click();
  await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();

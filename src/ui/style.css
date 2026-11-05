@@ -989,3 +989,31 @@ h1 { letter-spacing:0; line-height:1.05; }
   /* Give reading and options separate scroll areas on phones. */
   #hud:has(.opening-instructions) .overlay:not([hidden]) { top:100px; bottom:38vh; padding:8px 12px 20px; }
 }
+
+/* Driving information belongs in one restrained header, leaving the windshield clear. */
+.sr-only { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip-path:inset(50%); white-space:nowrap; border:0; }
+.topbar { display:grid; grid-template-columns:minmax(0,1fr) 180px minmax(0,1fr); gap:16px; height:128px; padding:18px 24px; align-items:start; }
+.destination-panel { min-width:0; text-shadow:0 1px 4px #14242b; }
+.destination-panel h2 { margin:0 0 4px; font:clamp(20px,1.8vw,26px)/1.05 Vice,monospace; overflow-wrap:anywhere; color:var(--cream); }
+.destination-meta { display:flex; flex-wrap:wrap; gap:0 10px; font:18px/1.15 Vice,monospace; color:#c6d0c4; overflow-wrap:anywhere; }
+.destination-meta span { min-width:0; max-width:100%; }
+.compass-panel { position:relative; left:auto; top:0; transform:none; width:180px; }
+.shift-counters { display:flex; justify-content:flex-end; gap:22px; min-width:0; text-align:right; }
+.earnings-counter > span,.deadline > span { display:block; font:15px Vice,monospace; letter-spacing:1px; color:#bbc6bb; }
+.earnings-counter > strong,.deadline > strong { display:block; margin-top:3px; font:32px/1 Vice,monospace; white-space:nowrap; }
+.earnings-counter > strong { color:var(--accent); }
+.demo-label { top:auto; bottom:246px; left:24px; transform:none; width:auto; padding:4px 8px; font-size:18px; white-space:pre; }
+@media(max-width:700px) {
+ .topbar { grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:12px 14px; height:160px; }
+ .destination-panel h2 { font-size:16px; }
+ .destination-meta { font-size:14px; gap:0 6px; }
+ .compass-panel { position:absolute; top:102px; left:14px; width:140px; }
+ .shift-counters { grid-column:2; grid-row:1; gap:10px; }
+ .earnings-counter > span,.deadline > span { font-size:12px; }
+ .earnings-counter > strong,.deadline > strong { font-size:24px; }
+ #hud:has(.overlay:not([hidden]) .opening-instructions) .compass-panel { display:none; }
+ .demo-label { font-size:16px; }
+}
+.deadline { min-width:0; }
+#goal-town:not(:empty)::after { content:' ·'; color:var(--muted); }
+.earnings-counter { pointer-events:auto; }

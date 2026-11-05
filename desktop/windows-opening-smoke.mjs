@@ -58,7 +58,9 @@ try {
  $before=Js 'JSON.stringify(localStorage)'
  Start-Sleep -Seconds 8
  if((Js 'JSON.stringify(localStorage)') -ne $before){throw 'Windows demo modified local storage'}
- $demo=Js "({label:document.querySelector('.demo-label').textContent,stage:document.querySelector('#objective-stage').textContent,speed:document.querySelector('#speed').textContent})"
+ $demo=Js "({label:document.querySelector('.demo-label').textContent,stage:document.querySelector('#objective-stage').textContent,speed:document.querySelector('#speed').textContent,radioVisible:!document.querySelector('.navigation-message').hidden,earnings:document.querySelector('#earnings').textContent})"
+ if($demo.label -cne 'DEMO  MODE'){throw 'The demo label contains extra text'}
+ if([double]$demo.speed -gt 0 -and $demo.radioVisible){throw 'Taxi radio obscures the travelling demo'}
  $shot=Cdp 'Page.captureScreenshot' @{format='png'}
  [IO.File]::WriteAllBytes((Join-Path ${literal(images)} 'opening-windows-demo.png'),[Convert]::FromBase64String($shot.data))
  Js "document.querySelector('#opening button').click()" | Out-Null

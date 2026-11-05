@@ -71,8 +71,6 @@ class Game {
   private demo?:DemoDriver;
   private nextDemoRelocation=3;
   private demoTown?:string;
-  private relocationLabel="";
-  private relocationUntil=0;
   private previousTime = 0;
   private accumulator = 0;
   private districtSwitchReady = false;
@@ -281,7 +279,7 @@ class Game {
     this.car.reset(place);this.car.collisions=collisions;this.parking.reset();this.parking.unsafeStops=unsafeStops;
     this.demoTown=place.townId;this.nextDemoRelocation=this.mission.completedFares+3;this.demo.relocated();
     this.cockpit.reset();this.motion.reset();this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);
-    this.relocationLabel=`Demo jump · ${place.name}`;this.relocationUntil=Infinity;this.hud.setHint(`Demo moved to ${place.name}. Earnings and completed fares are retained.`);
+    this.hud.setHint(`Demo moved to ${place.name}. Earnings and completed fares are retained.`);
   }
 
   /** Region gateways (#112): reaching one with no fare booked carries the shift into the neighbouring region. */
@@ -391,13 +389,11 @@ class Game {
       }else{
         this.screen=this.opening.state==='demo'?'running':'briefing';
         const ready=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
-        if(ready&&this.relocationUntil===Infinity)this.relocationUntil=performance.now()+5000;
         if(this.opening.state==='demo'){
           if(this.demoJumpPending){actions={...idleActions(),brake:1};this.demo!.activity='Waiting for passenger exit before a town jump';}
           else actions=ready?this.demo!.update(dt,this.car,this.parking,this.mission,this.world.collisionIndex):idleActions();
         }
         else if(this.opening.state==='waiting')actions=idleActions();
-        this.opening.setActivity(performance.now()<this.relocationUntil?this.relocationLabel:this.demo!.activity);
       }
     }
     const menu=this.input.settingsInput;

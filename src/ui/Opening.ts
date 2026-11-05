@@ -13,7 +13,7 @@ export class Opening {
   private readonly button=document.createElement('button');
   private readonly badge=document.createElement('div');
   constructor(root:HTMLElement,private context:District,private bindings:Bindings){
-    this.element.id='opening';this.badge.className='demo-label';this.badge.textContent='DEMO MODE — playing automatically';
+    this.element.id='opening';this.badge.className='demo-label';this.badge.textContent='DEMO  MODE';
     this.button.type='button';this.button.className='opening-start';this.button.textContent='Start';this.button.disabled=true;
     this.button.addEventListener('click',()=>this.activate(),{signal:this.events.signal});
     window.addEventListener('blur',()=>this.pointers.clear(),{signal:this.events.signal});
@@ -61,6 +61,6 @@ export class Opening {
       <p>Scroll here with ↑ / ↓, Page Up / Down, mouse wheel, controller right stick, or touch swipe. Touch can operate this opening; driving requires keyboard or a standard controller.</p>
       <p>Begin game starts a fresh session. The options panel offers saved shifts, controls, picture and sound. During play, pause for Save shift or Main screen to choose a district. Your existing manual save is kept until you deliberately save again.</p>`;
   }
-  setActivity(text:string){const label=`DEMO MODE — playing automatically · ${text}`;if(this.badge.textContent!==label)this.badge.textContent=label;}
+
   dispose(){this.events.abort();this.element.remove();}
 }
