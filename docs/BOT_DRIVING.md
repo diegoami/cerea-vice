@@ -145,3 +145,12 @@ An oncoming conflict may use a clear shoulder; unrelated traffic does not swerve
 off the road on sight of the taxi. The taxi's conservative safety reservation lets
 an enclosed car move outward while the physical body-clearance guard remains active.
 Tests cover that mutual-deadlock regression and actual circulation/rejoining.
+
+Slower traffic can be overtaken on a sufficiently wide, straight, clear section.
+The planner predicts other cars along the passing and return corridor, rejects
+junctions/bends and occupied gaps, and uses the correct passing side for the map.
+Lane changes still go through ordinary steering, pedals and collision prediction.
+The taxi's reserved area follows its heading so adjacent lanes are not needlessly
+blocked while it passes. A seeded 20-minute world run completed four overtakes
+with zero collisions; focused fixtures also exercise left-side traffic and unsafe
+passing refusals.

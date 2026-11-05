@@ -74,5 +74,6 @@ test('a taxi keeps completing real jobs with traffic instead of becoming boxed i
  }
  // Actual lane keeping and following slower traffic change journey duration.
  // Require both types of work and sustained movement, rather than a racing quota.
- assert.ok(mission.completedFares>=2);assert.ok(bot.localFaresChosen>0&&bot.interTownFaresChosen>0);assert.ok(bot.distanceDriven>11000);assert.ok(longestStall<60,`${longestStall}s without progress`);assert.equal(car.collisions,0);traffic.dispose();
+ assert.ok(mission.completedFares>=2);assert.ok(bot.localFaresChosen>0&&bot.interTownFaresChosen>0);assert.ok(bot.distanceDriven>11000);assert.ok(bot.overtakesCompleted>0,'A clear real-world passing opportunity is used');assert.ok(longestStall<60,`${longestStall}s without progress`);assert.equal(car.collisions,0);
+ console.info({trafficSoakSeconds:1200,fares:mission.completedFares,metres:Math.round(bot.distanceDriven),overtakes:bot.overtakesCompleted,maxIdleSeconds:Math.round(longestStall),collisions:car.collisions});traffic.dispose();
 });

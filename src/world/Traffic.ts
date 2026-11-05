@@ -114,7 +114,7 @@ export class Traffic {
    if(a.yieldPoint)speed=Math.min(4,Math.sqrt(Math.max(1,remaining)*3));
    const steer=Math.max(-1,Math.min(1,2*Math.sin(error)/Math.max(4,Math.min(12,distance(a.car,goal)))*2.8/.6*(1+Math.abs(a.car.speed)*.07)));
    let action={...idleActions(),steer,throttle:yielding||blocked?0:Math.max(0,Math.min(1,(speed-a.car.speed)*.5+speed*(a.yieldPoint?2.4:.45)/9)),brake:yielding||blocked?1:Math.max(0,(a.car.speed-speed)*.3)};
-   const reserve={x:player.x,z:player.z,width:8,depth:8},range=distance(a.car,player),insideReserve=inRect(a.car,reserve,-1.05);
+   const reserve=carFootprint(player,3.3,8),range=distance(a.car,player),insideReserve=inRect(a.car,reserve,-1.05);
    const others:Rect[]=[...this.agents.filter(b=>b!==a).map(b=>carFootprint(b.car)),...this.context.parkingZones.map(b=>({...b,width:b.width+3,depth:b.depth+3}))];
    // A taxi can approach an already stopped car. Its enlarged safety reservation
    // must still let that car drive OUT; otherwise both drivers are boxed in.

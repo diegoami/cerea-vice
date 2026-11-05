@@ -1,5 +1,6 @@
 import {RouteGraph} from '../navigation/RouteGraph';
 import {laneRoute} from '../driving/LaneRoute';
+import {planOvertake} from '../driving/Overtake';
 import {createCar, type Car, type CollisionSource} from '../driving/Car';
 import type {Actions} from '../input/Input';
 import type {Mission} from '../mission/Mission';
@@ -17,7 +18,10 @@ export class DemoDriver {
   actionsCompleted=0;
   recoveries=0;
   distanceDriven=0;
-  private route:(Point&{radius?:number})[]=[];
+  private route:(Point&{radius?:number;passing?:boolean})[]=[];
+  overtakesStarted=0;
+  overtakesCompleted=0;
+  private overtakeCooldown=0;
   private targetKey='';
   private best=Infinity;
   private stalled=0;
@@ -39,7 +43,12 @@ export class DemoDriver {
   private readonly probe:Car;
   constructor(private context:District){this.probe=new (createCar(context).Car)();}
 
-  relocated(){this.blocked.clear();this.route=[];this.targetKey='';this.segmentStart=undefined;this.previous=undefined;this.best=Infinity;this.stalled=0;this.recoveryPhase='none';this.steering=0;this.turnCooldown=0;this.detourCooldown=0;}
+  relocated(){this.blocked.clear();this.route=[];this.targetKey='';this.segmentStart=undefined;this.previous=undefined;this.best=Infinity;this.stalled=0;this.recoveryPhase='none';this.steering=0;this.turnCooldown=0;this.detourCooldown=0;this.overtakeCooldown=0;}
+
+  private advanceWaypoint(){
+    const passing=this.route[0]?.passing;this.segmentStart=this.route.shift();this.best=Infinity;this.stalled=0;
+    if(passing&&!this.route[0]?.passing){this.overtakesCompleted++;this.actionsCompleted++;this.overtakeCooldown=5;}
+  }
 
   private avoidImpact(car:Car,action:Actions,colliders:CollisionSource){
     this.probe.reset();Object.assign(this.probe,{x:car.x,z:car.z,heading:car.heading,speed:car.speed,gear:car.gear,steering:car.steering});
@@ -117,7 +126,7 @@ export class DemoDriver {
   update(dt:number,car:Car,parking:Parking,mission:Mission,colliders:CollisionSource):Actions{
     if(mission.finished&&!this.sawFinished){this.relocated();this.blocked.clear();}
     this.sawFinished=mission.finished;
-    this.elapsed+=dt;this.turnCooldown=Math.max(0,this.turnCooldown-dt);this.detourCooldown=Math.max(0,this.detourCooldown-dt);
+    this.elapsed+=dt;this.turnCooldown=Math.max(0,this.turnCooldown-dt);this.detourCooldown=Math.max(0,this.detourCooldown-dt);this.overtakeCooldown=Math.max(0,this.overtakeCooldown-dt);
     if(this.previous)this.distanceDriven+=distance(car,this.previous);
     this.previous={x:car.x,z:car.z};
     const stop=()=>({...idleActions(),brake:1});
@@ -162,7 +171,7 @@ export class DemoDriver {
     }else this.activity=`${mission.taxiStage==='dropoff'?'Delivering to':'Driving to'} ${target!.name}`;
     if(nodeId&&this.targetKey!==nodeId){this.targetKey=nodeId;this.plan(car,nodeId,target?.bay);}
     while(this.route.length&&distance(car,this.route[0])<(this.route[0].radius??(this.route.length===1?1.5:3.5))){
-      this.segmentStart=this.route.shift();this.best=Infinity;this.stalled=0;
+      this.advanceWaypoint();
       if(!this.route.length)this.actionsCompleted++;
     }
     if(!this.route.length&&target){
@@ -170,6 +179,14 @@ export class DemoDriver {
       this.stalled+=dt;
       if(this.stalled>3){this.targetKey='';this.stalled=0;}
     }
+    if(this.route[0]&&!this.route[0].radius&&this.recoveryPhase==='none'&&this.overtakeCooldown===0){
+      this.overtakeCooldown=2;const pass=planOvertake(this.context,car,this.route,colliders);
+      if(pass){
+        while(this.route.length>1&&(this.route[0].x-car.x)*pass.forward.x+(this.route[0].z-car.z)*pass.forward.z<pass.length)this.route.shift();
+        this.route.unshift(...pass.points.map(p=>({...p,radius:2,passing:true})));this.overtakesStarted++;this.segmentStart={x:car.x,z:car.z};this.best=Infinity;this.stalled=0;
+      }
+    }
+    if(this.route[0]?.passing)this.activity='Overtaking slower traffic and returning to the driving lane';
     const aim=this.route[0];if(!aim)return stop();
     const remaining=distance(car,aim);
     // Distance to the next waypoint, rather than wheel motion, catches loops and oscillation.
@@ -210,7 +227,7 @@ export class DemoDriver {
     const start=this.segmentStart??car,projected=projectToSegment(car,start,aim);
     const beyond=(car.x-aim.x)*(aim.x-start.x)+(car.z-aim.z)*(aim.z-start.z)>0;
     if(this.route.length>1&&(distance(car,aim)<2.5||beyond&&distance(car,projected)<5)){
-      this.segmentStart=this.route.shift();this.best=Infinity;this.stalled=0;return {...idleActions(),steer:this.steering};
+      this.advanceWaypoint();return {...idleActions(),steer:this.steering};
     }
     // Continuous pure pursuit follows the road polyline, looking ahead along it rather
     // than chasing isolated junctions with a seven-position steering switch.
@@ -234,7 +251,7 @@ export class DemoDriver {
     this.steering+=Math.max(-dt*2.5,Math.min(dt*2.5,wantedSteer-this.steering));
     if(Math.abs(error)>1)limit=Math.min(limit,3.5);
     // Follow slower traffic in our lane instead of repeatedly arriving at its bumper.
-    if(this.route[0]?.radius!==1.4&&!Array.isArray(colliders))for(const other of colliders.moving?.()??[]){
+    if(!this.route[0]?.passing&&this.route[0]?.radius!==1.4&&!Array.isArray(colliders))for(const other of colliders.moving?.()??[]){
       const dx=other.x-car.x,dz=other.z-car.z,forward=dx*Math.sin(car.heading)-dz*Math.cos(car.heading),side=Math.abs(dx*Math.cos(car.heading)+dz*Math.sin(car.heading));
       if(forward>0&&forward<35&&side<2.2&&Math.abs(angle(other.heading-car.heading))<.7)limit=Math.min(limit,Math.max(0,other.speed+(forward-11)*.55));
     }

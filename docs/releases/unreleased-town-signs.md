@@ -28,7 +28,8 @@ and continue recovering; physically blocked traffic still has to wait for space.
 There is no visible despawn or position reset to clear a blocked car. The demo's
 collision prediction now covers reversing and low-speed obstruction contacts too.
 The demo follows the correct driving lane (including left-side maps), maintains a
-gap behind slower traffic, and tries a clear road-edge/verge bypass after a short
+gap behind slower traffic, overtakes on a clear straight with a predicted return
+gap, and tries a clear road-edge/verge bypass after a short
 blockage. Grass already uses the normal slower driving physics; buildings, water
 and other vehicles remain solid. The enlarged taxi safety reservation permits a
 traffic car to move out of it, avoiding a mutual deadlock without permitting its
@@ -39,7 +40,8 @@ dead-end exits, unchanged map/tile signatures, circulation after a temporary
 obstruction, shoulder clearance and rejoining. The sustained traffic test now runs
 20 simulated minutes and requires paid local/inter-town work, over 11 km, no
 60-second stall and zero collisions; the measured run completed two fares over
-11.86 km while following slower traffic. Focused tests cover both driving sides,
-passing parked cars, using a clear verge, following a moving car, and escaping the
+13.73 km, completing four overtakes. Focused tests cover both driving sides,
+passing parked cars, using a clear verge, following a moving car, overtaking and
+returning to lane, refusing an unsafe pass, and escaping the
 taxi's safety buffer. Physical device
 testing and an overnight unattended traffic soak remain untested.
