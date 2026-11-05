@@ -1,3 +1,5 @@
+import { DemoDriver, idleActions } from "./DemoDriver";
+import { Opening } from "../ui/Opening";
 import { StreamingWorld } from "../world/streaming/StreamingWorld";
 import { SettingsPanel, readSettings, renderSize, isRetro } from "../presentation/Settings";
 import { Sound, musicGain } from "../presentation/Sound";
@@ -63,6 +65,8 @@ class Game {
   private readonly mission = new Mission();
   private readonly hud: InstanceType<typeof Hud>;
   private screen: Screen = "briefing";
+  private opening?:Opening;
+  private demo?:DemoDriver;
   private previousTime = 0;
   private accumulator = 0;
   private districtSwitchReady = false;
@@ -107,7 +111,7 @@ class Game {
     this.saveButton.parentElement!.append(this.saveStatus);
     this.world.setDetail(this.settings.detail);
     this.renderer.domElement.addEventListener("click", () => {
-      if(this.screen!=="running" || document.pointerLockElement===this.renderer.domElement)return;
+      if(this.opening||this.screen!=="running" || document.pointerLockElement===this.renderer.domElement)return;
       try { const result=this.renderer.domElement.requestPointerLock(); result?.catch(()=>this.hud.setHint("Mouse look could not capture the pointer. Click the windshield again to look around.")); }
       catch { this.hud.setHint("Click the windshield to look around with the mouse."); }
     });
@@ -119,7 +123,7 @@ class Game {
     });
     window.addEventListener("pointerdown",()=>this.sound.unlock());
     window.addEventListener("keydown",()=>this.sound.unlock());
-    window.addEventListener("pagehide",()=>{this.sound.dispose();if(this.world instanceof StreamingWorld)this.world.dispose();},{once:true});
+    window.addEventListener("pagehide",()=>{this.opening?.dispose();this.sound.dispose();if(this.world instanceof StreamingWorld)this.world.dispose();},{once:true});
     this.resize();
     window.addEventListener("resize", () => this.resize());
     this.watchPixelRatio();
@@ -136,6 +140,7 @@ class Game {
     });
     this.cockpit.update(1, this.car, 0);
     this.arriveFromCrossing();
+    if(!this.hasStarted){this.demo=new DemoDriver(context);this.opening=new Opening(root,context,this.input.bindings);this.screen="running";}
     this.renderer.setAnimationLoop((time) => this.frame(time));
   }
 
@@ -159,6 +164,7 @@ class Game {
   }
 
   private pause() {
+    if(this.opening)return;
     if (this.screen === "running" || this.screen === "atlas" || this.screen==='fares') {
       this.screen = "paused";
       this.accumulator = 0;
@@ -172,6 +178,7 @@ class Game {
   }
 
   private activate() {
+    if(this.opening){this.opening.activate();return;}
     if (this.screen === "running") return;
     if(this.screen === "atlas")this.waitForDrivingRelease=true;
     if (this.screen === "briefing" || this.screen === "result") {
@@ -245,7 +252,7 @@ class Game {
   }
 
   private save(){
-    if(!this.hasStarted||this.mission.finished)return;
+    if(this.opening||!this.hasStarted||this.mission.finished)return;
     try{
       const {x,z,heading,speed,gear,steering,collisions}=this.car;
       const value:SaveData={version:SAVE_VERSION,district:district.id,map:mapSignature(context),dataVersion:mapDataVersion(context),savedAt:new Date().toISOString(),
@@ -258,6 +265,7 @@ class Game {
 
   /** Region gateways (#112): reaching one with no fare booked carries the shift into the neighbouring region. */
   private checkGateways(){
+    if(this.opening)return;
     const gateways=district.gateways??[];if(!gateways.length)return;
     const near=gateways.map(gateway=>({gateway,distance:Math.hypot(this.car.x-context.nodeById(gateway.nodeId).x,this.car.z-context.nodeById(gateway.nodeId).z)})).sort((a,b)=>a.distance-b.distance)[0];
     if(!this.gatewayArmed){if(near.distance>40)this.gatewayArmed=true;return;}
@@ -314,6 +322,7 @@ class Game {
       const text=localStorage.getItem(saveKey(context));
       if(!text){this.saveStatus.textContent='No saved shift for this district yet.';return;}
       const value=decodeSave(context,text);
+      if(this.opening){this.opening.dispose();this.opening=undefined;this.demo=undefined;}
       this.mission.restore(value.mission);Object.assign(this.car,value.car);
       this.parking.reset();this.parking.unsafeStops=value.unsafeStops;this.parking.update(0,this.car,this.car.speed);
       this.hud.restoreAtlas(value.atlas);this.world.updateFrame(this.car);
@@ -336,6 +345,7 @@ class Game {
   }
 
   private requestInformation() {
+    if(this.opening)return;
     if (this.screen !== "running" && this.screen !== "atlas") return;
     if (this.mission.recordDirectionRequest(this.parking.stopped, this.parking.legal)) {
       const target=this.mission.target;
@@ -351,8 +361,20 @@ class Game {
       ? Math.min((time - this.previousTime) / 1000, 0.1)
       : 0;
     this.previousTime = time;
-    this.input.context=this.screen==='atlas'?'atlas':this.screen==='running'?'driving':'menu';
-    const actions = this.input.poll();
+    this.input.context=this.opening?'menu':this.screen==='atlas'?'atlas':this.screen==='running'?'driving':'menu';
+    let actions = this.input.poll();
+    if(this.opening){
+      if(this.opening.update(dt,actions,this.input.allReleased)){
+        this.opening.dispose();this.opening=undefined;this.demo=undefined;
+        this.screen='briefing';this.activate();actions=idleActions();
+      }else{
+        this.screen=this.opening.state==='demo'?'running':'briefing';
+        const ready=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
+        if(this.opening.state==='demo')actions=ready?this.demo!.update(dt,this.car,this.parking,this.mission,this.world.collisionIndex):idleActions();
+        else if(this.opening.state==='waiting')actions=idleActions();
+        this.opening.setActivity(this.demo!.activity);
+      }
+    }
     const menu=this.input.settingsInput;
     const editing=this.controlsPanel.visible;
     this.controlsPanel.update(dt,this.input.currentPad);
@@ -371,7 +393,7 @@ class Game {
       if(towns.length>1)selectDistrict(towns,towns[(index+towns.length+Math.sign(actions.atlasPage))%towns.length].id);
       return;
     }
-    if (this.input.controllerDisconnected) {
+    if (!this.opening&&this.input.controllerDisconnected) {
       this.pause();
       this.hud.setHint("Controller disconnected. Reconnect it, or use the keyboard, and resume when ready.");
     }
@@ -394,7 +416,7 @@ class Game {
         else if (actions.interact) this.hud.placeAtlasMarker();
         if (actions.clearMarker) this.hud.removeAtlasMarker();
       }
-    } else if (!this.input.controllerDisconnected) {
+    } else if ((!this.opening||this.opening.state==='rules')&&!this.input.controllerDisconnected) {
       if (actions.pause && performance.now() >= this.ignorePauseUntil) {
         if (this.screen !== "running") this.activate();
         else this.pause();
@@ -444,7 +466,7 @@ class Game {
         this.mission.update(1 / 60, this.car, this.parking.stopped);
         context.profile.end("physics-step",physicsStart);
         this.accumulator -= 1 / 60;
-        if (this.mission.finished) {
+        if (this.mission.finished&&!this.opening) {
           this.screen = "result";
           this.accumulator = 0;
           this.releaseMouseLook();
@@ -460,7 +482,14 @@ class Game {
       if(this.mission.taxiMode)this.hud.setTaxiMessage(this.mission.notice);
     }
     if(this.mission.taxiMode)this.world.updateDaylight(this.mission.clockHours);
-    this.hud.show(this.screen, this.mission, this.car, this.parking);
+    this.hud.show(this.opening?.state==='demo'?"running":this.screen, this.mission, this.car, this.parking);
+    this.opening?.refreshButton();
+    if(this.opening?.state==='rules'){
+      const content=document.querySelector<HTMLElement>('.opening-instructions');
+      const bindings=JSON.stringify(this.input.bindings);
+      if(!content){const side=document.querySelector<HTMLElement>('.briefing-side');if(side){const rules=document.createElement('div');rules.className='opening-instructions';rules.dataset.bindings=bindings;rules.innerHTML=this.opening.instructions();side.prepend(rules);}}
+      else if(content.dataset.bindings!==bindings){content.dataset.bindings=bindings;content.innerHTML=this.opening.instructions();}
+    }
     this.hud.update(
       this.car,
       this.mission,

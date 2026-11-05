@@ -974,3 +974,18 @@ h1 { letter-spacing:0; line-height:1.05; }
 /* Sound level, mute or blocked audio, and the radio, on the dashboard. */
 .dash-detail.sound-state { margin-top:4px; font-size:12px; letter-spacing:.5px; text-align:right; justify-content:flex-end; }
 .dash-detail.sound-state.unsafe { color:#edaa7c; }
+
+/* The opening floats above the existing dashboard; only its controls take pointers. */
+#opening { position:absolute; inset:0; z-index:40; pointer-events:none; }
+.demo-label { position:absolute; top:95px; left:50%; transform:translateX(-50%); max-width:calc(100% - 24px); width:max-content; padding:7px 12px; background:#14262bd9; color:var(--cream); border:1px solid #dbb77988; font-size:20px; text-align:center; }
+.opening-start { position:absolute; bottom:185px; left:24px; pointer-events:auto; color:var(--cream); background:#14262ba6; border:1px solid #dbb779aa; padding:10px 22px; font-size:25px; cursor:pointer; }
+ .opening-instructions { font-size:22px; line-height:1.2; }
+.opening-instructions h1 { font-size:32px; }
+.opening-instructions table { width:100%; border-collapse:collapse; font-size:20px; }
+.opening-instructions th,.opening-instructions td { text-align:left; padding:6px; border-bottom:1px solid #91a09e55; overflow-wrap:anywhere; }
+@media (max-height:550px) { .demo-label { top:70px; font-size:17px; } .opening-start { bottom:145px; } }
+@media (max-width:550px) { .opening-instructions table { font-size:16px; } .demo-label { font-size:16px; } }
+@media (max-width:700px) {
+  /* Give reading and options separate scroll areas on phones. */
+  #hud:has(.opening-instructions) .overlay:not([hidden]) { top:100px; bottom:38vh; padding:8px 12px 20px; }
+}

@@ -3,7 +3,25 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { _electron } from 'playwright-core';
+import { _electron as electron } from 'playwright-core';
+// The existing gameplay regressions enter through the new Start step on every navigation.
+// Opening-specific guards and autonomous play are exercised in opening.test.mjs.
+const _electron={async launch(options){
+ const app=await electron.launch(options),original=app.firstWindow.bind(app);let attached;
+ app.firstWindow=async()=>{
+  const page=await original();
+  if(attached!==page){
+   attached=page;let preparing;
+   const rules=()=>preparing??=(async()=>{
+    await page.waitForFunction(()=>document.querySelector('#opening button')||document.querySelector('.fatal h1')?.textContent.startsWith('Unable'),null,{timeout:180000});
+    if(await page.locator('#opening button').count())await page.getByRole('button',{name:'Start',exact:true}).click({timeout:180000});
+   })().catch(error=>{if(!page.isClosed())throw error;}).finally(()=>preparing=undefined);
+   page.on('domcontentloaded',()=>void rules());await rules();
+  }
+  return page;
+ };
+ return app;
+}};
 async function seedDispatch(page,seed=75){await page.addInitScript(seed=>{Math.random=()=>seed/4294967296;},seed);await page.reload();}
 const frames=page=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
 const settled=page=>page.waitForFunction(()=>/STOP/.test(document.querySelector('#stop-state').textContent));
@@ -33,7 +51,7 @@ const clippedText=page=>page.evaluate(()=>{
 const mappingText=/\b[ABXY] \/ (Cross|Circle|Square|Triangle|Enter)\b|\b(LB|RB|RT|LT|R3|L3)\b|D-pad|(Left|Right) stick|\bEsc(ape)? \/|\/ START|ENTER TO|\bpress [A-Z0-9]\b(?! key)/i;
 async function assertNoMappingText(page,where){
   for(const selector of ['#overlay','#prompt','#hint','#objective-title','.dashboard']){
-    const text=await page.locator(selector).first().evaluate(element=>element.offsetParent===null&&getComputedStyle(element).position!=='fixed'?'':element.innerText);
+    const text=await page.locator(selector).first().evaluate(element=>{if(element.offsetParent===null&&getComputedStyle(element).position!=='fixed')return '';const copy=element.cloneNode(true);copy.querySelectorAll('.opening-instructions').forEach(node=>node.remove());return copy.textContent;});
     assert.doesNotMatch(text,mappingText,`${where}: ${selector} names no bindings`);
   }
 }
@@ -73,9 +91,9 @@ test('startup during held scenery loading withholds prices until the complete co
  const app=await _electron.launch({args:[path.resolve('.'),'--district=cerea-outskirts',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  let release;const gate=new Promise(resolve=>release=resolve);let blocked=true;
  try{
-  const page=await app.firstWindow();await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  const page=await app.firstWindow();await page.getByRole('button',{name:'Begin game'}).waitFor();
   await page.route('**/tiles/*.json',async route=>{if(blocked)await gate;await route.continue();});
-  await seedDispatch(page,683129967);await page.getByRole('button',{name:'Start the engine'}).click();await page.locator('#stream-status').waitFor();
+  await seedDispatch(page,683129967);await page.getByRole('button',{name:'Begin game'}).click();await page.locator('#stream-status').waitFor();
   assert.doesNotMatch(await page.locator('#hint').innerText(),/Guaranteed|€/);assert.match(await page.locator('#hint').innerText(),/Free driving/);
   assert.doesNotMatch(await page.locator('#objective-description').innerText(),/Guaranteed|€/);
   await page.keyboard.press('o');await frames(page);assert.equal(await page.locator('.fare-board').isVisible(),false,'No list while scenery loads');
@@ -93,7 +111,7 @@ test('review regressions: focused settings resume by keyboard and only advertise
  const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
   const page=await app.firstWindow();await seedDispatch(page);
-  await page.getByRole('button',{name:'Start the engine'}).click();await requestFares(page);
+  await page.getByRole('button',{name:'Begin game'}).click();await requestFares(page);
   const offers=await listed(page);assert.equal(offers.length,4);
   await page.evaluate(()=>{window.reviewPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.reviewPad],configurable:true});});
   const button=async(index,value)=>{await page.evaluate(({index,value})=>window.reviewPad.buttons[index].value=value,{index,value});await frames(page);};
@@ -160,7 +178,7 @@ test('fare choices, remapping and saved passenger/atlas state survive a complete
   for(const row of [/Turn pages\s+LB \/ RB\s+Q \/ E/,/Close atlas\s+B \/ Circle · Y \/ Triangle\s+T \/ Esc/,/Accept selected\s+A \/ Cross\s+Enter/,/Change district\s+LB \/ RB\s+Q \/ E/,/Pause\s+Start\s+Esc \/ P/])assert.match(fixed,row,'Change controls lists the fixed controls the screens no longer show');
   await page.getByRole('button',{name:'Back',exact:true}).click();
   assert.equal(await controlsPanelBinding(page,'requestFares','key'),'H');assert.equal(await controlsPanelBinding(page,'requestFares','pad'),'D-pad down');
-  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.getByRole('button',{name:'Begin game'}).click();
   await settled(page);await page.keyboard.press('o');await frames(page);assert.equal(await page.locator('.fare-board').isVisible(),false,'The replaced default key does nothing');
   assert.match(await page.locator('#prompt').innerText(),/Request fares/);await assertNoMappingText(page,'stopped driving prompt');
   await requestFares(page,'h');const offerClock=await page.locator('#timer').innerText();
@@ -235,10 +253,10 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     const page = await electronApp.firstWindow();
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
-    await page.getByRole('button', { name: 'Start the engine' }).waitFor();
+    await page.getByRole('button', { name: 'Begin game' }).waitFor();
     await page.getByRole('button', {name:'Harbor District',exact:true}).click();
     await page.getByRole('button', {name:'Harbor District',exact:true,pressed:true}).waitFor();
-    await page.getByRole('button', { name: 'Start the engine' }).waitFor();
+    await page.getByRole('button', { name: 'Begin game' }).waitFor();
     assert.equal(page.url(), 'cerea://game/#district=harbor');
     assert.equal(await page.evaluate(() => window.isSecureContext), true);
     assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
@@ -439,7 +457,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
     assert.equal(await page.locator('[data-key=resolution]').inputValue(),'retro-fine');
-    await page.getByRole('button',{name:'Start the engine'}).click();
+    await page.getByRole('button',{name:'Begin game'}).click();
     await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
     assert.equal(await page.locator('#location').count(),0,'The dashboard must not reveal the current street without asking');
     assert.equal(await page.locator('.car-badge').count(),0,'No decorative badge in the HUD');
@@ -580,7 +598,7 @@ test('taxi shift ends at 17:00 with an earnings summary and can restart', {timeo
       await route.fulfill({json:data});
     });
     await page.reload();
-    await page.getByRole('button',{name:'Start the engine'}).click();
+    await page.getByRole('button',{name:'Begin game'}).click();
     // Free driving uses the shift clock; no fare is needed for the day to end.
     await page.getByRole('heading',{name:'You earned €0.00.'}).waitFor();
     assert.equal(await page.locator('#timer').innerText(),'17:00');
@@ -597,12 +615,12 @@ test('shortened text fits every window size and picture mode, with accented stre
   try{
     const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await seedDispatch(page);await mkdir('test-results',{recursive:true});
-    await page.getByRole('button',{name:'Start the engine'}).waitFor();
+    await page.getByRole('button',{name:'Begin game'}).waitFor();
     for(const mode of ['retro-fine','sharp','retro']){
       await page.locator('[data-key=resolution]').selectOption(mode);
       await checkTextFit(app,page,`briefing-${mode}`);
     }
-    await page.getByRole('button',{name:'Start the engine'}).click();
+    await page.getByRole('button',{name:'Begin game'}).click();
     await requestFares(page);
     await checkTextFit(app,page,'fare-list');
     await page.keyboard.press('Backspace');await page.locator('#overlay').waitFor({state:'hidden'});
@@ -628,12 +646,12 @@ test('presentation modes preserve sharp UI, mirrors and controller settings with
  const app=await _electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
   const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   await page.locator('[data-key=detail]').selectOption('true');
   await page.locator('[data-key=resolution]').selectOption('retro');
   await page.locator('[data-key=volume]').selectOption('0');
   await page.locator('[data-key=motion]').selectOption('false');
-  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.getByRole('button',{name:'Begin game'}).click();
   await page.waitForFunction(()=>document.querySelector('#viewport').height===270);
   await page.locator('.presentation-settings').waitFor({state:'hidden'});
   await page.waitForTimeout(400);
@@ -692,7 +710,7 @@ test('picture quality is labelled, saved, keyboard/controller selectable and fol
  let app=await launch();
  try{
   let page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   assert.deepEqual(await page.locator('[data-key=resolution] option').allInnerTexts(),['Retro 270p','Retro 540p','Sharp','High (to 4K)']);
   let state=await expectedPicture(page);
   assert.equal(state.mode,'retro-fine','A fresh profile never starts in a costly mode');assert.equal(state.ratio,2);
@@ -716,7 +734,7 @@ test('picture quality is labelled, saved, keyboard/controller selectable and fol
   await page.evaluate(()=>{window.qualityPad.buttons[0].value=1;});
   await page.waitForFunction(()=>document.querySelector('[data-key=resolution]').value==='high');
   await page.evaluate(()=>{window.qualityPad.buttons[0].value=0;});await frames(page);
-  assert.equal(await page.getByRole('button',{name:'Start the engine'}).isVisible(),true,'Changing quality does not start the shift');
+  assert.equal(await page.getByRole('button',{name:'Begin game'}).isVisible(),true,'Changing quality does not start the shift');
   state=await expectedPicture(page);assert.deepEqual(state.buffer,state.expected);assert.match(state.info,/Most demanding/);
   assert.ok(state.buffer[0]>=state.window[0]*2||state.buffer[0]===3840||state.buffer[1]===2160,'High draws every device pixel up to its cap');
   for(const mode of ['retro','retro-fine','sharp','high']){
@@ -726,7 +744,7 @@ test('picture quality is labelled, saved, keyboard/controller selectable and fol
    assert.ok(Math.abs(state.buffer[0]/state.buffer[1]-state.window[0]/state.window[1])<.01,`${mode} keeps the aspect ratio`);
   }
   // Same knowledge and controls in every mode: an estimate placed in High stays put in Retro.
-  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.getByRole('button',{name:'Begin game'}).click();
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();await page.keyboard.press('Enter');
   await page.waitForFunction(()=>document.querySelector('#atlas-marker-status')?.textContent.includes('Your estimated position'));
@@ -756,7 +774,7 @@ test('picture quality is labelled, saved, keyboard/controller selectable and fol
   await app.close();
   // The explicit choice is saved; relaunching keeps it rather than silently changing it.
   app=await launch();page=await app.firstWindow();
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   state=await expectedPicture(page);assert.equal(state.mode,'high');assert.deepEqual(state.buffer,state.expected);
   await page.screenshot({path:'test-results/picture-quality-high-hidpi.png'});
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
@@ -767,7 +785,7 @@ test('restricted storage and keyboard settings preserve startup and resume contr
  const app=await _electron.launch({args:[path.resolve('.'),'--district=harbor',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
   const page=await app.firstWindow();
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   for(const key of ['ArrowDown','s','ArrowUp','w']){
    if(await page.locator('#overlay').isHidden()){
     await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
@@ -790,7 +808,7 @@ test('restricted storage and keyboard settings preserve startup and resume contr
    Object.defineProperty(window,'localStorage',{configurable:true,get(){throw new DOMException('Blocked preview storage','SecurityError');}});
   });
   await page.reload();
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   assert.equal(await page.locator('[data-key=resolution]').inputValue(),'retro-fine');
   await page.locator('[data-key=volume]').selectOption('0'); // Writes may fail too; keep settings in memory.
   await page.keyboard.press('Enter');await page.locator('#overlay').waitFor({state:'hidden'});
@@ -812,7 +830,7 @@ test('Cerea remains playable 25 km from origin with optional timings and a stabl
    }
    shift(data);await route.fulfill({json:data});
   });
-  await seedDispatch(page);await page.getByRole('button',{name:'Start the engine'}).click();
+  await seedDispatch(page);await page.getByRole('button',{name:'Begin game'}).click();
   await takeFare(page);
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Ufficio Postale'));
@@ -838,7 +856,7 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
   const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/THREE|shader/i.test(m.text()))errors.push(m.text());});
   let release;const gate=new Promise(resolve=>release=resolve);let blocked=true;
   await page.route('**/tiles/*.json',async route=>{if(blocked)await gate;await route.continue();});
-  await seedDispatch(page,141);await page.getByRole('button',{name:'Start the engine'}).click();
+  await seedDispatch(page,141);await page.getByRole('button',{name:'Begin game'}).click();
   await page.locator('#stream-status').waitFor();assert.match(await page.locator('.map-credit').innerText(),/OpenStreetMap/);
   const clock=await page.locator('#timer').innerText();await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
   assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
@@ -860,7 +878,7 @@ test('offline outskirts prototype freezes while loading and supports city-to-ham
    const {readFile}=await import('node:fs/promises');const data=JSON.parse(await readFile('public/maps/cerea-outskirts/manifest.json','utf8'));
    const bay=data.parkingZones.find(p=>p.id==='test-hamlet');data.spawn={x:bay.x,z:bay.z,heading:0,name:bay.name};data.taxi.fares=[{passenger:'Return tester',pickupId:'test-hamlet',destinationId:'municipio'}];await route.fulfill({json:data});
   });
-  await seedDispatch(page,1771);await page.getByRole('button',{name:'Start the engine'}).click();await takeFare(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
+  await seedDispatch(page,1771);await page.getByRole('button',{name:'Begin game'}).click();await takeFare(page);await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
   await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#objective-title').textContent.includes('Municipio'));
   await page.keyboard.press('f');await page.waitForFunction(()=>document.querySelector('#hint').textContent.includes('Turn around safely'));await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();const terminalPin=await page.locator('.atlas-pin').getAttribute('transform');assert.notEqual(terminalPin,pin);
   await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.down('w');await page.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>3);await page.keyboard.up('w');
@@ -878,13 +896,13 @@ test('a transient local tile failure retries while paused and recovers without r
  const gate=new Promise(resolve=>release=resolve);
  try{
   const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   let attempts=0,signal;const retried=new Promise(resolve=>signal=resolve);
   await page.route('**/tiles/0_0.json',async route=>{
    attempts++;if(attempts===1){await route.abort('failed');return;}
    signal();await gate;await route.continue();
   });
-  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.reload();await page.getByRole('button',{name:'Begin game'}).click();await page.locator('#overlay').waitFor({state:'hidden'});
   await page.waitForFunction(()=>document.querySelector('#stream-status').textContent.includes('Retrying automatically'));
   assert.doesNotMatch(await page.locator('#stream-status').innerText(),/Pause and reload/);
   const clock=await page.locator('#timer').innerText();assert.equal(Number(await page.locator('#speed').innerText()),0);
@@ -907,12 +925,12 @@ test('a hung local tile request times out into backoff and recovers without adva
  let release;const held=new Promise(resolve=>release=resolve);
  try{
   const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();let attempts=0;
+  await page.getByRole('button',{name:'Begin game'}).waitFor();let attempts=0;
   await page.route('**/tiles/0_0.json',async route=>{
    attempts++;if(attempts===1){await held;try{await route.abort('failed');}catch{/* The client's deadline already cancelled this request. */}return;}
    await route.continue();
   });
-  await page.reload();await page.getByRole('button',{name:'Start the engine'}).click();const clock=await page.locator('#timer').innerText();
+  await page.reload();await page.getByRole('button',{name:'Begin game'}).click();await page.locator('#overlay').waitFor({state:'hidden'});const clock=await page.locator('#timer').innerText();
   await page.waitForFunction(()=>document.querySelector('#stream-status').textContent.includes('Retrying automatically'),{},{timeout:25000});
   assert.equal(await page.locator('#timer').innerText(),clock);assert.equal(Number(await page.locator('#speed').innerText()),0);
   await page.waitForFunction(()=>document.querySelector('#stop-state').textContent==='P · LEGAL STOP');
@@ -946,7 +964,7 @@ test('the radio plays a chosen local folder, skips a broken track, survives a re
  let app=await launch();const errors=[];
  try{
   let page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   assert.deepEqual(await page.evaluate(()=>Object.keys(window.cereaMusic).sort()),['chooseFolder','library'],'Only the two radio calls cross the bridge');
   assert.equal(await page.evaluate(()=>typeof process+typeof require),'undefinedundefined');
   assert.equal(await page.locator('#sound-state').innerText(),'SOUND 75% · RADIO OFF');
@@ -965,7 +983,7 @@ test('the radio plays a chosen local folder, skips a broken track, survives a re
   const refused=await page.evaluate(async()=>Promise.all(['cerea-music://track/../../etc/passwd','cerea-music://track/00000000-0000-4000-8000-000000000000','cerea-music://file/etc/passwd'].map(src=>new Promise(resolve=>{const a=new Audio();a.onerror=()=>resolve(true);a.oncanplay=()=>resolve(false);a.src=src;}))));
   assert.deepEqual(refused,[true,true,true]);
   await watch(page);
-  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.getByRole('button',{name:'Begin game'}).click();await settled(page);
   await page.waitForFunction(()=>window.radioPlayer&&!window.radioPlayer.paused&&window.radioPlayer.currentTime>0);
   assert.match(await page.evaluate(()=>window.radioPlayer.src),/^cerea-music:\/\/track\/[0-9a-f-]{36}$/);
   assert.match(await page.locator('#sound-state').innerText(),/^SOUND 75% · RADIO 1\/2 01 Tone$/);
@@ -996,7 +1014,7 @@ test('the radio plays a chosen local folder, skips a broken track, survives a re
   await page.locator('.radio-status').filter({hasText:'is not available'}).waitFor();
   assert.match(await status(page),new RegExp(`“${folder}” is not available`));
   assert.match(await page.locator('#sound-state').innerText(),/RADIO TUNE$/);
-  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.getByRole('button',{name:'Begin game'}).click();await settled(page);
   assert.equal(await page.locator('.fatal').count(),0);
   assert.deepEqual(errors,[]);
  }catch(error){const page=await app.firstWindow();await page.screenshot({path:'test-results/radio-failure.png'});console.log(await page.locator('body').innerText());throw error;}
@@ -1009,7 +1027,7 @@ test('the briefing lists every registered district, and a damaged map offers the
  const app=await _electron.launch({args:[path.resolve('.'),'--district=harbor',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
   const page=await app.firstWindow();
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   assert.deepEqual(await page.locator('.district-switch button').allInnerTexts(),towns.map(t=>t.name),'The briefing lists the registry, in order');
   assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Harbor District');
   // A listed district whose map is missing does not lock the player out.
@@ -1018,7 +1036,7 @@ test('the briefing lists every registered district, and a damaged map offers the
   await page.getByRole('heading',{name:'Unable to open Harbor District'}).waitFor();
   assert.deepEqual(await page.locator('.fatal [data-district]').allInnerTexts(),towns.filter(t=>t.id!=='harbor').map(t=>t.name));
   await page.keyboard.press('Enter'); // The first other district has focus.
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   assert.match(page.url(),/#district=cerea$/);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
@@ -1030,10 +1048,10 @@ test('the lower Veronese plain region streams, starts and drives offline across 
   const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const requests=[];page.on('request',r=>requests.push(r.url()));
   const started=Date.now();
-  await page.getByRole('button',{name:'Start the engine'}).waitFor({timeout:180000});
+  await page.getByRole('button',{name:'Begin game'}).waitFor({timeout:180000});
   const ready=Date.now()-started;
   assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Lower Veronese plain');
-  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.getByRole('button',{name:'Begin game'}).click();
   await settled(page);
   await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
   assert.ok(Number(await page.locator('#speed').innerText())>0,'The taxi moves');
@@ -1048,7 +1066,7 @@ test('regional atlas has readable connected quadrants without moving knowledge o
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-atlas-quadrants-'));
  const app=await _electron.launch({args:[path.resolve('.'),'--district=lower-verona',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
-  const page=await app.firstWindow();await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  const page=await app.firstWindow();await page.getByRole('button',{name:'Begin game'}).click();await settled(page);
   await page.keyboard.press('t');await page.locator('.atlas-quadrants').waitFor();
   const clock=await page.locator('#timer').innerText(),marker=await page.locator('.atlas-pin').getAttribute('transform');
   assert.equal(await page.locator('[data-street]').count(),0,'Overview carries towns and page references, not all street names');
@@ -1113,10 +1131,10 @@ test('Verona centro streams, starts by Palazzo Barbieri, drives offline and show
   const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const requests=[];page.on('request',r=>requests.push(r.url()));
   const started=Date.now();
-  await page.getByRole('button',{name:'Start the engine'}).waitFor({timeout:120000});
+  await page.getByRole('button',{name:'Begin game'}).waitFor({timeout:120000});
   const ready=Date.now()-started;
   assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Verona centro');
-  await page.getByRole('button',{name:'Start the engine'}).click();
+  await page.getByRole('button',{name:'Begin game'}).click();
   await settled(page);
   await page.screenshot({path:'test-results/verona-start.png'});
   await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
@@ -1136,9 +1154,9 @@ test('pause offers the main screen, confirms before leaving and keeps the manual
  try{
   const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const mainScreen=page.locator('.presentation-settings button').filter({hasText:/Main screen|Confirm: leave shift/});
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   assert.equal(await mainScreen.isDisabled(),true,'Nothing to leave before a shift starts');
-  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.getByRole('button',{name:'Begin game'}).click();await settled(page);
   await page.keyboard.press('Escape');await page.getByRole('button',{name:'Back to the road'}).waitFor();
   await mainScreen.click();
   assert.equal(await mainScreen.innerText(),'Confirm: leave shift');
@@ -1163,7 +1181,7 @@ test('pause offers the main screen, confirms before leaving and keeps the manual
   assert.equal(await page.getByRole('button',{name:'Back to the road'}).isVisible(),true,'Confirming is a second press; the first leaves the pause screen in place');
   await page.evaluate(()=>window.leavePad.buttons[0].value=1);
   await page.waitForFunction(()=>document.querySelector('.briefing')!==null&&!document.querySelector('#overlay').hidden,null,{timeout:60000});
-  await page.getByRole('button',{name:'Start the engine'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).waitFor();
   assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Harbor District','The main screen offers the district list');
   assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-save-harbor')),saved,'Leaving never touches the manual save');
   assert.deepEqual(errors,[]);
@@ -1178,7 +1196,7 @@ test('driving to the end of the road north of Bovolone carries the shift into th
  const app=await _electron.launch({args:[path.resolve('.'),'--district=lower-verona',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
   const page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.getByRole('button',{name:'Start the engine'}).click();await settled(page);
+  await page.getByRole('button',{name:'Begin game'}).click();await settled(page);
   await page.keyboard.press('Escape');await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
   // Put the taxi on Via Quaiotto, facing the end of the plain's road.
   await page.evaluate(({inner,gate})=>{const s=JSON.parse(localStorage.getItem('cerea-save-lower-verona'));

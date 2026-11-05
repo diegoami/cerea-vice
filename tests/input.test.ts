@@ -242,3 +242,17 @@ test('settings distinguish controller navigation/A from keyboard movement/Enter'
  input.poll();assert.equal(input.settingsInput.confirm,false);
  key('keydown','Enter');assert.equal(input.poll().interact,true);assert.equal(input.settingsInput.keyboardConfirm,true);assert.equal(input.settingsInput.confirm,false);
 });
+
+test('opening release guard includes unrelated keys, all controller axes and Start',()=>{
+ const target=new EventTarget();
+ Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+ const pad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};
+ Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[pad]},configurable:true});
+ const input=new Input();
+ const send=(type:string,code:string)=>{const e=new Event(type);Object.defineProperty(e,'code',{value:code});target.dispatchEvent(e);};
+ input.poll();assert.equal(input.allReleased,true);
+ send('keydown','KeyZ');input.poll();assert.equal(input.allReleased,false);
+ send('keyup','KeyZ');pad.axes[2]=.8;input.poll();assert.equal(input.allReleased,false);
+ pad.axes[2]=0;pad.buttons[9].value=1;input.poll();assert.equal(input.allReleased,false);
+ pad.buttons[9].value=0;input.poll();assert.equal(input.allReleased,true);
+});

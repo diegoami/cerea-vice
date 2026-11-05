@@ -13,6 +13,20 @@
 
 [Previously hosted Harbor prototype](https://cerea-vice-harbor-drive.brownclock131.chatgpt.site) (private; may lag the current desktop build).
 
+## Opening
+
+Launch opens a disposable autonomous drive with the normal dashboard and a small **Start**
+button. The bot requests fares, collects passengers and earns money using ordinary driving
+and service rules. After closing time it keeps exploring; it never resets on a timer.
+**Start** freezes it for rules and current controls. **Begin game** discards the demo and starts
+fresh once held controls are released. The instructions retain district selection, settings
+and **Continue saved shift**; the demo never saves or changes your dispatch history.
+Scroll the instructions with arrows, Page Up/Down, the wheel, touch swipe or the controller's
+right stick. Driving supports keyboard/mouse and standard controllers; touch is for menus.
+Use `npm run test:browser` for the production browser opening and
+`npm run test:windows-opening` on WSL/Windows for a disposable native Windows check.
+See [opening implementation and checks](docs/OPENING.md).
+
 ## Run
 
 Prerequisites: **Node.js 22.12+** (Node 24 also works), npm, and a desktop browser with WebGL 2. **Python 3** is also required for the release-archive checks in `npm test` and for `npm run release:win`. A graphical editor, backend, account, and external assets are not required.
