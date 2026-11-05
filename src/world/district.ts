@@ -36,6 +36,9 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   if (data.gateways!==undefined&&(!Array.isArray(data.gateways)||data.gateways.some(gateway=>!plainText(gateway.id)||!ids.has(gateway.nodeId)||!/^[a-z0-9-]+$/.test(gateway.to)||!Array.isArray(gateway.sign)||!gateway.sign.length||gateway.sign.some(row=>!plainText(row))))) throw new Error("Invalid region gateway");
   if(data.taxi) {
     const taxi=data.taxi;
+    if(taxi.mixedTownFares!==undefined&&typeof taxi.mixedTownFares!=='boolean')throw new Error('Invalid taxi fare kinds');
+    if(taxi.interTownPremiumCents!==undefined&&(!Number.isSafeInteger(taxi.interTownPremiumCents)||taxi.interTownPremiumCents<0))throw new Error('Invalid inter-town premium');
+    if(taxi.mixedTownFares&&taxi.stops.some(stop=>!stop.townId||!/^[a-z0-9-]+$/.test(stop.townId)||!plainText(stop.town)))throw new Error('Missing taxi town identity');
     if(!Number.isFinite(taxi.startHour)||!Number.isFinite(taxi.endHour)||taxi.startHour<0||taxi.endHour>24||taxi.startHour>=taxi.endHour||!Number.isFinite(taxi.clockRate)||taxi.clockRate<=0||taxi.clockRate>120)throw new Error("Invalid taxi shift clock");
     if([taxi.baseCents,taxi.perKmCents,taxi.maxBonusCents].some(value=>!Number.isFinite(value)||value<0))throw new Error("Invalid taxi fares");
     if(!Array.isArray(taxi.stops)||taxi.stops.length<3||!Array.isArray(taxi.fares)||!taxi.fares.length)throw new Error("Missing taxi goals");

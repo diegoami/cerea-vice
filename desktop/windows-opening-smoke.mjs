@@ -18,7 +18,7 @@ try {
  New-Item -ItemType Directory -Path $target | Out-Null
  Copy-Item -Path (Join-Path ${literal(source)} '*') -Destination $target -Recurse -Force
  $profile=Join-Path $target 'test-profile'
- $process=Start-Process -FilePath (Join-Path $target 'cerea-vice.exe') -ArgumentList @('--district=cerea',('--user-data-dir="'+$profile+'"'),'--remote-debugging-port=0') -WorkingDirectory $target -PassThru
+ $process=Start-Process -FilePath (Join-Path $target 'cerea-vice.exe') -ArgumentList @('--district=veronese',('--user-data-dir="'+$profile+'"'),'--remote-debugging-port=0') -WorkingDirectory $target -PassThru
  $active=Join-Path $profile 'DevToolsActivePort'
  for($attempt=0;$attempt -lt 60;$attempt++){
   Start-Sleep -Milliseconds 250
@@ -50,11 +50,11 @@ try {
   if($reply.error){throw ($reply.error|ConvertTo-Json -Compress)}
   return $reply.result
  }
- function Js($expression){$reply=Cdp 'Runtime.evaluate' @{expression=$expression;returnByValue=$true};if($reply.exceptionDetails){throw ($reply.exceptionDetails|ConvertTo-Json -Compress)};return $reply.result.value}
+ function Js($expression){$reply=Cdp 'Runtime.evaluate' @{expression=$expression;returnByValue=$true;awaitPromise=$true};if($reply.exceptionDetails){throw ($reply.exceptionDetails|ConvertTo-Json -Compress)};return $reply.result.value}
  for($attempt=0;$attempt -lt 60;$attempt++){if(Js "Boolean(document.querySelector('#opening button:not(:disabled)'))"){break};Start-Sleep -Milliseconds 250}
  $ready=Js "Boolean(document.querySelector('#opening button:not(:disabled)'))"
  if(-not $ready){throw 'Windows demo did not become ready'}
- Js "localStorage.setItem('cerea-save-cerea','Windows isolation sentinel')" | Out-Null
+ Js "localStorage.setItem('cerea-save-veronese','Windows isolation sentinel')" | Out-Null
  $before=Js 'JSON.stringify(localStorage)'
  Start-Sleep -Seconds 8
  if((Js 'JSON.stringify(localStorage)') -ne $before){throw 'Windows demo modified local storage'}
@@ -67,15 +67,20 @@ try {
  $clock=Js "document.querySelector('#timer').textContent"
  Start-Sleep -Milliseconds 700
  if((Js "document.querySelector('#timer').textContent") -ne $clock){throw 'Windows rules did not freeze time'}
- Js "document.querySelector('.briefing-main button').click()" | Out-Null
+ Js "Math.random=(()=>{const values=[.68,.1,.4];return()=>values.shift()??.37})();document.querySelector('.briefing-main button').click()" | Out-Null
  Start-Sleep -Milliseconds 700
- $fresh=Js "({opening:!!document.querySelector('#opening'),stage:document.querySelector('#objective-stage').textContent,money:document.querySelector('#taxi-status').textContent,save:localStorage.getItem('cerea-save-cerea')})"
+ $fresh=Js "({opening:!!document.querySelector('#opening'),stage:document.querySelector('#objective-stage').textContent,money:document.querySelector('#taxi-status').textContent,startHint:document.querySelector('#hint').textContent,save:localStorage.getItem('cerea-save-veronese')})"
  if($fresh.opening -or $fresh.stage -notmatch 'FREE DRIVING' -or $fresh.money -notmatch '0.00' -or $fresh.save -ne 'Windows isolation sentinel'){throw ('Windows handoff failed: '+($fresh|ConvertTo-Json -Compress))}
+ for($attempt=0;$attempt -lt 80;$attempt++){if(Js "document.querySelector('#stream-status').hidden"){break};Start-Sleep -Milliseconds 250}
+ if(-not (Js "document.querySelector('#stream-status').hidden")){throw 'Native unified-world scenery did not become ready'}
+ if($fresh.startHint -notmatch 'Verona'){throw 'The native performance sample did not start in Verona'}
+ $performance=Js "(async()=>{const times=[];let last=await new Promise(requestAnimationFrame);for(let i=0;i<120;i++){const now=await new Promise(requestAnimationFrame);times.push(now-last);last=now;}times.sort((a,b)=>a-b);return {frameMeanMs:times.reduce((a,b)=>a+b,0)/times.length,frameP95Ms:times[Math.floor(times.length*.95)],heapMiB:performance.memory?.usedJSHeapSize/1048576};})()"
  $shot=Cdp 'Page.captureScreenshot' @{format='png'}
  [IO.File]::WriteAllBytes((Join-Path ${literal(images)} 'opening-windows-playing.png'),[Convert]::FromBase64String($shot.data))
  Write-Output ('Windows native opening passed: '+$process.MainWindowTitle)
  Write-Output ($demo|ConvertTo-Json -Compress)
  Write-Output ($fresh|ConvertTo-Json -Compress)
+ Write-Output ($performance|ConvertTo-Json -Compress)
 } finally {
  if($socket){$socket.Dispose()}
  if($process -and -not $process.HasExited){$process.CloseMainWindow()|Out-Null;if(-not $process.WaitForExit(5000)){Stop-Process -Id $process.Id -Force;$process.WaitForExit()}}

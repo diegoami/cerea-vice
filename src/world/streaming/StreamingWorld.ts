@@ -1,3 +1,4 @@
+import {loadTile} from './loadTile';
 import * as THREE from 'three';
 import type {District} from '../district';
 import type {Point} from '../schema';
@@ -21,7 +22,7 @@ export class StreamingWorld {
   this.near={...context.spawn};this.frame=new LocalFrame(context.spawn);this.colliders=streamingColliders(context);this.collisionIndex=new SpatialGrid(this.colliders,rectBounds);
   this.surfaces=createScenery(context).createFacadeMaterials();this.scene.fog=new THREE.Fog(haze.initial,160,m.fogDistance);this.scene.add(this.sun,this.ambient);
   const canvas=document.createElement('canvas');canvas.width=16;canvas.height=128;this.sky=new THREE.CanvasTexture(canvas);this.sky.colorSpace=THREE.SRGBColorSpace;this.scene.background=this.sky;
-  this.stream=new TileStream(m,async ref=>{const response=await fetch(new URL(ref.file,context.assetBase),{cache:"no-store",signal:AbortSignal.timeout(10_000)});if(!response.ok)throw new Error('Missing local tile');return response.json();},(payload,ref)=>{
+  this.stream=new TileStream(m,ref=>loadTile(context,ref),(payload,ref)=>{
    const resource=renderTile(context,payload,ref,this.surfaces,this.materials);resource.setDetail(this.detail);this.scene.add(resource.group);this.position(resource);return resource;
   });
   this.updateDaylight(7);this.updateFrame(context.spawn);

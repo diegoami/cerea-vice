@@ -3,6 +3,8 @@ import { District } from "./district";
 /** One playable district in `public/maps/towns.json`. Spec-built towns are kept up to date by tools/import-town.py. */
 export interface TownEntry {
   id:string; name:string;
+  /** Retained for compatibility and explicit diagnostic URLs, absent from normal map selection. */
+  hidden?:boolean;
   /** Map file relative to `maps/`: a district JSON or a streaming manifest. */
   map:string;
   dataVersion:number; attribution:string;
@@ -35,6 +37,7 @@ export function validateRegistry(value:unknown):TownRegistry {
     if(!plain(town.map)||town.map.includes("..")||town.map.startsWith("/")||!/\.json$/.test(town.map))fail(`"${town.id}" needs a map file inside maps/`);
     if(!Number.isInteger(town.dataVersion)||town.dataVersion<1)fail(`"${town.id}" needs a positive data version`);
     if(!["local","regional","authored"].includes(town.frame))fail(`"${town.id}" has an unknown frame`);
+    if(town.hidden!==undefined&&typeof town.hidden!=='boolean')fail(`"${town.id}" has an invalid hidden flag`);
     if(typeof town.taxi!=="boolean"||typeof town.provenance!=="boolean")fail(`"${town.id}" needs taxi and provenance flags`);
     if(town.spec!==null&&!plain(town.spec))fail(`"${town.id}" has an invalid spec path`);
   }
@@ -51,7 +54,7 @@ export function requestedDistrict(registry:TownRegistry): string {
   const hash = new URLSearchParams(window.location.hash.slice(1)).get("district");
   if(listed(hash))return hash!;
   // A remembered choice that is no longer listed falls back to the default; its saves are kept.
-  try { const saved=localStorage.getItem("cerea-district");if(listed(saved))return saved!; } catch { /* A preview may restrict storage. */ }
+  try { const saved=localStorage.getItem("cerea-district");if(listed(saved)&&!registry.towns.find(t=>t.id===saved)?.hidden)return saved!; } catch { /* A preview may restrict storage. */ }
   return registry.default;
 }
 export class DistrictLoadError extends Error {

@@ -328,8 +328,8 @@ class Hud {
   }
 
   /** After crossing into another region the reader has no marked position until they ask or estimate (#112). */
-  forgetAtlasMarker() {
-    this.resetAtlasNotes();this.atlasNotes.remove();
+  forgetAtlasMarker(start?:Point) {
+    this.resetAtlasNotes();this.atlasNotes.remove();if(start)this.atlasNotes.pointAt(start);
   }
 
   resetAtlasNotes() {
@@ -422,9 +422,9 @@ class Hud {
       const offers=mission.fareBoard.map(offer=>{
         const pickup=district.taxi!.stops.find(stop=>stop.id===offer.pickupId)!,destination=district.taxi!.stops.find(stop=>stop.id===offer.destinationId)!;
         const supplement=Math.round(Math.max(0,offer.approachDistance-1000)*2.5);
-        return `<button type="button" data-fare-offer="${offer.id}" aria-pressed="false"><b>${escapeHtml(offer.passenger)}</b><span>From ${escapeHtml(pickup.name)}, ${escapeHtml(pickup.road)}</span><span>To ${escapeHtml(destination.name)}, ${escapeHtml(destination.road)}</span><strong>${offer.quoted?`Guaranteed ${formatMoney(mission.offerGuaranteeCents(offer))}${supplement?` (includes ${formatMoney(supplement)} collection)`:''} + up to ${formatMoney(district.taxi!.maxBonusCents)} speed bonus`:'Quote pending'}</strong></button>`;
+        return `<button type="button" data-fare-offer="${offer.id}" aria-pressed="false"><b>${escapeHtml(offer.passenger)}</b>${mission.fareLabel(offer)?`<strong>${escapeHtml(mission.fareLabel(offer))}</strong>`:""}<span>From ${escapeHtml(pickup.name)}, ${escapeHtml(pickup.road)}</span><span>To ${escapeHtml(destination.name)}, ${escapeHtml(destination.road)}</span><strong>${offer.quoted?`Guaranteed ${formatMoney(mission.offerGuaranteeCents(offer))}${supplement?` (includes ${formatMoney(supplement)} collection)`:''} + up to ${formatMoney(district.taxi!.maxBonusCents)} speed bonus`:'Quote pending'}</strong></button>`;
       }).join('');
-      this.overlay.innerHTML=`<section class="fare-board modal" aria-labelledby="screen-title"><span class="eyebrow accent">TAXI DISPATCH / TIME PAUSED</span><h1 id="screen-title">Available fares</h1><p>Prices are fixed from where this list was issued; collection supplements and fares pay only on delivery.</p><div class="fare-list" role="group" aria-label="Available fares">${offers}</div><div class="fare-actions"><button type="button" data-fare="accept">Accept selected</button><button type="button" data-fare="refresh">New list</button><button type="button" data-fare="close">Close list</button></div><small>A closed list is kept until you accept a fare or ask for a new one, and you can show it again while stopped. Pause to save the shift.</small></section>`;
+      this.overlay.innerHTML=`<section class="fare-board modal" aria-labelledby="screen-title"><span class="eyebrow accent">TAXI DISPATCH / TIME PAUSED</span><h1 id="screen-title">Available fares</h1><p>${district.taxi?.mixedTownFares?'Local and inter-town jobs share this list. Inter-town quotes include an extra €12 plus distance pay. ':''}Prices are fixed from where this list was issued; collection supplements and fares pay only on delivery.</p><div class="fare-list" role="group" aria-label="Available fares">${offers}</div><div class="fare-actions"><button type="button" data-fare="accept">Accept selected</button><button type="button" data-fare="refresh">New list</button><button type="button" data-fare="close">Close list</button></div><small>A closed list is kept until you accept a fare or ask for a new one, and you can show it again while stopped. Pause to save the shift.</small></section>`;
       this.setFareSelection(this.fareSelection);
       return;
     }
@@ -444,7 +444,7 @@ class Hud {
           <p class="intro">${mission.taxiMode ? `Collect passengers and earn as much as you can before ${mission.shiftLabel.split("–")[1]}.` : district.mission.objective}</p>
           <button type="button">Begin game <span aria-hidden="true">&gt;</span></button>${mission.taxiMode ? "" : `<span class="button-note">${Math.round(district.mission.duration/60)} MINUTE DRIVE</span>`}
         </div>
-        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop, request the fare list and accept a fare. Stop in the pickup's named bay to collect them, and again at their destination.`:district.mission.hint}</p><div class="district-switch" aria-label="Choose district">${towns.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${escapeHtml(map.name)}</button>`).join("")}</div><small class="controller-note">Choose a district before starting.</small><small class="controller-note">${district.attribution}</small>
+        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop, request the fare list and accept a fare. Stop in the pickup's named bay to collect them, and again at their destination.`:district.mission.hint}</p>${towns.length>1?`<div class="district-switch" aria-label="Choose district">${towns.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${escapeHtml(map.name)}</button>`).join("")}</div><small class="controller-note">Choose a district before starting.</small>`:""}<small class="controller-note">${district.attribution}</small>
           <div class="briefing-tip">${mission.taxiMode ? `<b>${mission.shiftLabel} in about ${Math.ceil(mission.duration/60)} active minutes.</b><p>Faster rides earn a bigger bonus; slow rides still pay the base fare. The clock runs while you drive and stops while paused or reading the atlas or fare list.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere, then open the atlas or ask for information. Marked P bays are legal stopping places.</p></div>
           ${controlsNote}<small class="controller-note" id="controller-status" role="status"></small>
         </div>

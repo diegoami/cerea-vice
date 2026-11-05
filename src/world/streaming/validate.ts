@@ -8,6 +8,7 @@ export function validateStreaming(data:DistrictDefinition){
  const tileIds=new Set<string>();
  for(const t of m.tiles){
   if(!/^-?\d+_-?\d+$/.test(t.id)||t.file!==`tiles/${t.id}.json`||tileIds.has(t.id)||!Number.isSafeInteger(t.bytes)||t.bytes<=0||!t.bounds||!Object.values(t.bounds).every(Number.isFinite))throw new Error('Invalid local tile reference');
+  if(t.sources!==undefined&&(!Array.isArray(t.sources)||t.sources.some(s=>!s||!['lower-verona','verona-plain'].includes(s.map)||!Number.isSafeInteger(s.bytes)||s.bytes<1||!s.offsets||(['roads','features','landmarks','bays'] as const).some(k=>!Number.isSafeInteger(s.offsets[k])||s.offsets[k]<0))))throw new Error('Invalid composed tile source');
   const [x,z]=t.id.split('_').map(Number);
   if(!Number.isSafeInteger(x)||!Number.isSafeInteger(z)||t.id!==`${x}_${z}`||![x*m.tileSize,(x+1)*m.tileSize,z*m.tileSize,(z+1)*m.tileSize].every(Number.isSafeInteger)||t.bounds.minX!==x*m.tileSize||t.bounds.maxX!==(x+1)*m.tileSize||t.bounds.minZ!==z*m.tileSize||t.bounds.maxZ!==(z+1)*m.tileSize)throw new Error('Tile id and bounds must match the canonical grid');
   if(x<minX||x>maxX||z<minZ||z>maxZ)throw new Error('Tile lies outside the prototype grid');

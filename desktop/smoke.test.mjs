@@ -7,6 +7,7 @@ import { _electron as electron } from 'playwright-core';
 // The existing gameplay regressions enter through the new Start step on every navigation.
 // Opening-specific guards and autonomous play are exercised in opening.test.mjs.
 const _electron={async launch(options){
+ if(!options.args?.some(arg=>arg.startsWith('--district=')))options={...options,args:[...options.args,'--district=cerea']};
  const app=await electron.launch(options),original=app.firstWindow.bind(app);let attached;
  app.firstWindow=async()=>{
   const page=await original();
@@ -254,8 +255,7 @@ test('desktop runs offline and supports a controller-only drive, disconnect and 
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
     await page.getByRole('button', { name: 'Begin game' }).waitFor();
-    await page.getByRole('button', {name:'Harbor District',exact:true}).click();
-    await page.getByRole('button', {name:'Harbor District',exact:true,pressed:true}).waitFor();
+    await page.goto('cerea://game/#district=harbor');await page.reload();
     await page.getByRole('button', { name: 'Begin game' }).waitFor();
     assert.equal(page.url(), 'cerea://game/#district=harbor');
     assert.equal(await page.evaluate(() => window.isSecureContext), true);
@@ -452,7 +452,7 @@ test('Cerea Centro runs offline with its real-place atlas, controller drive and 
     page.on('pageerror',error=>errors.push(error.message));
     page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
     await seedDispatch(page);
-    await page.getByRole('button',{name:'Cerea Centro',exact:true,pressed:true}).waitFor();
+    await page.locator('.district-tag').filter({hasText:'CEREA CENTRO'}).waitFor();
     await page.getByRole('heading',{name:/Taxi shift/}).waitFor();
     await mkdir('test-results',{recursive:true});
     await page.screenshot({path:'test-results/cerea-briefing.png'});
@@ -1028,16 +1028,16 @@ test('the briefing lists every registered district, and a damaged map offers the
  try{
   const page=await app.firstWindow();
   await page.getByRole('button',{name:'Begin game'}).waitFor();
-  assert.deepEqual(await page.locator('.district-switch button').allInnerTexts(),towns.map(t=>t.name),'The briefing lists the registry, in order');
-  assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Harbor District');
+  assert.equal(await page.locator('.district-switch').count(),0,'Legacy maps are hidden from normal selection');
+
   // A listed district whose map is missing does not lock the player out.
   await page.route('**/maps/harbor.json',route=>route.fulfill({status:404,body:'missing'}));
   await page.reload();
   await page.getByRole('heading',{name:'Unable to open Harbor District'}).waitFor();
-  assert.deepEqual(await page.locator('.fatal [data-district]').allInnerTexts(),towns.filter(t=>t.id!=='harbor').map(t=>t.name));
+  assert.deepEqual(await page.locator('.fatal [data-district]').allInnerTexts(),towns.filter(t=>t.id!=='harbor'&&!t.hidden).map(t=>t.name));
   await page.keyboard.press('Enter'); // The first other district has focus.
   await page.getByRole('button',{name:'Begin game'}).waitFor();
-  assert.match(page.url(),/#district=cerea$/);
+  assert.match(page.url(),/#district=veronese$/);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
 
@@ -1050,7 +1050,7 @@ test('the lower Veronese plain region streams, starts and drives offline across 
   const started=Date.now();
   await page.getByRole('button',{name:'Begin game'}).waitFor({timeout:180000});
   const ready=Date.now()-started;
-  assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Lower Veronese plain');
+  assert.equal(await page.locator('.district-switch').count(),0,'Only the unified world is offered in the normal UI');
   await page.getByRole('button',{name:'Begin game'}).click();
   await settled(page);
   await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
@@ -1133,7 +1133,7 @@ test('Verona centro streams, starts by Palazzo Barbieri, drives offline and show
   const started=Date.now();
   await page.getByRole('button',{name:'Begin game'}).waitFor({timeout:120000});
   const ready=Date.now()-started;
-  assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Verona centro');
+  assert.equal(await page.locator('.district-switch').count(),0,'Only the unified world is offered in the normal UI');
   await page.getByRole('button',{name:'Begin game'}).click();
   await settled(page);
   await page.screenshot({path:'test-results/verona-start.png'});
@@ -1182,7 +1182,7 @@ test('pause offers the main screen, confirms before leaving and keeps the manual
   await page.evaluate(()=>window.leavePad.buttons[0].value=1);
   await page.waitForFunction(()=>document.querySelector('.briefing')!==null&&!document.querySelector('#overlay').hidden,null,{timeout:60000});
   await page.getByRole('button',{name:'Begin game'}).waitFor();
-  assert.equal(await page.locator('.district-switch [aria-pressed="true"]').innerText(),'Harbor District','The main screen offers the district list');
+  assert.equal(await page.locator('.district-switch').count(),0,'The main screen offers only the unified world');
   assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-save-harbor')),saved,'Leaving never touches the manual save');
   assert.deepEqual(errors,[]);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}

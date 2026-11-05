@@ -1,5 +1,18 @@
 # Cerea taxi shift
 
+The default **Veronese world** now offers the same shift across nine towns and 69
+landmarks. Fresh sessions choose a random town and landmark. The fare list contains
+two local and two inter-town jobs with pickups in your current town. One inter-town
+job serves a nearby town; the other can serve any other town. Its quote includes an
+extra €12 plus the normal distance fare and collection supplement. Both kinds use
+the same deliberate pickup/dropoff, boarding, speed-bonus and save/load rules.
+Passengers can cross the old Lower Veronese plain/Verona–Oppeano boundary without a
+reload. The demo alternates both kinds and jumps to another town after three paid
+jobs, preserving its score and clock; player travel always follows the roads.
+
+The standalone Cerea/Harbor descriptions below remain useful for legacy maps, which
+are hidden from normal selection. Their saves remain in their existing slots.
+
 Cerea Centro now plays as a taxi shift. Drive freely, and when you want work, stop and ask dispatch for fares. Choose one from the list, collect the passenger, drive them there using signs and the atlas, stop and complete the fare. You are then free to drive again until you next ask. The original Harbor District journey is still selectable.
 
 ## Your working day

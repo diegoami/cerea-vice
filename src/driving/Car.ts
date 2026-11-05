@@ -1,6 +1,6 @@
 import type { Actions } from "../input/Input";
 import { SpatialGrid } from "../world/SpatialGrid";
-import { inRect, type Rect } from "../world/district";
+import { inRect, type Rect, type Point } from "../world/district";
 import { District } from "../world/district";
 export function createCar(context:District){
 const {district,isPaved,spawn}=context;
@@ -16,10 +16,10 @@ class Car {
   unlimited = false;
   private impactCooldown = 0;
 
-  reset() {
-    this.x = spawn.x;
-    this.z = spawn.z;
-    this.heading = spawn.heading;
+  reset(pose:Point&{heading:number}=spawn) {
+    this.x = pose.x;
+    this.z = pose.z;
+    this.heading = pose.heading;
     this.speed = 0;
     this.gear = "D";
     this.steering = 0;

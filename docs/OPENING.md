@@ -10,20 +10,18 @@ confirmation: every key, standard controller button/axis and pointer contact mus
 be released before the car, mission, atlas and cockpit reset for actual play. Opening
 listeners are aborted on handoff; renderer resizing remains attached for gameplay.
 Continue saved shift remains available on the frozen briefing and loads paused as
-before. District changes open that district's demo. Region crossings during a real
+before. The unified world is the default; legacy maps are hidden from normal selection. Region crossings during a real
 shift retain the existing seamless continuation.
 
-The driver requests an ordinary dispatch list at a settled stop, chooses a short
-collection, deliberately serves pickups/dropoffs and waits for boarding. Planning
-uses directed road connections and service bays. Steering evaluates short predictions
-with the production car physics and collision index, then sends ordinary pedals and
-steering to the actual car. Reversing requires the normal stopped gear change.
-Waypoint-distance improvement detects lack of progress and circling; failed streets
-are temporarily avoided and replanned. A bounded collision-aware local search finds detours around obstructions, with a reachable retreat if the destination
-cannot currently be approached. Boarding and successful service count as progress.
-No car pose, collision rule, fare, boarding delay, atlas knowledge or shift timer is
-changed for the bot. After the shift or Harbor journey completes it keeps exploring,
-retaining receipts and score. There is no timed reset or replay.
+The driver requests an ordinary dispatch list at a settled stop, chooses real fares,
+deliberately serves pickups/dropoffs and waits for boarding. It now follows continuous
+road paths with bend-aware speed planning and settled phases for reversing. See
+[the driving analysis](BOT_DRIVING.md) for comparisons with the initial driver.
+After three paid jobs the unified-world demo jumps to a landmark in another town,
+retaining clock, score and receipts, once the passenger has walked away. Player
+sessions never jump. The original no-teleport rule still governs obstacle recovery;
+the town jump is the owner's explicit showcase request. There is no timed reset.
+After closing, the driver keeps exploring without resetting the shift.
 
 The demo cannot save, request player information, change the atlas or cross regions.
 It bypasses the player's fare-list UI by calling the same stopped request, selection

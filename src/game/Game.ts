@@ -1,3 +1,4 @@
+import {chooseStartPlace} from "./StartPlace";
 import { DemoDriver, idleActions } from "./DemoDriver";
 import { Opening } from "../ui/Opening";
 import { StreamingWorld } from "../world/streaming/StreamingWorld";
@@ -17,18 +18,19 @@ import { createParking } from "../navigation/Parking";
 import { createMission } from "../mission/Mission";
 import { createWorld } from "../world/World";
 import { createHud, type FareChoice, type Screen } from "../ui/Hud";
-import { District } from "../world/district";
+import { District, inRect } from "../world/district";
 import {PassengerPresence} from '../world/People';
 import {ControlsPanel} from '../input/ControlsPanel';
 import {decodeSave,mapDataVersion,mapSignature,MapVersionError,saveKey,SAVE_VERSION,type SaveData} from './Save';
-export function createGame(context:District,towns:readonly Pick<TownEntry,"id"|"name">[]=[{id:context.district.id,name:context.district.name}]){
+export function createGame(context:District,towns:readonly Pick<TownEntry,"id"|"name"|"hidden">[]=[{id:context.district.id,name:context.district.name}]){
 const {district}=context;
+const visibleTowns=towns.filter(t=>!t.hidden);
 const {Car}=createCar(context);
 const {directionHint,locationHint}=createNavigation(context);
 const {Parking}=createParking(context);
 const {Mission}=createMission(context);
 const makeWorld=()=>district.streaming?new StreamingWorld(context):new (createWorld(context).World)();
-const {Hud}=createHud(context,towns);
+const {Hud}=createHud(context,visibleTowns);
 /** A shift handed from one region to its neighbour across a gateway, read once by the next game (#112). */
 const CROSSING_KEY='cerea-crossing';
 class Game {
@@ -67,6 +69,10 @@ class Game {
   private screen: Screen = "briefing";
   private opening?:Opening;
   private demo?:DemoDriver;
+  private nextDemoRelocation=3;
+  private demoTown?:string;
+  private relocationLabel="";
+  private relocationUntil=0;
   private previousTime = 0;
   private accumulator = 0;
   private districtSwitchReady = false;
@@ -140,7 +146,7 @@ class Game {
     });
     this.cockpit.update(1, this.car, 0);
     this.arriveFromCrossing();
-    if(!this.hasStarted){this.demo=new DemoDriver(context);this.opening=new Opening(root,context,this.input.bindings);this.screen="running";}
+    if(!this.hasStarted){if(district.id==="veronese"){const place=chooseStartPlace(context);this.car.reset(place);this.demoTown=place.townId;this.hud.forgetAtlasMarker(this.car);this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);}this.demo=new DemoDriver(context);this.opening=new Opening(root,context,this.input.bindings);this.screen="running";}
     this.renderer.setAnimationLoop((time) => this.frame(time));
   }
 
@@ -183,7 +189,8 @@ class Game {
     if(this.screen === "atlas")this.waitForDrivingRelease=true;
     if (this.screen === "briefing" || this.screen === "result") {
       this.hasStarted=true;
-      this.car.reset();
+      const startPlace=district.id==="veronese"?chooseStartPlace(context):undefined;
+      this.car.reset(startPlace);
       this.parking.reset();
       this.mission.reset();
       if(this.mission.taxiMode){
@@ -193,6 +200,7 @@ class Game {
         }catch{/* Dispatch still works without persistent browser storage. */}
       }
       this.hud.resetAtlasNotes();
+      if(startPlace){this.hud.forgetAtlasMarker(this.car);this.mission.notice=`Starting at ${startPlace.name}. ${this.mission.notice}`;}
       this.cockpit.reset();
       this.motion.reset();
       this.hud.setHint(this.mission.notice);
@@ -263,6 +271,19 @@ class Game {
     }catch{this.saveStatus.textContent='Save failed. Storage is unavailable or full; the previous save has been kept.';}
   }
 
+  private get demoJumpPending(){return district.id==='veronese'&&this.opening?.state==='demo'&&!this.mission.hasRide&&this.mission.boarding===0&&this.mission.completedFares>=this.nextDemoRelocation;}
+
+  /** Demo-only showcase jump after three paid jobs; never moves a player's car or a booked passenger. */
+  private relocateDemo(){
+    if(!this.demoJumpPending||!this.demo||this.mission.departure)return;
+    const currentStop=district.taxi!.stops.find(stop=>inRect(this.car,context.parkingZones.find(b=>b.id===stop.bayId)!,1.1));
+    const place=chooseStartPlace(context,Math.random,currentStop?.townId??this.demoTown),collisions=this.car.collisions,unsafeStops=this.parking.unsafeStops;
+    this.car.reset(place);this.car.collisions=collisions;this.parking.reset();this.parking.unsafeStops=unsafeStops;
+    this.demoTown=place.townId;this.nextDemoRelocation=this.mission.completedFares+3;this.demo.relocated();
+    this.cockpit.reset();this.motion.reset();this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);
+    this.relocationLabel=`Demo jump · ${place.name}`;this.relocationUntil=Infinity;this.hud.setHint(`Demo moved to ${place.name}. Earnings and completed fares are retained.`);
+  }
+
   /** Region gateways (#112): reaching one with no fare booked carries the shift into the neighbouring region. */
   private checkGateways(){
     if(this.opening)return;
@@ -314,7 +335,7 @@ class Game {
       this.saveStatus.textContent=`${this.savedThisPause||this.mission.finished?'Nothing is lost: your shift is saved.':'Progress since your last save will be lost.'} Choose again to leave for the main screen, or resume to keep driving.`;
       return;
     }
-    selectDistrict(towns,district.id);
+    selectDistrict(visibleTowns,visibleTowns.find(t=>t.id===district.id)?.id??visibleTowns[0].id);
   }
 
   private load(){
@@ -370,9 +391,13 @@ class Game {
       }else{
         this.screen=this.opening.state==='demo'?'running':'briefing';
         const ready=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
-        if(this.opening.state==='demo')actions=ready?this.demo!.update(dt,this.car,this.parking,this.mission,this.world.collisionIndex):idleActions();
+        if(ready&&this.relocationUntil===Infinity)this.relocationUntil=performance.now()+5000;
+        if(this.opening.state==='demo'){
+          if(this.demoJumpPending){actions={...idleActions(),brake:1};this.demo!.activity='Waiting for passenger exit before a town jump';}
+          else actions=ready?this.demo!.update(dt,this.car,this.parking,this.mission,this.world.collisionIndex):idleActions();
+        }
         else if(this.opening.state==='waiting')actions=idleActions();
-        this.opening.setActivity(this.demo!.activity);
+        this.opening.setActivity(performance.now()<this.relocationUntil?this.relocationLabel:this.demo!.activity);
       }
     }
     const menu=this.input.settingsInput;
@@ -389,8 +414,8 @@ class Game {
     if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
       this.districtSwitchReady = false;
-      const index=towns.findIndex((map)=>map.id===district.id);
-      if(towns.length>1)selectDistrict(towns,towns[(index+towns.length+Math.sign(actions.atlasPage))%towns.length].id);
+      const index=visibleTowns.findIndex((map)=>map.id===district.id);
+      if(visibleTowns.length>1)selectDistrict(visibleTowns,visibleTowns[(index+visibleTowns.length+Math.sign(actions.atlasPage))%visibleTowns.length].id);
       return;
     }
     if (!this.opening&&this.input.controllerDisconnected) {
@@ -475,7 +500,7 @@ class Game {
       }
       this.world.updateFrame(this.car);
       this.cockpit.update(dt, this.car, actions.glance, actions);
-      if(this.screen==='running')this.checkGateways();
+      if(this.screen==='running'){this.checkGateways();this.relocateDemo();}
     }
     if(this.mission.revision!==this.missionRevision) {
       this.missionRevision=this.mission.revision;

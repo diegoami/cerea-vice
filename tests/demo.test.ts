@@ -61,3 +61,19 @@ test('a persistent road obstruction is bypassed and the booked passenger is deli
  assert.ok(h.bot.recoveries>0);assert.ok(h.mission.completedFares>=1,'A recovery must get past the wall and finish real work without removing the obstruction');
  assert.ok(h.bot.distanceDriven>500);
 });
+
+test('path tracking drives a useful urban pace without repeated large steering changes or gear thrashing',()=>{
+ const h=harness();let moving=0,totalSpeed=0,largeChanges=0,lastSteer=0,reverseTime=0,maxReverse=0;
+ for(let i=0;i<180*60;i++){
+  const beforeSpeed=h.car.speed,beforeGear=h.car.gear,settled=h.parking.stopped;
+  const action=h.bot.update(1/60,h.car,h.parking,h.mission,h.world.collisionIndex);
+  if(beforeGear!==h.car.gear){assert.equal(beforeSpeed,0);assert.ok(settled);}
+  h.car.update(1/60,action,h.world.collisionIndex);h.parking.update(1/60,h.car,h.car.speed);h.mission.update(1/60,h.car,h.parking.stopped);
+  if(Math.abs(h.car.speed)>1){moving++;totalSpeed+=Math.abs(h.car.speed);if(Math.abs(action.steer-lastSteer)>.2)largeChanges++;lastSteer=action.steer;}
+  if(h.car.gear==='R'){reverseTime+=1/60;maxReverse=Math.max(maxReverse,reverseTime);}else reverseTime=0;
+ }
+ assert.ok(h.bot.distanceDriven>1500,'Old driver covered only about 792 m on this seed');
+ assert.ok(totalSpeed/moving>9,'Moving mean must exceed 32 km/h on this route');
+ assert.ok(largeChanges<40,'Old driver changed steering by more than 0.2 on 473 updates');
+ assert.ok(maxReverse<7,'A reverse manoeuvre must finish rather than remain in reverse');assert.equal(h.car.collisions,0);
+});
