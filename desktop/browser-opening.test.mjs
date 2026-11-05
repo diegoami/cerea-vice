@@ -26,9 +26,9 @@ test('production browser opening, small-window touch scrolling and release hando
   for(const box of await page.locator('[data-fare-offer]').evaluateAll(items=>items.map(e=>({left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right,overflow:e.scrollWidth>e.clientWidth+1}))))assert.ok(box.left>=0&&box.right<=960&&!box.overflow,'Mixed quotes fit a small window');
   await page.locator('[data-fare-offer]').filter({hasText:/Inter-town ·/}).first().click();await page.locator('[data-fare=accept]').click();
   await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.press('p');
-  await page.getByRole('button',{name:'Save shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
+  await page.getByRole('button',{name:/^Save (game|shift)$/}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
   const accepted=await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-veronese')).mission.currentFare);
-  assert.ok(accepted);await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
+  assert.ok(accepted);await page.getByRole('button',{name:/^Continue saved (game|shift)$/}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-veronese')).mission.currentFare),accepted);
   await page.close();
   console.info('Compact HUD layouts, fares and save/load passed');

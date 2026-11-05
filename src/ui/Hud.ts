@@ -66,6 +66,7 @@ class Hud {
       <header class="topbar">
         <section class="destination-panel" aria-label="Current goal">
           <span class="sr-only" id="objective-stage">OBJECTIVE</span>
+          <div class="goal-caption" hidden><span aria-hidden="true">↳</span> <span id="goal-caption">DESTINATION</span></div>
           <h2 id="objective-title">No destination</h2>
           <div class="destination-meta"><span id="goal-town"></span><span id="goal-street"></span></div>
           <p class="sr-only" id="objective-description"></p>
@@ -420,7 +421,7 @@ class Hud {
   remindMission(mission: Mission) {
     this.hintLabel.textContent = "MISSION REMINDER";this.messageKind='requested';this.messageUntil=performance.now()+10000;
     const fare=mission.hasRide&&mission.taxiStage==='dropoff'?` Fare ${formatMoney(mission.baseFareCents)} + remaining bonus ${formatMoney(mission.potentialBonusCents)}.`:'';
-    this.hint.textContent = mission.taxiMode ? `${mission.objective}${fare} Shift: ${mission.clockText} / ${mission.shiftLabel.split("–")[1]}.` : `${mission.objective} ${mission.remaining > 0 ? `Time remaining: ${formatTime(mission.remaining)}.` : "The deadline has passed; finish the drive for a late-arrival result."}`;
+    this.hint.textContent = mission.taxiMode ? `${mission.objective}${fare} ${mission.endless?`Time: ${mission.clockText}.`:`Shift: ${mission.clockText} / ${mission.shiftLabel.split("–")[1]}.`}` : `${mission.objective} ${mission.remaining > 0 ? `Time remaining: ${formatTime(mission.remaining)}.` : "The deadline has passed; finish the drive for a late-arrival result."}`;
   }
 
   show(screen: Screen, mission: Mission, car: Car, parking: Parking) {
@@ -452,12 +453,12 @@ class Hud {
     if (screen === "briefing") {
       this.overlay.innerHTML = `<section class="briefing modal" aria-labelledby="screen-title">
         <div class="briefing-main"><span class="eyebrow accent">CEREA VICE</span>
-          <h1 id="screen-title">${mission.taxiMode ? `Taxi shift<br> <em>${mission.shiftLabel}</em>` : `Find<br> <em>${district.mission.name}</em>`}</h1>
-          <p class="intro">${mission.taxiMode ? `Collect passengers and earn as much as you can before ${mission.shiftLabel.split("–")[1]}.` : district.mission.objective}</p>
+          <h1 id="screen-title">${mission.taxiMode ? mission.endless?`Taxi driving<br> <em>Day &amp; night</em>`:`Taxi shift<br> <em>${mission.shiftLabel}</em>` : `Find<br> <em>${district.mission.name}</em>`}</h1>
+          <p class="intro">${mission.taxiMode ? mission.endless?`Take passengers around the towns at any hour. Rest when you want.`:`Collect passengers and earn as much as you can before ${mission.shiftLabel.split("–")[1]}.` : district.mission.objective}</p>
           <button type="button">Begin game <span aria-hidden="true">&gt;</span></button>${mission.taxiMode ? "" : `<span class="button-note">${Math.round(district.mission.duration/60)} MINUTE DRIVE</span>`}
         </div>
         <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop, request the fare list and accept a fare. Stop in the pickup's named bay to collect them, and again at their destination.`:district.mission.hint}</p>${towns.length>1?`<div class="district-switch" aria-label="Choose district">${towns.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${escapeHtml(map.name)}</button>`).join("")}</div><small class="controller-note">Choose a district before starting.</small>`:""}<small class="controller-note">${district.attribution}</small>
-          <div class="briefing-tip">${mission.taxiMode ? `<b>${mission.shiftLabel} in about ${Math.ceil(mission.duration/60)} active minutes.</b><p>Faster rides earn a bigger bonus; slow rides still pay the base fare. The clock runs while you drive and stops while paused or reading the atlas or fare list.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere, then open the atlas or ask for information. Marked P bays are legal stopping places.</p></div>
+          <div class="briefing-tip">${mission.taxiMode ? `<b>${mission.endless?"Service never closes. Rest for 8 hours from the pause menu when stopped and free of passengers.":`${mission.shiftLabel} in about ${Math.ceil(mission.duration/60)} active minutes.`}</b><p>Faster rides earn a bigger bonus; slow rides still pay the base fare. The clock runs while you drive and stops while paused or reading the atlas or fare list.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere, then open the atlas or ask for information. Marked P bays are legal stopping places.</p></div>
           ${controlsNote}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
       </section>`;
@@ -493,7 +494,7 @@ class Hud {
     gamepadBlocked = false,
     controllerStatus = "",
   ) {
-    const target=mission.target;
+    const target=mission.finished?undefined:mission.target;
     const stage=document.querySelector<HTMLElement>('#objective-stage')!;
     const title=document.querySelector<HTMLElement>('#objective-title')!;
     const description=document.querySelector<HTMLElement>('#objective-description')!;
@@ -505,8 +506,12 @@ class Hud {
       taxiStatus.textContent=`${formatMoney(mission.earningsCents)} earned · ${mission.completedFares} fares${mission.taxiStage==='dropoff'?` · base ${formatMoney(mission.baseFareCents)} + speed bonus ${formatMoney(mission.potentialBonusCents)}`:''}`;
       document.querySelector('.deadline > span')!.textContent="TIME";
     }
+    const caption=document.querySelector<HTMLElement>('.goal-caption')!;caption.hidden=!target;
+    const captionText=mission.taxiMode&&mission.taxiStage==='pickup'?'PICKUP':'DESTINATION';
+    const captionLabel=document.querySelector('#goal-caption')!;if(captionLabel.textContent!==captionText)captionLabel.textContent=captionText;
     const label=goalLabel(target,mission.taxiStage==='pickup'?mission.pickupStop:mission.destinationStop,district.id==='cerea'?'Cerea':district.name);
-    if(title.textContent!==label.landmark)title.textContent=label.landmark;
+    const landmark=!target&&mission.finished?'Journey complete':label.landmark;
+    if(title.textContent!==landmark)title.textContent=landmark;
     const town=document.querySelector('#goal-town')!,street=document.querySelector('#goal-street')!;
     if(town.textContent!==label.town)town.textContent=label.town;
     const streetName=label.street||(target?nearestRoad(target.bay).edge.name:'');

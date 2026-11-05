@@ -57,9 +57,9 @@ export async function checkOpening(page,resize,label,district='cerea'){
  assert.doesNotMatch(await page.locator('#stop-state').innerText(),/STOP/,'Fresh player controls drive the car');
  assert.equal(await page.locator('#prompt').isHidden(),true,'Travel does not repeat stopped-control instructions');
  await page.screenshot({path:`test-results/opening-${label}-playing.png`});
- await page.keyboard.press('p');await page.getByRole('button',{name:'Save shift',exact:true}).click();
+ await page.keyboard.press('p');await page.getByRole('button',{name:/^Save (game|shift)$/}).click();
  await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
  assert.notEqual(await page.evaluate(key=>localStorage.getItem(key),key),'existing manual save','Manual saving resumes after handoff');
- await page.getByRole('button',{name:'Continue saved shift',exact:true}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
+ await page.getByRole('button',{name:/^Continue saved (game|shift)$/}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
  assert.deepEqual(errors,[]);
 }

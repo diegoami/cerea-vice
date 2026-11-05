@@ -125,3 +125,17 @@ one-way connections, joining only their already-shared Via Quaiotto gateway node
 there is no new OSM extract or invented connecting road. Source licences, extracts,
 compression frame and provenance remain as documented for those two regions above.
 The union has a distinct map/save identity; old source maps are retained unchanged.
+
+
+### London Westminster pilot
+
+`data/sources/london-westminster-osm.json` is the OpenStreetMap/Overpass snapshot
+for 51.496,-0.145 to 51.508,-0.113. Its query, timestamp, endpoint and SHA-256 are in
+the neighbouring `.overpassql` and `.provenance.json` files. Recipe:
+`towns/london-westminster.town.json`; rebuild/validate/register with
+`npm run map -- build towns/london-westminster.town.json`. The generated map and
+60 tiles are tracked under `public/maps/london-westminster/`. All map data is
+OSM-derived under ODbL-1.0; colours, heights, stopping areas and scenery are game
+interpretations. The three stops are Elizabeth Tower, Westminster Abbey and
+Westminster City Hall, with game stopping frontages selected from mapped streets.
+This small pilot uses left-side ambient traffic and does not claim to map all London.

@@ -188,3 +188,22 @@ test('a showcase jump excludes the arrival town after an inter-town job, rather 
  try{Math.random=()=>0;g.relocateDemo();}finally{Math.random=random;}
  assert.notEqual(g.demoTown,'legnago');assert.equal(g.demoTown,'cerea','Returning to the original start is allowed when the taxi arrived from a different town');
 });
+
+test('rest requires a settled unbooked endless game, preserves pose/score, and leaves the player paused',async()=>{
+ const {readFileSync}=await import('node:fs');const data=JSON.parse(readFileSync('public/maps/veronese/manifest.json','utf8')),h=harness(data),g=h.game as any;
+ g.hasStarted=true;g.screen='paused';g.sleepUntil=0;g.saveStatus={textContent:''};g.restOverlay={hidden:true};
+ const position={x:g.car.x,z:g.car.z,heading:g.car.heading},earnings=g.mission.earningsCents;
+ g.parking.stopped=false;g.rest();assert.equal(g.mission.clockText,'07:00');g.parking.stopped=true;g.rest();
+ assert.equal(g.mission.clockText,'15:00');assert.equal(g.screen,'paused');assert.equal(g.restOverlay.hidden,false);assert.equal(g.mission.earningsCents,earnings);assert.deepEqual({x:g.car.x,z:g.car.z,heading:g.car.heading},position);
+ const elapsed=g.mission.totalElapsed;g.rest();assert.equal(g.mission.totalElapsed,elapsed,'Held or repeated rest cannot skip another night while asleep');
+});
+
+test('the bot rests between night jobs and performs no dispatch or boarding while asleep',async()=>{
+ const {readFileSync}=await import('node:fs');const data=JSON.parse(readFileSync('public/maps/veronese/manifest.json','utf8')),h=harness(data),g=h.game as any;
+ g.mission.totalElapsed=1800;g.mission.receipts=Array.from({length:2},()=>({passenger:'P',pickup:'A',destination:'B',distanceMetres:1000,seconds:100,baseCents:1000,bonusCents:0,totalCents:1000}));g.mission.earningsCents=2000;g.mission.departure={identity:'P',stopId:'cerea:municipio',remaining:.15};
+ g.lastBotRestElapsed=-Infinity;g.sleepUntil=0;g.restOverlay={hidden:true};g.saveStatus={textContent:''};g.nextDemoRelocation=3;
+ let dispatch=0;g.opening={state:'demo',update:()=>false,refreshButton:()=>{}};g.demo={activity:'',relocated:()=>{},update:()=>{dispatch++;return {...idle};}};
+ h.step({},100);assert.equal(dispatch,0);assert.equal(g.restOverlay.hidden,true);h.step({},100);assert.equal(g.restOverlay.hidden,false);assert.equal(Math.floor(g.mission.clockHours),6);assert.equal(g.waitForDrivingRelease,false);
+ h.step({},100);assert.equal(dispatch,0,'Sleep must freeze discrete interactions too, not only driving physics');assert.equal(g.mission.earningsCents,2000);
+ g.sleepUntil=0;h.step({},100);assert.equal(dispatch,1);assert.equal(g.restOverlay.hidden,true);
+});

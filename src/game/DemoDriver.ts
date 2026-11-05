@@ -1,10 +1,9 @@
 import {RouteGraph} from '../navigation/RouteGraph';
-import {createCar, type Car} from '../driving/Car';
+import {createCar, type Car, type CollisionSource} from '../driving/Car';
 import type {Actions} from '../input/Input';
 import type {Mission} from '../mission/Mission';
 import type {Parking} from '../navigation/Parking';
 import {District, inRect, projectToSegment, type Point, type Rect} from '../world/district';
-import type {SpatialGrid} from '../world/SpatialGrid';
 
 export const idleActions=():Actions=>({steer:0,throttle:0,brake:0,handbrake:false,glance:0,interact:false,pause:false,reminder:false,atlas:false,back:false,declineOffer:false,requestFares:false,radioNext:false,refreshFares:false,atlasPage:0,atlasMoveX:0,atlasMoveY:0,clearMarker:false,information:false,shiftGear:false,lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false,atlasZoom:0,atlasZoomStep:0,atlasPanX:0,atlasPanY:0});
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -34,10 +33,11 @@ export class DemoDriver {
   private previous?:Point;
   private steering=0;
   private turnCooldown=0;
+  private sawFinished=false;
   private readonly probe:Car;
   constructor(private context:District){this.probe=new (createCar(context).Car)();}
 
-  relocated(){this.route=[];this.targetKey='';this.segmentStart=undefined;this.previous=undefined;this.best=Infinity;this.stalled=0;this.recoveryPhase='none';this.steering=0;this.turnCooldown=0;}
+  relocated(){this.blocked.clear();this.route=[];this.targetKey='';this.segmentStart=undefined;this.previous=undefined;this.best=Infinity;this.stalled=0;this.recoveryPhase='none';this.steering=0;this.turnCooldown=0;}
 
   private plan(car:Car,nodeId:string,bay?:Rect){
     const {context}=this;
@@ -67,7 +67,7 @@ export class DemoDriver {
   }
 
   /** Bounded local detour around an unexpected obstruction, then resume the street route. */
-  private detour(car:Car,aim:Point,colliders:Rect[]|SpatialGrid<Rect>){
+  private detour(car:Car,aim:Point,colliders:CollisionSource){
     const clear=(p:Point)=>{
       const b=this.context.district.bounds;
       return p.x>b.minX+1.3&&p.x<b.maxX-1.3&&p.z>b.minZ+1.3&&p.z<b.maxZ-1.3&&
@@ -99,7 +99,9 @@ export class DemoDriver {
     return result;
   }
 
-  update(dt:number,car:Car,parking:Parking,mission:Mission,colliders:Rect[]|SpatialGrid<Rect>):Actions{
+  update(dt:number,car:Car,parking:Parking,mission:Mission,colliders:CollisionSource):Actions{
+    if(mission.finished&&!this.sawFinished){this.relocated();this.blocked.clear();}
+    this.sawFinished=mission.finished;
     this.elapsed+=dt;this.turnCooldown=Math.max(0,this.turnCooldown-dt);
     if(this.previous)this.distanceDriven+=distance(car,this.previous);
     this.previous={x:car.x,z:car.z};
@@ -202,7 +204,7 @@ export class DemoDriver {
       const next=this.route[i+1];
       if(next){const turn=Math.abs(angle(Math.atan2(next.x-to.x,-(next.z-to.z))-Math.atan2(to.x-from.x,-(to.z-from.z))));
         if(length>.1&&turn>.22){const corner=Math.max(3.5,10*(1-turn/Math.PI));limit=Math.min(limit,Math.sqrt(corner*corner+2*3.5*Math.max(0,total-lookahead*.65)));}}
-      else if(target)limit=Math.min(limit,Math.sqrt(2*3*Math.max(0,total-1)));
+      else limit=Math.min(limit,Math.sqrt(2*3*Math.max(0,total-1)));
       if(total>120&&seek<=0)break;
       from=to;
     }

@@ -6,21 +6,28 @@
 [Game vision](VISION.md) defines the direction and scope. [Loadable districts](MAPS.md) describes the map format, sources and the new real-place pilot.
 
 The default **Veronese world** is one continuous real-place map. Work a
-07:00–17:00 [taxi shift](TAXI.md), choose local or inter-town fares, collect passengers
+continuous day/night [taxi service](TAXI.md), choose local or inter-town fares, collect passengers
 and find their destinations using street signs, landmarks and the stopped-only atlas.
-The accelerated day takes about 20 active minutes; pause and atlas reading stop time.
+There is no closing time. Rest for 8 hours from the pause menu when stopped with no passenger; normal pause and atlas reading stop time.
 The game loads its assets locally and runs offline.
 
 ## Default world
 
 **Veronese world** joins Cerea, Legnago, Bovolone, Sanguinetto, Nogara, Casaleone,
 Verona centro–Borgo Roma, San Giovanni Lupatoto and Oppeano in one continuous map.
-Fresh shifts start at a random town landmark. One fare list mixes local trips with
+Fresh games start at a random town landmark. One fare list mixes local trips with
 inter-town jobs, which include an extra €12 plus distance pay. Passengers and saved
 shifts can cross the old region boundary. Older maps are hidden from normal selection;
 explicit legacy URLs/launcher IDs and their existing save slots remain available.
 The demo alone jumps to another town after three paid jobs. See
 [driving analysis and measurements](docs/BOT_DRIVING.md).
+
+## Creating and choosing maps
+
+The chooser now includes **London Westminster**, a small real-street pilot with
+Elizabeth Tower, Westminster Abbey and Westminster City Hall. Veronese remains
+the default. See [the local/cloud map-authoring workflow](docs/MAP_WORKFLOW.md)
+for creating and registering maps from other parts of the world through a PR.
 
 ## Opening
 
@@ -29,7 +36,7 @@ button. The bot requests fares, collects passengers and earns money using ordina
 and service rules. After closing time it keeps exploring; it never resets on a timer.
 **Start** freezes it for rules and current controls. **Begin game** discards the demo and starts
 fresh once held controls are released. The instructions retain settings
-and **Continue saved shift**; the demo never saves or changes your dispatch history.
+and **Continue saved game**; the demo never saves or changes your dispatch history.
 The driving header shows only the current goal’s landmark, town and street, with earnings
 beside the clock. Taxi-radio updates stay brief at stops and disappear in motion. The
 demo badge reads `DEMO  MODE`.

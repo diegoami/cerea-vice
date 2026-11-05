@@ -1,3 +1,4 @@
+import {DayNight} from '../DayNight';
 import {loadTile} from './loadTile';
 import * as THREE from 'three';
 import type {District} from '../district';
@@ -16,6 +17,7 @@ export class StreamingWorld {
  private readonly materials=new TileMaterials();
  private near:Point;
  private surfaces;private detail=true;private sun=new THREE.DirectionalLight(light.sun,2);private ambient=new THREE.HemisphereLight(light.sky,light.bounce,1.5);
+ private cycle?:DayNight;
  private sky:THREE.CanvasTexture;private skyHour=-1;
  constructor(readonly context:District){
   const m=context.district.streaming;if(!context.assetBase)throw new Error('Missing local tile asset directory');if(!m)throw new Error('Streaming world needs a manifest');
@@ -25,17 +27,19 @@ export class StreamingWorld {
   this.stream=new TileStream(m,ref=>loadTile(context,ref),(payload,ref)=>{
    const resource=renderTile(context,payload,ref,this.surfaces,this.materials);resource.setDetail(this.detail);this.scene.add(resource.group);this.position(resource);return resource;
   });
+  if(context.district.taxi?.endless){this.scene.remove(this.sun,this.ambient);this.cycle=new DayNight(this.scene,context.district.latitude??45);}
   this.updateDaylight(7);this.updateFrame(context.spawn);
  }
  private position(tile:RenderedTile){tile.group.position.set(tile.anchor.x-this.frame.origin.x,0,tile.anchor.z-this.frame.origin.z);const distance=distanceToBounds(this.near,tile.bounds);tile.group.visible=distance<=this.context.district.streaming!.loadRadius-45;tile.updatePlates(distance);}
- updateFrame(point:Point){this.near={x:point.x,z:point.z};this.frame.rebase(point);for(const tile of this.stream.resident.values())this.position(tile);this.stream.update(point);}
+ updateFrame(point:Point&{heading?:number}){this.near={x:point.x,z:point.z};this.frame.rebase(point);this.cycle?.position(this.frame.toLocal(point),point.heading??0);for(const tile of this.stream.resident.values())this.position(tile);this.stream.update(point);}
  readyAt(point:Point){return this.stream.readyAt(point);}
  setDetail(enabled:boolean){this.detail=enabled;for(const tile of this.stream.resident.values())tile.setDetail(enabled);}
  updateDaylight(hour:number){
+  if(this.cycle){this.cycle.update(hour);return;}
   const daylight=Math.max(0,Math.sin((hour-6)/12*Math.PI)),sky=new THREE.Color(haze.low).lerp(new THREE.Color(haze.high),daylight);
   this.scene.fog!.color.copy(sky);this.sun.intensity=1.8+daylight*1.4;this.ambient.intensity=1.05+daylight*.45;
   const angle=(hour-6)/12*Math.PI;this.sun.position.set(Math.cos(angle)*350,Math.max(70,Math.sin(angle)*350),100);
   if(this.skyHour!==Math.floor(hour*60)){this.skyHour=Math.floor(hour*60);const canvas=this.sky.image as HTMLCanvasElement,c=canvas.getContext('2d')!,g=c.createLinearGradient(0,0,0,128);g.addColorStop(0,skyGradient.zenith);g.addColorStop(.48,'#'+sky.getHexString());g.addColorStop(.58,skyGradient.glow);g.addColorStop(1,skyGradient.below);c.fillStyle=g;c.fillRect(0,0,16,128);this.sky.needsUpdate=true;}
  }
- dispose(){this.stream.dispose();this.materials.dispose();this.sky.dispose();for(const m of [...this.surfaces.mats,...this.surfaces.groundMats,this.surfaces.roof]){m.map?.dispose();m.dispose();}}
+ dispose(){this.cycle?.dispose();this.stream.dispose();this.materials.dispose();this.sky.dispose();for(const m of [...this.surfaces.mats,...this.surfaces.groundMats,this.surfaces.roof]){m.map?.dispose();m.dispose();}}
 }

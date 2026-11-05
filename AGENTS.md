@@ -20,8 +20,10 @@ client, built from WSL with `npm run desktop:win`.
   into driving. Looking is independent of steering and returns forward on idle.
 - Preserve meaningful real street connections, one-way access and compass
   relationships. Building clearance and street-name ownership are important.
-- Taxi shifts run 07:00–17:00 with deliberate pickup/dropoff, base fares and
-  decreasing speed bonuses. Atlas use and pause stop simulation time.
+- Default maps have continuous day/night taxi service, with deliberate pickup/dropoff,
+  base fares and decreasing speed bonuses. Optional rest advances eight hours only
+  when fully stopped with no booked passenger. Atlas and normal pause freeze time.
+  Legacy fixture maps retain their original shift/journey rules.
 
 ## Validation and artifacts
 
@@ -80,3 +82,13 @@ The initial whole-project PR targets `review/empty-baseline` and is a review
 vehicle, not a normal change to `main`. It intentionally includes every project
 file from the beginning. Do not merge that PR to publish game changes or use
 its baseline as a development branch. Future ordinary PRs target `main`.
+
+
+## Creating maps from other world regions
+
+When asked to create or add a selectable map, read `docs/MAP_WORKFLOW.md`. Use
+`npm run map -- scaffold/fetch/candidates/build` and the existing import/validation
+pipeline; check in the real OSM snapshot, query/provenance, recipe/frame, map/tiles
+and visible registry entry. New regional frames must use the appropriate UTM zone
+and hemisphere with `northAligned: true`. Keep legacy frames and save compatibility
+intact. Validate and open a PR; map authoring never authorizes a merge or publication.

@@ -31,8 +31,8 @@ export function combineRegions(parts:DistrictDefinition[]):DistrictDefinition{
   description:'Verona, San Giovanni Lupatoto, Oppeano, Bovolone, Cerea, Legnago, Casaleone, Sanguinetto and Nogara, joined by the existing real roads in one continuous world.',
   attribution:south.attribution,sourceUrl:south.sourceUrl,stoppingPolicy:'anywhere',bounds,nodes,roads,features,landmarks,parkingZones,
   buildings:parts.flatMap(p=>p.buildings),areas:parts.flatMap(p=>p.areas),waterAreas:parts.flatMap(p=>p.waterAreas??[]),pavedAreas:parts.flatMap(p=>p.pavedAreas??[]),
-  spawn:{...south.spawn},mission:{...south.mission,name:'Veronese taxi shift',objective:'Serve local and inter-town passengers across the Veronese towns.'},
-  taxi:{...south.taxi!,stops,fares:parts.flatMap(p=>p.taxi!.fares),mixedTownFares:true,interTownPremiumCents:1200},
+  spawn:{...south.spawn},mission:{...south.mission,name:'Veronese taxi service',objective:'Drive local and inter-town passengers at any hour. Rest when you choose.'},
+  taxi:{...south.taxi!,stops,fares:parts.flatMap(p=>p.taxi!.fares),endless:true,mixedTownFares:true,interTownPremiumCents:1200},
   streaming:{...south.streaming!,loadRadius:Math.max(...parts.map(p=>p.streaming!.loadRadius)),retainRadius:Math.max(...parts.map(p=>p.streaming!.retainRadius)),tiles,regions:parts.map(p=>({id:p.id,name:p.name,nodeIds:p.nodes.map(n=>n.id)})),portals:[{from:south.id,to:north.id,nodeId:gate.nodeId}],joinedGateways:[points.get(gate.nodeId)!],
    provenance:{...south.streaming!.provenance,synthetic:'Union of the existing Lower Veronese plain and Verona–Oppeano maps at their shared Via Quaiotto gateway. Real streets and towns retained; inter-town roads remain shortened. Bays, signs and props are game placements.'}},
  };

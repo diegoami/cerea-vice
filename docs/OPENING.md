@@ -21,7 +21,7 @@ After three paid jobs the unified-world demo jumps to a landmark in another town
 retaining clock, score and receipts, once the passenger has walked away. Player
 sessions never jump. The original no-teleport rule still governs obstacle recovery;
 the town jump is the owner's explicit showcase request. There is no timed reset.
-After closing, the driver keeps exploring without resetting the shift.
+Continuous maps never close. Optional rest advances eight hours at a settled, unbooked stop; the bot sometimes rests at night. Pausing and atlas reading otherwise freeze time.
 
 The demo cannot save, request player information, change the atlas or cross regions.
 It bypasses the player's fare-list UI by calling the same stopped request, selection

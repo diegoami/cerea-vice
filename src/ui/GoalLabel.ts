@@ -6,5 +6,6 @@ export function goalLabel(target:NavigationTarget|undefined,stop?:TaxiStop,fallb
  const id=stop?.townId??(stop?.id.includes(':')?stop.id.split(':')[0]:undefined);
  const inferred=id?.replace(/-/g,' ').replace(/\b[a-z]/g,c=>c.toUpperCase())??fallbackTown;
  const town=id==='verona-south'?'Verona':id==='cerea'?'Cerea':stop?.town??suffix?.[1]??inferred;
- return {landmark:target.name.replace(/\s*\([^)]+\)$/,''),town,street:target.road??stop?.road??''};
+ const townSuffix=Boolean(suffix)&&(!stop?.town||suffix![1]===stop.town);
+ return {landmark:townSuffix?target.name.replace(/\s*\([^)]+\)$/,''):target.name,town,street:target.road??stop?.road??''};
 }

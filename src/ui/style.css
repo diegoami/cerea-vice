@@ -1017,3 +1017,17 @@ h1 { letter-spacing:0; line-height:1.05; }
 .deadline { min-width:0; }
 #goal-town:not(:empty)::after { content:' ·'; color:var(--muted); }
 .earnings-counter { pointer-events:auto; }
+
+/* A fixed address callout identifies the goal; it never points along a route. */
+.goal-caption { color:var(--accent); font:15px/1 Vice,monospace; letter-spacing:1.2px; margin-bottom:4px; }
+.goal-caption > [aria-hidden] { font-size:19px; letter-spacing:0; }
+.topbar { height:148px; }
+@media(max-width:700px) {
+ .topbar { height:180px; }
+ .compass-panel { top:122px; }
+ .goal-caption { font-size:13px; margin-bottom:3px; }
+ #hud:has(.overlay:not([hidden]) .opening-instructions) .goal-caption { display:none; }
+}
+
+#rest-overlay { position:absolute;inset:0;z-index:60;display:grid;place-items:center;background:#050911f5;color:var(--cream);font:26px Vice,monospace;pointer-events:auto; }
+#rest-overlay[hidden] { display:none; }

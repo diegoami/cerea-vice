@@ -61,7 +61,8 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
 
  }
  for(const p of payload.boards){const q=local(p.position);if(p.mounted)sign(group,q.x,p.height,q.z,p.rows,p.width,p.angle,p.color);else signpost(group,q.x,q.z,p.rows,p.angle,p.color,p.width,p.height);}
- scenery.dressStreets(detail,[],payload.props.map(p=>({...p,...local(p)})));
+ const life=scenery.planLife(ref.bounds,payload.ground==='rural',[...payload.plates,...payload.boards]);
+ scenery.dressStreets(detail,[],[...payload.props,...life].map(p=>({...p,...local(p)})));
  group.traverse(o=>{if(o instanceof THREE.Mesh&&!Array.isArray(o.material))o.material=materials.use(o.material);});
  const batch=(parent:THREE.Group,exclude?:THREE.Object3D[])=>{
   parent.updateMatrixWorld(true);const groups=new Map<THREE.Material,THREE.BufferGeometry[]>(),originals:THREE.Mesh[]=[];

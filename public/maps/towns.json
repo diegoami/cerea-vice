@@ -181,6 +181,18 @@
           "bay": "oppeano:sangiovanni"
         }
       ]
+    },
+    {
+      "id": "london-westminster",
+      "name": "London Westminster",
+      "map": "london-westminster/manifest.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "local",
+      "taxi": true,
+      "provenance": true,
+      "spec": "towns/london-westminster.town.json",
+      "hidden": false
     }
   ]
 }

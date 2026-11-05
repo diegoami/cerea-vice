@@ -67,7 +67,8 @@ class Mission {
 
   constructor(options:{seed?:number;authored?:boolean}={}){this.options=options;this.reset();}
   get taxiMode(){return Boolean(this.taxi);}
-  get shiftSeconds(){return this.taxi?(this.taxi.endHour-this.taxi.startHour)*3600/this.taxi.clockRate:district.mission.duration;}
+  get endless(){return Boolean(this.taxi?.endless);}
+  get shiftSeconds(){return this.endless?Infinity:this.taxi?(this.taxi.endHour-this.taxi.startHour)*3600/this.taxi.clockRate:district.mission.duration;}
   get duration(){return this.taxi?this.shiftSeconds:district.mission.duration;}
   get remaining(){return Math.max(0,this.duration-(this.taxi?this.totalElapsed:this.elapsed));}
   get finished(){return this.state==='success'||this.state==='late'||this.state==='shift-complete';}
@@ -206,7 +207,7 @@ class Mission {
     if(this.boarding>0)return `${this.passenger} is getting in. Stay stopped.`;
     return `${this.taxiStage==='pickup'?`Collect ${this.passenger} at`:`Take ${this.passenger} to`} ${target.name}, ${target.road}. Stop in ${target.bay.name}.`;
   }
-  get clockHours(){return this.taxi?Math.min(this.taxi.endHour,this.taxi.startHour+this.totalElapsed*this.taxi.clockRate/3600):7;}
+  get clockHours(){if(!this.taxi)return 7;const hour=this.taxi.startHour+this.totalElapsed*this.taxi.clockRate/3600;return this.endless?((hour%24)+24)%24:Math.min(this.taxi.endHour,hour);}
   private clockAt(hour:number){const minutes=Math.min(24*60-1,Math.floor(hour*60+1e-6));return `${Math.floor(minutes/60).toString().padStart(2,'0')}:${(minutes%60).toString().padStart(2,'0')}`;}
   get clockText(){return this.clockAt(this.clockHours);}
   get shiftLabel(){return this.taxi?`${this.clockAt(this.taxi.startHour)}–${this.clockAt(this.taxi.endHour)}`:'';}
@@ -223,6 +224,12 @@ class Mission {
     this.randomState=(this.options.seed??Math.floor(Math.random()*4294967296))>>>0;
     this.notice=this.taxi?this.freeNotice():district.mission.hint;
     this.revision++;
+  }
+  /** Voluntary rest changes the clock, never fares or earnings. The caller enforces a settled stop. */
+  rest(hours=8){
+    if(!this.endless||this.hasRide||this.boarding>0||!Number.isFinite(hours)||hours<=0||hours>24)return false;
+    const seconds=hours*3600/this.taxi!.clockRate;this.totalElapsed+=seconds;this.elapsed+=seconds;this.departure=null;this.revision++;
+    this.notice=`Rested ${hours} hours. ${this.freeNotice()}`;return true;
   }
   recordDirectionRequest(stopped:boolean,legallyParked:boolean):boolean {
     if(!stopped||this.finished)return false;
@@ -258,6 +265,7 @@ class Mission {
       boarding:this.boarding,randomState:this.randomState,notice:this.notice});
   }
   restore(value:MissionSnapshot){
+    if(this.endless&&value?.state==='shift-complete')value={...value,state:'active',notice:'Service continues. Stop to read your fare or request a new one.'};
     const nonnegative=(n:number)=>Number.isFinite(n)&&n>=0;
     const integer=(n:number)=>Number.isSafeInteger(n)&&n>=0;
     if(!value||!nonnegative(value.elapsed)||!nonnegative(value.totalElapsed)||value.totalElapsed>this.duration||value.elapsed>value.totalElapsed||
@@ -277,7 +285,7 @@ class Mission {
         value.fareBoard.some(o=>!validFare(o)||!integer(o.id)||o.id>=value.boardSerial||typeof o.quoted!=='boolean'||!nonnegative(o.approachDistance)||o.approachDistance>1000000||(!o.quoted&&o.approachDistance!==0))||
         ids.size!==value.fareBoard.length||(fare!==null&&value.fareBoard.length>0)||
         (fare===null&&(value.taxiStage!=='pickup'||value.approachDistance!==0))||(value.boarding>0&&(fare===null||value.taxiStage!=='dropoff'))||
-        !['active','shift-complete'].includes(value.state)||(value.state==='shift-complete')!==(value.totalElapsed===this.duration))throw new Error('Invalid saved fare');
+        !['active','shift-complete'].includes(value.state)||(!this.endless&&(value.state==='shift-complete')!==(value.totalElapsed===this.duration))||(this.endless&&value.state!=='active'))throw new Error('Invalid saved fare');
       if(fare)distance=this.pairDistance(fare);
     }else if(value.currentFare!==null||value.previousFare!==null||value.fareBoard.length||value.boardSerial||value.boarding||value.receipts.length)throw new Error('Invalid saved journey');
     for(const r of value.receipts)if(!r||![r.passenger,r.pickup,r.destination].every(s=>typeof s==='string'&&s.length<=200)||

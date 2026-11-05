@@ -20,6 +20,8 @@ export function mapSignature(context:District){
 }
 /** Signatures earlier builds wrote: the whole district including tile sizes, and maps whose tiles were since regenerated. */
 const supersededSignatures:Record<string,string[]>={
+ // Endless service retains the same map, fares and coordinates; completed old shifts resume as active.
+ "veronese":["c5d8a6c5"],
  // Up to 0.14.0-rc.1. Their tiles were regenerated for town signs and single direction rows (#84); the map data is unchanged.
  // The Lower Veronese plain then gained the road north of Bovolone to its gateway (#112, aabb8738); earlier saves still fit.
  "lower-verona":["fabb226f","aabb8738"],

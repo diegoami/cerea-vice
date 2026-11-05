@@ -1,7 +1,10 @@
-# Cerea taxi shift
+# Taxi driving, day and night
 
-The default **Veronese world** now offers the same shift across nine towns and 69
-landmarks. Fresh sessions choose a random town and landmark. The fare list contains
+The default **Veronese world** now offers continuous taxi service across nine towns and 69
+landmarks, without a 17:00 cutoff. The clock cycles through day and night; use Rest for
+8 hours from pause when fully stopped with no booked passenger. The bot sometimes
+rests at night between jobs. Fares, earnings and save state continue across midnight.
+Fresh sessions choose a random town and landmark. The fare list contains
 two local and two inter-town jobs with pickups in your current town. One inter-town
 job serves a nearby town; the other can serve any other town. Its quote includes an
 extra €12 plus the normal distance fare and collection supplement. Both kinds use
@@ -9,6 +12,8 @@ the same deliberate pickup/dropoff, boarding, speed-bonus and save/load rules.
 Passengers can cross the old Lower Veronese plain/Verona–Oppeano boundary without a
 reload. The demo alternates both kinds and jumps to another town after three paid
 jobs, preserving its score and clock; player travel always follows the roads.
+
+## Legacy standalone maps
 
 The standalone Cerea/Harbor descriptions below remain useful for legacy maps, which
 are hidden from normal selection. Their saves remain in their existing slots.

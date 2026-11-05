@@ -4,13 +4,15 @@ import { roadWidth, inRect, pointInPolygon, projectToSegment, type Point } from 
 import { box, material } from './builders';
 import { District } from "./district";
 import { facades, shutters, facadeTrim as trim, props } from './palette';
-export interface PropPlan extends Point {kind:'tree'|'lamp'|'car'|'person';angle:number;}
+export interface PropPlan extends Point {kind:'tree'|'lamp'|'car'|'person'|'bench'|'dog'|'cow'|'planter';angle:number;}
 export interface Sightline {position:Point;viewpoint?:Point}
 export function createScenery(context:District){
 const {district,roads,nodeById,isPaved}=context;
 // Façades vary by 65 m block; a "full" district varies them building by building (#24).
-function facadeVariant(x:number,z:number){return district.preset==='full'?Math.abs(Math.round(x*7+z*13))%4:Math.abs(Math.floor(x/65)*13+Math.floor(z/65)*7)%4;}
-const palette=facades;
+function facadeVariant(x:number,z:number){return district.preset==='full'||district.taxi?.endless?Math.abs(Math.round(x*7+z*13))%(district.taxi?.endless?8:4):Math.abs(Math.floor(x/65)*13+Math.floor(z/65)*7)%4;}
+const lively=Boolean(district.taxi?.endless);
+let lampGlow:THREE.MeshBasicMaterial|undefined;
+const palette=lively?[...facades,0x9fb9c9,0xb8c5a1,0xe1b8ad,0xe6d59a]:facades;
 function facadeColor(x:number,z:number){return palette[facadeVariant(x,z)];}
 function paintedFacade(variant:number,ground=false){
   const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
@@ -20,7 +22,7 @@ function paintedFacade(variant:number,ground=false){
   for(const x of [20,82]){
     c.fillStyle=trim.frame;c.fillRect(x-3,22,35,64);
     c.fillStyle=trim.glass;c.fillRect(x,25,29,56);
-    c.fillStyle=shutters[variant];
+    c.fillStyle=shutters[variant%shutters.length];
     for(const side of [-1,1]){const sx=x+(side<0?-13:29);c.fillRect(sx,23,12,61);c.strokeStyle=trim.slat;for(let y=28;y<80;y+=6){c.beginPath();c.moveTo(sx,y);c.lineTo(sx+12,y);c.stroke();}}
     c.fillStyle=trim.mullion;c.fillRect(x+13,25,2,56);c.fillRect(x,50,29,2);
   }
@@ -47,8 +49,8 @@ function roofGeometry(points:Point[],holes:Point[][],height:number){
   flat.dispose();const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geometry.computeVertexNormals();return geometry;
 }
 function createFacadeMaterials(){
-  const mats=[0,1,2,3].map(v=>paintedFacade(v));
-  const groundMats=[0,1,2,3].map(v=>paintedFacade(v,true));
+  const mats=palette.map((_c,v)=>v).map(v=>paintedFacade(v));
+  const groundMats=palette.map((_c,v)=>v).map(v=>paintedFacade(v,true));
   const tile=document.createElement('canvas');tile.width=32;tile.height=32;const c=tile.getContext('2d')!;
   c.fillStyle='#915b47';c.fillRect(0,0,32,32);c.strokeStyle='#bd8058';c.lineWidth=2;
   for(let x=0;x<=32;x+=8){c.beginPath();c.moveTo(x,0);c.lineTo(x,32);c.stroke();}
@@ -87,21 +89,44 @@ function planProps(signs:Sightline[]=[]):PropPlan[]{
   const offset=roadWidth(road)/2+radius+1.8;
   const p={x:(a.x+b.x)/2-(b.z-a.z)/length*offset,z:(a.z+b.z)/2+(b.x-a.x)/length*offset};
   const bounds=district.bounds;if(p.x<bounds.minX+4||p.x>bounds.maxX-4||p.z<bounds.minZ+4||p.z>bounds.maxZ-4)continue;
-  if([-radius,0,radius].some(dx=>[-radius,0,radius].some(dz=>isPaved({x:p.x+dx,z:p.z+dz})||context.buildings.at({x:p.x+dx,z:p.z+dz},.5).some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-.5))||district.parkingZones.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-2)))))continue;
+  if([-radius,0,radius].some(dx=>[-radius,0,radius].some(dz=>isPaved({x:p.x+dx,z:p.z+dz})||(lively&&context.inWaterArea({x:p.x+dx,z:p.z+dz}))||context.buildings.at({x:p.x+dx,z:p.z+dz},.5).some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-.5))||district.parkingZones.some(r=>inRect({x:p.x+dx,z:p.z+dz},r,-2)))))continue;
   if(signs.some(sign=>Math.hypot(sign.position.x-p.x,sign.position.z-p.z)<5||(sign.viewpoint&&Math.hypot(projectToSegment(p,sign.position,sign.viewpoint).x-p.x,projectToSegment(p,sign.position,sign.viewpoint).z-p.z)<3)))continue;
   if(result.some(q=>Math.hypot(q.x-p.x,q.z-p.z)<15))continue;
   result.push({...p,kind,angle:Math.atan2(-(b.z-a.z),b.x-a.x)});
  }
  return result;
 }
+function planLife(bounds:{minX:number;maxX:number;minZ:number;maxZ:number},rural:boolean,signs:Sightline[]=[]):PropPlan[]{
+ if(!lively||district.preset==='sketch')return [];
+ const seed=Math.abs(Math.floor(bounds.minX)*31+Math.floor(bounds.minZ)*73),kinds=rural?['cow','tree','dog'] as const:['bench','person','planter','dog'] as const;
+ for(let i=0;i<18;i++){
+  const p={x:bounds.minX+8+((seed*17+i*67)%233),z:bounds.minZ+8+((seed*47+i*89)%233)};
+  const nearby=context.roadGrid.at(p,rural?50:25);
+  const near=nearby.map(r=>{const q=projectToSegment(p,nodeById(r.a),nodeById(r.b));return {distance:Math.hypot(q.x-p.x,q.z-p.z)};}).sort((a,b)=>a.distance-b.distance)[0];if(!near||near.distance<7||near.distance>(rural?45:22)||context.inWaterArea(p))continue;
+  if([-2,0,2].some(dx=>[-2,0,2].some(dz=>isPaved({x:p.x+dx,z:p.z+dz})||(lively&&context.inWaterArea({x:p.x+dx,z:p.z+dz}))||context.buildings.at({x:p.x+dx,z:p.z+dz},1).some(b=>inRect({x:p.x+dx,z:p.z+dz},b,-1))||district.parkingZones.some(b=>inRect({x:p.x+dx,z:p.z+dz},b,-3)))))continue;
+  if(signs.some(s=>Math.hypot(s.position.x-p.x,s.position.z-p.z)<6))continue;
+  return [{...p,kind:kinds[(seed+i)%kinds.length],angle:(seed%628)/100}];
+ }
+ return [];
+}
 function dressStreets(parent:THREE.Group,signs:Sightline[]=[],planned=planProps(signs)){
  for(const p of planned){
   const group=new THREE.Group();group.position.set(p.x,0,p.z);group.rotation.y=p.angle;parent.add(group);
   if(p.kind==='tree'){box(group,0,1.5,0,.35,3,.35,props.trunk);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(2,0),material(props.crown));crown.position.y=3.4;group.add(crown);}
-  if(p.kind==='lamp'){box(group,0,2.7,0,.16,5.4,.16,props.post);box(group,.4,5.4,0,1.2,.15,.4,props.lampHead);}
+  if(p.kind==='lamp'){box(group,0,2.7,0,.16,5.4,.16,props.post);const head=box(group,.4,5.4,0,1.2,.15,.4,props.lampHead);if(lively)(head as THREE.Mesh).material=lampGlow??=new THREE.MeshBasicMaterial({color:props.lampHead});}
   if(p.kind==='car'){box(group,0,.65,0,3.8,.8,1.65,props.carBody);box(group,0,1.25,0,2,.6,1.5,props.carGlass);for(const x of [-1.2,1.2])for(const z of [-.8,.8])box(group,x,.35,z,.6,.6,.2,props.tyre);}
   if(p.kind==='person')group.add(createPerson(`${p.x}/${p.z}`));
+  if(p.kind==='bench'){box(group,0,.5,0,1.9,.14,.6,props.trunk);box(group,0,.95,.25,1.9,.6,.12,props.trunk);for(const x of [-.7,.7])box(group,x,.23,0,.14,.45,.5,props.post);}
+  if(p.kind==='planter'){box(group,0,.3,0,.8,.6,.8,0x9e6c53);box(group,0,.65,0,.7,.2,.7,props.crown);for(const x of [-.2,.2])box(group,x,.85,.1,.16,.15,.16,0xdfc08a);}
+  if(p.kind==='dog'||p.kind==='cow'){
+   const cow=p.kind==='cow',scale=cow?1.7:.75,colour=cow?0xd6d2bf:0x9a7554;
+   box(group,0,.6*scale,0,1*scale,.5*scale,.45*scale,colour);box(group,-.65*scale,.78*scale,0,.42*scale,.35*scale,.35*scale,colour);
+   for(const x of [-.33,.33])for(const z of [-.15,.15])box(group,x*scale,.22*scale,z*scale,.12*scale,.45*scale,.12*scale,props.tyre);
+   box(group,.57*scale,.65*scale,0,.3*scale,.08*scale,.08*scale,props.trunk);
+   if(cow)box(group,.1*scale,.85*scale,0,.35*scale,.02,.38*scale,props.tyre);
+   else for(const z of [-.15,.15])box(group,-.65*scale,1.02*scale,z*scale,.12*scale,.22*scale,.08*scale,props.trunk);
+  }
  }
 }
-return {facadeVariant,facadeColor,roofGeometry,createFacadeMaterials,decorateBuildings,planProps,dressStreets};
+return {facadeVariant,facadeColor,roofGeometry,createFacadeMaterials,decorateBuildings,planProps,planLife,dressStreets};
 }

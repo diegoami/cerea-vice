@@ -1,3 +1,4 @@
+import {Traffic} from "../world/Traffic";
 import {chooseStartPlace} from "./StartPlace";
 import { DemoDriver, idleActions } from "./DemoDriver";
 import { Opening } from "../ui/Opening";
@@ -50,6 +51,8 @@ class Game {
   private readonly people = new PassengerPresence(context,this.world.scene,this.world.collisionIndex);
   private readonly streamStatus=document.createElement("div");
   private readonly car = new Car();
+  private readonly traffic=district.taxi?.endless?new Traffic(context,this.world.scene,this.world.collisionIndex):undefined;
+  private get collisionSource(){return this.traffic?.collisionSource??this.world.collisionIndex;}
   private readonly cockpit = new CockpitCamera(this.world.frame);
   private readonly interior = new Cockpit(this.world.scene);
   private readonly input = new Input();
@@ -63,6 +66,10 @@ class Game {
   private gatewayArmed=false;
   private savedThisPause=false;
   private hasStarted=false;
+  private restButton?:HTMLButtonElement;
+  private sleepUntil=0;
+  private lastBotRestElapsed=-Infinity;
+  private readonly restOverlay=document.createElement('div');
   private readonly parking = new Parking();
   private readonly mission = new Mission();
   private readonly hud: InstanceType<typeof Hud>;
@@ -92,6 +99,7 @@ class Game {
       `First-person view of ${district.name}`,
     );
     root.append(this.renderer.domElement);
+    this.restOverlay.id='rest-overlay';this.restOverlay.hidden=true;this.restOverlay.textContent='Resting · 8 hours';this.restOverlay.setAttribute('role','status');root.append(this.restOverlay);
     this.streamStatus.id="stream-status";this.streamStatus.hidden=true;this.streamStatus.setAttribute("role","status");root.append(this.streamStatus);
     if(this.timingPanel){this.timingPanel.id="performance-stats";this.timingPanel.setAttribute("aria-label","CPU profiling timings");root.append(this.timingPanel);}
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation(),(choice,id)=>this.chooseFare(choice,id));
@@ -108,8 +116,9 @@ class Game {
     this.radio.onChange=()=>{radioStatus.textContent=this.radio.message;};this.radio.onChange();
     void this.radio.load();
     this.settingsPanel.addAction('Change controls',()=>this.controlsPanel.open());
-    this.saveButton=this.settingsPanel.addAction('Save shift',()=>this.save());
-    this.settingsPanel.addAction('Continue saved shift',()=>this.load());
+    if(this.mission.endless)this.restButton=this.settingsPanel.addAction('Rest for 8 hours',()=>this.rest());
+    this.saveButton=this.settingsPanel.addAction(this.mission.endless?'Save game':'Save shift',()=>this.save());
+    this.settingsPanel.addAction(this.mission.endless?'Continue saved game':'Continue saved shift',()=>this.load());
     this.mainScreenButton=this.settingsPanel.addAction('Main screen',()=>this.leaveForMainScreen());
     this.saveStatus=document.createElement('p');this.saveStatus.setAttribute('role','status');this.saveStatus.className='save-status';
     this.saveButton.parentElement!.append(this.saveStatus);
@@ -127,7 +136,7 @@ class Game {
     });
     window.addEventListener("pointerdown",()=>this.sound.unlock());
     window.addEventListener("keydown",()=>this.sound.unlock());
-    window.addEventListener("pagehide",()=>{this.opening?.dispose();this.sound.dispose();if(this.world instanceof StreamingWorld)this.world.dispose();},{once:true});
+    window.addEventListener("pagehide",()=>{this.traffic?.dispose();this.opening?.dispose();this.sound.dispose();this.world.dispose();},{once:true});
     this.resize();
     window.addEventListener("resize", () => this.resize());
     this.watchPixelRatio();
@@ -144,7 +153,7 @@ class Game {
     });
     this.cockpit.update(1, this.car, 0);
     this.arriveFromCrossing();
-    if(!this.hasStarted){if(district.id==="veronese"){const place=chooseStartPlace(context);this.car.reset(place);this.demoTown=place.townId;this.hud.forgetAtlasMarker(this.car);this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);}this.demo=new DemoDriver(context);this.opening=new Opening(root,context,this.input.bindings);this.screen="running";}
+    if(!this.hasStarted){if(district.taxi?.endless){const place=chooseStartPlace(context);this.car.reset(place);this.demoTown=place.townId;this.hud.forgetAtlasMarker(this.car);this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);}this.demo=new DemoDriver(context);this.opening=new Opening(root,context,this.input.bindings);this.screen="running";}
     this.renderer.setAnimationLoop((time) => this.frame(time));
   }
 
@@ -186,8 +195,8 @@ class Game {
     if (this.screen === "running") return;
     if(this.screen === "atlas")this.waitForDrivingRelease=true;
     if (this.screen === "briefing" || this.screen === "result") {
-      this.hasStarted=true;
-      const startPlace=district.id==="veronese"?chooseStartPlace(context):undefined;
+      this.hasStarted=true;this.sleepUntil=0;if(this.restOverlay)this.restOverlay.hidden=true;this.traffic?.clear();
+      const startPlace=district.taxi?.endless?chooseStartPlace(context):undefined;
       this.car.reset(startPlace);
       this.parking.reset();
       this.mission.reset();
@@ -265,11 +274,23 @@ class Game {
         car:{x,z,heading,speed,gear,steering,collisions},unsafeStops:this.parking.unsafeStops,mission:this.mission.snapshot(),atlas:this.hud.saveAtlas()};
       decodeSave(context,JSON.stringify(value));
       localStorage.setItem(saveKey(context),JSON.stringify(value));
-      this.saveStatus.textContent=`Saved ${this.mission.clockText}. A new shift keeps this save until you save again.`;this.savedThisPause=true;
+      this.saveStatus.textContent=`Saved ${this.mission.clockText}. ${this.mission.endless?"A new game":"A new shift"} keeps this save until you save again.`;this.savedThisPause=true;
     }catch{this.saveStatus.textContent='Save failed. Storage is unavailable or full; the previous save has been kept.';}
   }
 
-  private get demoJumpPending(){return district.id==='veronese'&&this.opening?.state==='demo'&&!this.mission.hasRide&&this.mission.boarding===0&&this.mission.completedFares>=this.nextDemoRelocation;}
+  private get sleeping(){return performance.now()<(this.sleepUntil??0);}
+  private get demoRestPending(){return this.mission.endless&&this.opening?.state==='demo'&&!this.mission.hasRide&&this.mission.completedFares>=2&&(this.mission.clockHours>=22||this.mission.clockHours<5)&&this.mission.totalElapsed-this.lastBotRestElapsed>12*3600/district.taxi!.clockRate;}
+  private rest(demo=false){
+    if(!this.mission.endless||(!demo&&(!this.hasStarted||this.screen!=='paused'))||!this.parking.stopped||this.car.speed!==0||this.mission.hasRide||this.sleeping)return;
+    if(!this.mission.rest(8))return;
+    if(this.restOverlay)this.restOverlay.hidden=false;this.traffic?.clear();this.demo?.relocated();
+    this.sleepUntil=performance.now()+1500;this.lastBotRestElapsed=this.mission.totalElapsed;this.accumulator=0;
+    this.waitForDrivingRelease=!this.opening;this.savedThisPause=false;this.leavePending=false;
+    if(this.mainScreenButton)this.mainScreenButton.textContent='Main screen';
+    this.saveStatus.textContent=`Rested 8 hours. It is ${this.mission.clockText}.`;
+  }
+
+  private get demoJumpPending(){return new Set(district.taxi?.stops.map(s=>s.townId)??[]).size>1&&this.opening?.state==='demo'&&!this.mission.hasRide&&this.mission.boarding===0&&this.mission.completedFares>=this.nextDemoRelocation;}
 
   /** Demo-only showcase jump after three paid jobs; never moves a player's car or a booked passenger. */
   private relocateDemo(){
@@ -329,8 +350,8 @@ class Game {
   private leaveForMainScreen(){
     if(this.screen!=='paused'||!this.hasStarted)return;
     if(!this.leavePending){
-      this.leavePending=true;this.mainScreenButton.textContent='Confirm: leave shift';
-      this.saveStatus.textContent=`${this.savedThisPause||this.mission.finished?'Nothing is lost: your shift is saved.':'Progress since your last save will be lost.'} Choose again to leave for the main screen, or resume to keep driving.`;
+      this.leavePending=true;this.mainScreenButton.textContent=this.mission.endless?'Confirm: leave game':'Confirm: leave shift';
+      this.saveStatus.textContent=`${this.savedThisPause||this.mission.finished?`Nothing is lost: your ${this.mission.endless?'game':'shift'} is saved.`:'Progress since your last save will be lost.'} Choose again to leave for the main screen, or resume to keep driving.`;
       return;
     }
     selectDistrict(visibleTowns,visibleTowns.find(t=>t.id===district.id)?.id??visibleTowns[0].id);
@@ -339,8 +360,8 @@ class Game {
   private load(){
     try{
       const text=localStorage.getItem(saveKey(context));
-      if(!text){this.saveStatus.textContent='No saved shift for this district yet.';return;}
-      const value=decodeSave(context,text);
+      if(!text){this.saveStatus.textContent=this.mission.endless?'No saved game for this map yet.':'No saved shift for this district yet.';return;}
+      const value=decodeSave(context,text);this.sleepUntil=0;if(this.restOverlay)this.restOverlay.hidden=true;this.traffic?.clear();
       if(this.opening){this.opening.dispose();this.opening=undefined;this.demo=undefined;}
       this.mission.restore(value.mission);Object.assign(this.car,value.car);
       this.parking.reset();this.parking.unsafeStops=value.unsafeStops;this.parking.update(0,this.car,this.car.speed);
@@ -390,18 +411,21 @@ class Game {
         this.screen=this.opening.state==='demo'?'running':'briefing';
         const ready=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
         if(this.opening.state==='demo'){
-          if(this.demoJumpPending){actions={...idleActions(),brake:1};this.demo!.activity='Waiting for passenger exit before a town jump';}
-          else actions=ready?this.demo!.update(dt,this.car,this.parking,this.mission,this.world.collisionIndex):idleActions();
+          if(this.demoJumpPending||this.demoRestPending){actions={...idleActions(),brake:1};this.demo!.activity='Waiting for passenger exit before a town jump';}
+          else actions=ready&&!this.sleeping?this.demo!.update(dt,this.car,this.parking,this.mission,this.collisionSource):idleActions();
         }
         else if(this.opening.state==='waiting')actions=idleActions();
       }
     }
+    if(this.sleeping)actions=idleActions();
+    if(this.restOverlay)this.restOverlay.hidden=!this.sleeping;
     const menu=this.input.settingsInput;
     const editing=this.controlsPanel.visible;
-    this.controlsPanel.update(dt,this.input.currentPad);
+    if(!this.sleeping)this.controlsPanel.update(dt,this.input.currentPad);
     if(editing){actions.interact=false;actions.pause=false;actions.atlasPage=0;}
-    if(this.settingsPanel.update(!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
-    this.saveButton.disabled=!this.hasStarted||this.mission.finished;
+    if(this.settingsPanel.update(!this.sleeping&&!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
+    this.saveButton.disabled=!this.hasStarted||this.mission.finished||this.sleeping;
+    if(this.restButton)this.restButton.disabled=!this.hasStarted||!this.parking.stopped||this.car.speed!==0||this.mission.hasRide||this.sleeping;
     this.mainScreenButton.disabled=this.screen!=='paused'||!this.hasStarted;
     if(this.screen!=='paused'){this.savedThisPause=false;if(this.leavePending){this.leavePending=false;this.mainScreenButton.textContent='Main screen';}}
     if(this.screen==='running'&&this.waitForDrivingRelease&&this.input.drivingReleased===false){
@@ -473,7 +497,7 @@ class Game {
     this.streamStatus.hidden=worldReady||this.screen!=="running";
     this.streamStatus.textContent=this.world instanceof StreamingWorld&&this.world.stream.recovering?'Scenery load interrupted. Retrying automatically… time is paused. Restart the application if it persists.':'Loading scenery… simulation time is paused.';
     if(this.screen==="running"&&!worldReady)this.accumulator=0;
-    if (this.screen === "running"&&worldReady) {
+    if (this.screen === "running"&&worldReady&&!this.sleeping) {
       if(this.waitForDrivingRelease&&actions.throttle<.1&&actions.brake<.1&&(this.input.drivingReleased??true))this.waitForDrivingRelease=false;
       // The taxi stays put while a passenger walks to it and gets in.
       const driving=this.waitForDrivingRelease||this.mission.boarding>0?{...actions,throttle:0,brake:0,steer:0,handbrake:false}:actions;
@@ -482,7 +506,8 @@ class Game {
       while (this.accumulator >= 1 / 60) {
         const physicsStart=context.profile.start();
         this.car.unlimited=this.settings.unlimitedSpeed;
-        this.car.update(1 / 60, driving, this.world.collisionIndex);
+        this.traffic?.update(1 / 60,this.car);
+        this.car.update(1 / 60, driving, this.collisionSource);
         this.parking.update(1 / 60, this.car, this.car.speed);
         this.mission.update(1 / 60, this.car, this.parking.stopped);
         context.profile.end("physics-step",physicsStart);
@@ -496,7 +521,7 @@ class Game {
       }
       this.world.updateFrame(this.car);
       this.cockpit.update(dt, this.car, actions.glance, actions);
-      if(this.screen==='running'){this.checkGateways();this.relocateDemo();}
+      if(this.screen==='running'){this.checkGateways();if(this.demoRestPending&&!this.mission.departure)this.rest(true);else this.relocateDemo();}
     }
     if(this.mission.revision!==this.missionRevision) {
       this.missionRevision=this.mission.revision;
@@ -519,13 +544,14 @@ class Game {
       this.input.gamepadBlocked,
       this.input.controllerStatus,
     );
-    const running=this.screen==='running',held=!running||this.waitForDrivingRelease||this.mission.boarding>0;
+    const running=this.screen==='running'&&!this.sleeping,held=!running||this.waitForDrivingRelease||this.mission.boarding>0;
     const pedals=held?{throttle:0,brake:0,handbrake:false}:actions;
     const folderRadio=this.settings.radio&&this.settings.radioSource==='folder';
     this.sound.update(dt,running,this.car,pedals,this.settings,folderRadio&&!this.radio.playable);
     this.radio.update(running&&folderRadio,musicGain(this.settings,pedals.throttle));
     this.hud.setSound(this.soundStatus(folderRadio));
     if(this.screen==='running')this.motion.update(dt,this.car.speed,this.car.steering,this.settings.motion);
+    this.traffic?.render(this.world.frame);
     this.people.update(this.mission,this.world.frame,this.car);
     this.interior.setPassenger(this.mission.seatedIdentity);
     this.interior.update({...this.car,...this.world.frame.toLocal(this.car)},this.motion.roll,this.motion.pitch,this.motion.wobble);

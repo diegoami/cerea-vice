@@ -16,23 +16,27 @@ Design: docs/TOWNS.md ("Regions and compression"), measured in docs/REGION_SPIKE
 Writes the merged district (unstreamed) plus a sidecar with town zones and direction boards for
 tools/tile-district.mjs, which produces the streamed manifest and tiles.
 """
-import argparse, hashlib, heapq, itertools, json, math, subprocess, sys
+import argparse, hashlib, heapq, itertools, json, math, re, subprocess, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 
-# --- Projection: WGS84 transverse Mercator, UTM zone 32N ---------------------------------------
+# --- Projection: WGS84 transverse Mercator, requested UTM zone (legacy default 32N) ---------------------------------------
 A,F=6378137.0,1/298.257223563;E2=F*(2-F);EP2=E2/(1-E2);K0=0.9996;LON0=math.radians(9.0)
-def utm(lat,lon):
-    p,l=math.radians(lat),math.radians(lon);n=A/math.sqrt(1-E2*math.sin(p)**2);t=math.tan(p)**2;c=EP2*math.cos(p)**2;a=(l-LON0)*math.cos(p)
+def utm(lat,lon,meridian=9.0,south=False):
+    lon0=math.radians(meridian)
+    p,l=math.radians(lat),math.radians(lon);n=A/math.sqrt(1-E2*math.sin(p)**2);t=math.tan(p)**2;c=EP2*math.cos(p)**2;a=(l-lon0)*math.cos(p)
     m=A*((1-E2/4-3*E2**2/64-5*E2**3/256)*p-(3*E2/8+3*E2**2/32+45*E2**3/1024)*math.sin(2*p)+(15*E2**2/256+45*E2**3/1024)*math.sin(4*p)-(35*E2**3/3072)*math.sin(6*p))
     x=K0*n*(a+(1-t+c)*a**3/6+(5-18*t+t*t+72*c-58*EP2)*a**5/120)+500000
     y=K0*(m+n*math.tan(p)*(a*a/2+(5-t+9*c+4*c*c)*a**4/24+(61-58*t+t*t+600*c-330*EP2)*a**6/720))
-    return x,y
-def convergence(lat,lon):return math.atan(math.tan(math.radians(lon)-LON0)*math.sin(math.radians(lat)))
+    return x,y+(10000000 if south else 0)
+def convergence(lat,lon,meridian=9.0):return math.atan(math.tan(math.radians(lon)-math.radians(meridian))*math.sin(math.radians(lat)))
+def orient(de,dn,gamma,north_aligned=False):
+    cg,sg=math.cos(gamma),math.sin(gamma)
+    return (de*cg+dn*sg,-de*sg+dn*cg) if north_aligned else (de*cg-dn*sg,de*sg+dn*cg)
 
-REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','frame','zoneMargin','villages','villageMargin','towns','corridors','gateways','content','views'}
+REGION_KEYS={'specVersion','id','name','description','dataVersion','subtitle','attribution','sourceUrl','output','frame','zoneMargin','villages','villageMargin','towns','corridors','gateways','content','views','drivingSide','unnamedRoadName','signLanguage'}
 GATEWAY_KEYS={'id','node','town','to','sign'}
-FRAME_KEYS={'specVersion','id','name','description','projection','origin','k'}
+FRAME_KEYS={'specVersion','id','name','description','projection','origin','k','northAligned'}
 def check_spec(region):
     """Reject unknown or missing settings, so a value the builder ignores cannot look meaningful."""
     if 'k' in region:raise SystemExit('"k" belongs to the shared frame, not to a region: name the frame with "frame"')
@@ -53,10 +57,11 @@ def load_frame(path):
     frame=json.loads(path.read_text())
     unknown=set(frame)-FRAME_KEYS
     if unknown:raise SystemExit(f'Unknown frame settings: {", ".join(sorted(unknown))}')
-    for key in ('id','origin','k'):
+    for key in ('id','origin','k','projection'):
         if key not in frame:raise SystemExit(f'Frame is missing "{key}"')
     if not (0<frame['k']<=1):raise SystemExit('k must be in (0, 1]')
     if set(frame['origin'])!={'lat','lon'}:raise SystemExit('A frame origin takes "lat" and "lon"')
+    if 'northAligned' in frame and not isinstance(frame['northAligned'],bool):raise SystemExit('northAligned must be boolean')
     return frame
 
 def town_inputs(spec_path,spec):
@@ -97,11 +102,16 @@ def main(argv=None):
     ids=[t['spec']['id'] for t in towns]
     # Regional frame: false origin, rotation and compression centre at the shared frame's origin.
     clat,clon=frame_spec['origin']['lat'],frame_spec['origin']['lon']
-    E0,N0=utm(clat,clon);gamma=convergence(clat,clon);cg,sg=math.cos(gamma),math.sin(gamma)
+    epsg=re.search(r'EPSG:(326|327)(\d{2})',frame_spec['projection'])
+    if not epsg:raise SystemExit('Frame projection must name an EPSG UTM zone (326xx north or 327xx south)')
+    zone=int(epsg.group(2));meridian=zone*6-183;is_south=epsg.group(1)=='327'
+    if not 1<=zone<=60:raise SystemExit('Invalid UTM zone')
+    E0,N0=utm(clat,clon,meridian,is_south);gamma=convergence(clat,clon,meridian);cg,sg=math.cos(gamma),math.sin(gamma)
     def frame(lat,lon):
-        e,n=utm(lat,lon);de,dn=e-E0,n-N0
+        e,n=utm(lat,lon,meridian,is_south);de,dn=e-E0,n-N0
         # Grid north is turned by gamma from true north; turn back so negative z is true north.
-        x=de*cg-dn*sg;y=de*sg+dn*cg
+        # Existing shared Italian maps retain their established frame; new authoring recipes opt into true north.
+        x,y=orient(de,dn,gamma,frame_spec.get('northAligned',False))
         return (x,-y)
     for t in places:
         o=t['spec']['area']['origin'];rx,rz=frame(o['lat'],o['lon']);t['real']=(rx,rz);t['offset']=(k*rx,k*rz)
@@ -352,6 +362,7 @@ def main(argv=None):
     nodes=[];roads=[];bays=[];landmarks=[];buildings=[];features=[];water=[];areas=[];stops=[];zones=[];boards=[]
     for t in places:
         tid,name,d=t['spec']['id'],t['spec']['name'],t['data'];dx,dz=t['offset'];pref=lambda i:f'{tid}:{i}'
+        if region['content']['taxi'].get('endless'):name=t['spec'].get('townName',name)
         named=lambda text:text if name.lower() in text.lower() else f'{text} ({name})'
         nodes+=shift(d['nodes'],dx,dz)
         roads+=[{**r,'region':'region'} for r in d['roads']]
@@ -359,18 +370,18 @@ def main(argv=None):
         landmarks+=[{**shift(l,dx,dz),'id':pref(l['id'])} for l in d['landmarks']]
         buildings+=shift(d['buildings'],dx,dz);features+=shift(d['features'],dx,dz);water+=shift(d.get('waterAreas',[]),dx,dz)
         areas+=[{**shift(a,dx,dz)} for a in d['areas']]
-        stops+=[{**s,'id':pref(s['id']),'bayId':pref(s['bayId']),'name':named(s['name']),'description':f'Stop in {named(next(b["name"] for b in d["parkingZones"] if b["id"]==s["bayId"]))}.'} for s in d.get('taxi',{}).get('stops',[])]
+        stops+=[{**s,**({'townId':tid,'town':name} if region['content']['taxi'].get('endless') else {}),'id':pref(s['id']),'bayId':pref(s['bayId']),'name':named(s['name']),'description':f'Stop in {named(next(b["name"] for b in d["parkingZones"] if b["id"]==s["bayId"]))}.'} for s in d.get('taxi',{}).get('stops',[])]
         b=t['box'];zones.append({'id':tid,'name':name,'minX':b[0],'maxX':b[1],'minZ':b[2],'maxZ':b[3]})
     for n in sorted(graph):
         if n in owner:continue
-        x,z=mapped[n];names=sorted({(edge_way.get((n,m)) or edge_way.get((m,n)))[0].get('name') or (edge_way.get((n,m)) or edge_way.get((m,n)))[0].get('ref') or 'Strada provinciale' for m in graph[n]})
+        x,z=mapped[n];names=sorted({(edge_way.get((n,m)) or edge_way.get((m,n)))[0].get('name') or (edge_way.get((n,m)) or edge_way.get((m,n)))[0].get('ref') or region.get('unnamedRoadName','Strada provinciale') for m in graph[n]})
         nodes.append({'id':n,'x':round(x,2),'z':round(z,2),'label':' / '.join(names)})
     for u,v in sorted(edges):
         tags,wid,direction=edge_way[(u,v)]
         oneway=tags.get('oneway') in ('yes','1','-1') or tags.get('junction')=='roundabout'
         a,b=(u,v) if (direction==1)!=(tags.get('oneway')=='-1') else (v,u)
         width=float(tags.get('width','8').split(';')[0]) if tags.get('width','8').replace('.','',1).isdigit() else 8
-        roads.append({'a':a,'b':b,'name':tags.get('name') or tags.get('ref') or 'Strada provinciale','width':max(6,min(10,width)),'roadClass':tags['highway'],'oneWay':oneway,'bridge':tags.get('bridge')=='yes','osmId':wid,'region':'region'})
+        roads.append({'a':a,'b':b,'name':tags.get('name') or tags.get('ref') or region.get('unnamedRoadName','Strada provinciale'),'width':max(6,min(10,width)),'roadClass':tags['highway'],'oneWay':oneway,'bridge':tags.get('bridge')=='yes','osmId':wid,'region':'region'})
     # Direction boards where each corridor leaves a town: the neighbouring town and its real road distance.
     for a,b in region['corridors']['pairs']:
         for here,there in ((a,b),(b,a)):
@@ -397,9 +408,10 @@ def main(argv=None):
       'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water} if water else {}),'areas':areas,**({'gateways':[{'id':g['id'],'nodeId':n,'to':g['to'],'sign':g['sign']} for n,g in sorted(gateway_nodes.items())]} if gateway_nodes else {}),'spawn':spawn,
       'mission':{'name':content['mission']['name'],'objective':content['mission']['objective'],'hint':content['mission']['hint'],'duration':content['mission']['duration'],'bayId':target_stop['bayId'],'nodeId':target_stop['nodeId']},
       'provenance':{'source':'OpenStreetMap / Overpass API: town extracts and the region\'s main roads','osmTimestamp':stamps[-1],'osmTimestamps':stamps,
-        'frame':{'projection':'UTM zone 32N (EPSG:32632)','falseOrigin':{'lat':round(clat,6),'lon':round(clon,6),'easting':round(E0,2),'northing':round(N0,2)},'rotationDegrees':round(math.degrees(gamma),4)},
+        'frame':{'projection':frame_spec['projection'],'falseOrigin':{'lat':round(clat,6),'lon':round(clon,6),'easting':round(E0,2),'northing':round(N0,2)},'rotationDegrees':round(math.degrees(gamma)*(-1 if frame_spec.get('northAligned') else 1),4)},
         'compression':{'k':k,'model':'corridor','towns':{t['spec']['id']:{'real':[round(t['real'][0],1),round(t['real'][1],1)],'placed':[round(t['offset'][0],1),round(t['offset'][1],1)]} for t in towns},'villages':{t['spec']['id']:{'real':[round(t['real'][0],1),round(t['real'][1],1)],'placed':[round(t['offset'][0],1),round(t['offset'][1],1)]} for t in villages},'zoneMargin':zone_margin,**({'villageMargin':region['villageMargin']} if villages else {})},
         'notes':['Towns keep their real streets at real scale; the real main roads between them are shortened by k, keeping their junctions, one-way tags and names.','Direction boards between towns show real road distances.','Designated stopping bays are gameplay placements, not verified real parking permissions.']}}
+    if content['taxi'].get('endless'):district.update({'latitude':clat,'drivingSide':region.get('drivingSide','right'),'signLanguage':region.get('signLanguage','en')})
     output=(args.output or ROOT/'build/regions'/f'{region["id"]}.json').resolve();output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(district,ensure_ascii=False,separators=(',',':'))+'\n')
     sidecar=output.with_suffix('.tiling.json')

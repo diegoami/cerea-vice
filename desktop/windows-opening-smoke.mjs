@@ -79,6 +79,21 @@ try {
  $performance=Js "(async()=>{const times=[];let last=await new Promise(requestAnimationFrame);for(let i=0;i<120;i++){const now=await new Promise(requestAnimationFrame);times.push(now-last);last=now;}times.sort((a,b)=>a-b);return {frameMeanMs:times.reduce((a,b)=>a+b,0)/times.length,frameP95Ms:times[Math.floor(times.length*.95)],heapMiB:performance.memory?.usedJSHeapSize/1048576};})()"
  $shot=Cdp 'Page.captureScreenshot' @{format='png'}
  [IO.File]::WriteAllBytes((Join-Path ${literal(images)} 'opening-windows-playing.png'),[Convert]::FromBase64String($shot.data))
+ Cdp 'Input.dispatchKeyEvent' @{type='keyDown';key='p';code='KeyP'} | Out-Null
+ Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='p';code='KeyP'} | Out-Null
+ Start-Sleep -Milliseconds 500
+ for($restAttempt=0;$restAttempt -lt 2;$restAttempt++){
+  $rested=Js "(()=>{const b=[...document.querySelectorAll('.presentation-settings button')].find(b=>b.textContent==='Rest for 8 hours');if(!b||b.disabled)return false;b.click();return true;})()"
+  if(-not $rested){throw 'Native rest action was unavailable at a settled free-driving stop'}
+  Start-Sleep -Milliseconds 2000
+ }
+ Js "[...document.querySelectorAll('#overlay button')].find(b=>b.textContent.includes('Back to the road')).click()" | Out-Null
+ Start-Sleep -Milliseconds 700
+ $night=Js "({time:document.querySelector('#timer').textContent,money:document.querySelector('#earnings').textContent,save:localStorage.getItem('cerea-save-veronese')})"
+ if($night.time -notmatch '^23:' -or $night.money -notmatch '0.00' -or $night.save -ne 'Windows isolation sentinel'){throw 'Native rest changed progression or failed to reach night'}
+ $shot=Cdp 'Page.captureScreenshot' @{format='png'}
+ [IO.File]::WriteAllBytes((Join-Path ${literal(images)} 'living-windows-night.png'),[Convert]::FromBase64String($shot.data))
+ Write-Output ($night|ConvertTo-Json -Compress)
  Write-Output ('Windows native opening passed: '+$process.MainWindowTitle)
  Write-Output ($demo|ConvertTo-Json -Compress)
  Write-Output ($fresh|ConvertTo-Json -Compress)

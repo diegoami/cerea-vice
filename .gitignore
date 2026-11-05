@@ -8,3 +8,5 @@ release/
 .claude/worktrees/
 data/region-spike/
 build/
+
+__pycache__/

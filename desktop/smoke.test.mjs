@@ -1028,7 +1028,7 @@ test('the briefing lists every registered district, and a damaged map offers the
  try{
   const page=await app.firstWindow();
   await page.getByRole('button',{name:'Begin game'}).waitFor();
-  assert.equal(await page.locator('.district-switch').count(),0,'Legacy maps are hidden from normal selection');
+  assert.equal(await page.locator('.district-switch').count(),1,'The chooser lists the new selectable maps, with legacy maps hidden');
 
   // A listed district whose map is missing does not lock the player out.
   await page.route('**/maps/harbor.json',route=>route.fulfill({status:404,body:'missing'}));
@@ -1050,7 +1050,7 @@ test('the lower Veronese plain region streams, starts and drives offline across 
   const started=Date.now();
   await page.getByRole('button',{name:'Begin game'}).waitFor({timeout:180000});
   const ready=Date.now()-started;
-  assert.equal(await page.locator('.district-switch').count(),0,'Only the unified world is offered in the normal UI');
+  assert.equal(await page.locator('.district-switch').count(),1,'The chooser contains only visible maps');
   await page.getByRole('button',{name:'Begin game'}).click();
   await settled(page);
   await page.keyboard.down('w');await page.waitForTimeout(2500);await page.keyboard.up('w');
@@ -1133,7 +1133,7 @@ test('Verona centro streams, starts by Palazzo Barbieri, drives offline and show
   const started=Date.now();
   await page.getByRole('button',{name:'Begin game'}).waitFor({timeout:120000});
   const ready=Date.now()-started;
-  assert.equal(await page.locator('.district-switch').count(),0,'Only the unified world is offered in the normal UI');
+  assert.equal(await page.locator('.district-switch').count(),1,'The chooser contains only visible maps');
   await page.getByRole('button',{name:'Begin game'}).click();
   await settled(page);
   await page.screenshot({path:'test-results/verona-start.png'});
@@ -1182,7 +1182,7 @@ test('pause offers the main screen, confirms before leaving and keeps the manual
   await page.evaluate(()=>window.leavePad.buttons[0].value=1);
   await page.waitForFunction(()=>document.querySelector('.briefing')!==null&&!document.querySelector('#overlay').hidden,null,{timeout:60000});
   await page.getByRole('button',{name:'Begin game'}).waitFor();
-  assert.equal(await page.locator('.district-switch').count(),0,'The main screen offers only the unified world');
+  assert.equal(await page.locator('.district-switch').count(),1,'The main screen offers visible maps');
   assert.equal(await page.evaluate(()=>localStorage.getItem('cerea-save-harbor')),saved,'Leaving never touches the manual save');
   assert.deepEqual(errors,[]);
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}

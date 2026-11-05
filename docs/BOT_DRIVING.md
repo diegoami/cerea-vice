@@ -104,3 +104,27 @@ samples measured 16.7–17.2 ms mean frame time (about 58–60 fps), 16.9 ms p95
 173–194 MiB of JavaScript heap. The final sample started at Torre dei Lamberti. These are a short hardware sample, not total process/GPU memory
 or a full-world soak test. Physical controller/touch-device play, a full manual
 Windows shift, and exhaustive unattended runs over every seed remain owner checks.
+
+
+## Continuous service and a small traffic population
+
+The 17:00 cutoff is removed for the default world and newly authored continuous maps.
+The reported Casaleone post office route is regression-tested across its former
+closing boundary and completes normally. Old completed-shift saves resume as active
+without resetting their clock, receipts, car, atlas or booked ride. Legacy fixtures
+retain their old schedules for compatibility.
+
+Ambient traffic is capped at three cars, follows directed access and the map's
+left/right driving side, yields to the taxi, stays out of service bays and uses
+normal collision queries. A reserve around the taxi and a final vehicle-body check
+prevent an NPC from rotating into it and boxing it in. The regression simulates ten
+minutes of paid work with traffic rather than treating wheel movement as progress.
+In a seeded twenty-minute traffic run the taxi completed six fares, covered about
+14.36 km and recorded zero collisions. These numbers are separate from the earlier
+traffic-free comparisons above.
+
+Sleep is voluntary for players, available through pause only while fully stopped
+and unbooked. It advances eight hours, preserves position/money/knowledge, and leaves
+the player paused. The bot may rest at night between jobs; discrete dispatch/boarding
+is frozen during sleep as well as driving. Neither sleeping nor the calendar resets
+progress. Celestial movement and scenery are presentation, without GPS assistance.

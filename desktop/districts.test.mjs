@@ -7,9 +7,9 @@ import { chooseDistrict, districtIds } from './districts.mjs';
 
 test('launchers accept every registered district and name them when one is unknown', async () => {
   const ids = districtIds('public/maps/towns.json');
-  for (const id of ['cerea', 'harbor', 'cerea-outskirts', 'lower-verona', 'verona', 'verona-south', 'verona-plain', 'veronese']) assert.ok(ids.includes(id), id);
+  for (const id of ['cerea', 'harbor', 'cerea-outskirts', 'lower-verona', 'verona', 'verona-south', 'verona-plain', 'veronese', 'london-westminster']) assert.ok(ids.includes(id), id);
   assert.equal(chooseDistrict('verona', ids), 'verona');
-  assert.throws(() => chooseDistrict('padova', ids), /Unknown district "padova". Choose one of: cerea, harbor, cerea-outskirts, lower-verona, verona, verona-south, verona-plain, veronese\./);
+  assert.throws(() => chooseDistrict('padova', ids), /Unknown district "padova". Choose one of: cerea, harbor, cerea-outskirts, lower-verona, verona, verona-south, verona-plain, veronese, london-westminster\./);
   const directory = await mkdtemp(path.join(tmpdir(), 'cerea-districts-'));
   try {
     const broken = path.join(directory, 'towns.json'); await writeFile(broken, '{');

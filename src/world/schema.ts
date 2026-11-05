@@ -15,6 +15,7 @@ export interface NavigationTarget { name:string; nodeId:string; bay:ParkingZone;
 export interface TaxiStop { townId?:string; town?:string; id:string; name:string; road:string; bayId:string; nodeId:string; description:string }
 export interface TaxiFare { passenger:string; pickupId:string; destinationId:string }
 export interface TaxiDefinition {
+  endless?:boolean;
   mixedTownFares?:boolean;
   interTownPremiumCents?:number;
   startHour:number; endHour:number; clockRate:number;
@@ -36,6 +37,9 @@ export interface DistrictDefinition {
   description: string;
   attribution: string;
   sourceUrl: string;
+  signLanguage?:'it'|'en';
+  latitude?:number;
+  drivingSide?:'left'|'right';
   stoppingPolicy?: "marked-bays" | "anywhere";
   bounds: Bounds;
   nodes: RoadNode[];
