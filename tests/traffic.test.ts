@@ -65,7 +65,7 @@ test('a taxi keeps completing real jobs with traffic instead of becoming boxed i
  const {createMission}=await import('../src/mission/Mission');const {createParking}=await import('../src/navigation/Parking');const {DemoDriver}=await import('../src/game/DemoDriver');const {chooseStartPlace}=await import('../src/game/StartPlace');
  const car=new (createCar(context).Car)(),parking=new (createParking(context).Parking)(),mission=new (createMission(context).Mission)({seed:683129967}),bot=new DemoDriver(context),traffic=new Traffic(context,new Scene(),new SpatialGrid(streamingColliders(context),rectBounds));car.reset(chooseStartPlace(context,()=>.01));
  let progressDistance=0,lastAction=0,lastProgress=0,longestStall=0;
- for(let i=0;i<1200*60;i++){
+ for(let i=0;i<1800*60;i++){
   const a=bot.update(1/60,car,parking,mission,traffic.collisionSource);traffic.update(1/60,car);
   assert.ok(!traffic.agents.some(npc=>inRect(car,carFootprint(npc.car),-1.05)),'An NPC must not rotate its body into the taxi and trap it');
   car.update(1/60,a,traffic.collisionSource);parking.update(1/60,car,car.speed);mission.update(1/60,car,parking.stopped);
@@ -74,6 +74,6 @@ test('a taxi keeps completing real jobs with traffic instead of becoming boxed i
  }
  // Actual lane keeping and following slower traffic change journey duration.
  // Require both types of work and sustained movement, rather than a racing quota.
- assert.ok(mission.completedFares>=2);assert.ok(bot.localFaresChosen>0&&bot.interTownFaresChosen>0);assert.ok(bot.distanceDriven>11000);assert.ok(bot.overtakesCompleted>0,'A clear real-world passing opportunity is used');assert.ok(longestStall<60,`${longestStall}s without progress`);assert.equal(car.collisions,0);
- console.info({trafficSoakSeconds:1200,fares:mission.completedFares,metres:Math.round(bot.distanceDriven),overtakes:bot.overtakesCompleted,maxIdleSeconds:Math.round(longestStall),collisions:car.collisions});traffic.dispose();
+ assert.ok(mission.completedFares>=4);assert.ok(bot.localFaresChosen>0&&bot.interTownFaresChosen>0);assert.ok(bot.distanceDriven>17000);assert.ok(bot.overtakesCompleted>0,'A clear real-world passing opportunity is used');assert.ok(longestStall<60,`${longestStall}s without progress`);assert.equal(car.collisions,0);
+ console.info({trafficSoakSeconds:1800,fares:mission.completedFares,metres:Math.round(bot.distanceDriven),overtakes:bot.overtakesCompleted,maxIdleSeconds:Math.round(longestStall),collisions:car.collisions});traffic.dispose();
 });

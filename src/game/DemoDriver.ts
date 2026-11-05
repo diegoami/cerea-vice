@@ -1,6 +1,7 @@
 import {RouteGraph} from '../navigation/RouteGraph';
 import {laneRoute} from '../driving/LaneRoute';
 import {planOvertake} from '../driving/Overtake';
+import {vehicleClearance} from '../driving/VehicleClearance';
 import {createCar, type Car, type CollisionSource} from '../driving/Car';
 import type {Actions} from '../input/Input';
 import type {Mission} from '../mission/Mission';
@@ -51,10 +52,15 @@ export class DemoDriver {
   }
 
   private avoidImpact(car:Car,action:Actions,colliders:CollisionSource){
-    this.probe.reset();Object.assign(this.probe,{x:car.x,z:car.z,heading:car.heading,speed:car.speed,gear:car.gear,steering:car.steering});
-    for(let i=0;i<12;i++)this.probe.update(1/20,action,colliders);
+    this.probe.reset();Object.assign(this.probe,{x:car.x,z:car.z,heading:car.heading,speed:car.speed,gear:car.gear,steering:car.steering,unlimited:car.unlimited});
+    const initial=vehicleClearance(car,colliders,this.context.district.bounds);let bodyBlocked=false;
+    for(let i=0;i<12;i++){
+      this.probe.update(1/20,action,colliders);
+      // Permit backing out if already too close, but never increase penetration.
+      if(vehicleClearance(this.probe,colliders,this.context.district.bounds)<Math.min(0,initial)-.005){bodyBlocked=true;break;}
+    }
     // Low-speed contact also stops the probe, even below the impact-count threshold.
-    if(this.probe.collisions>0||this.probe.speed===0&&action.throttle>.2){action.throttle=0;action.brake=1;}
+    if(bodyBlocked||this.probe.collisions>0||this.probe.speed===0&&action.throttle>.2){action.throttle=0;action.brake=1;}
     return action;
   }
 
@@ -70,9 +76,14 @@ export class DemoDriver {
     const path=[...entries[0].path];
     // Include the occupied segment even when its far endpoint is the best graph
     // entry. Otherwise a one-node path would aim back at the road centre.
-    if(path[0]===road.b&&path[1]!==road.a)path.unshift(road.a);
-    else if(path[0]===road.a&&!road.oneWay&&path[1]!==road.b)path.unshift(road.b);
+    let approach=false;
+    if(path[0]===road.b&&path[1]!==road.a){path.unshift(road.a);approach=true;}
+    else if(path[0]===road.a&&!road.oneWay&&path[1]!==road.b){path.unshift(road.b);approach=true;}
     this.route=laneRoute(context,path);
+    // The added point defines the occupied lane's orientation; it is not a new
+    // destination behind the car. In particular, do not drive back to a one-way
+    // segment's start when already near its far end or a little off its verge.
+    const approachStart=approach?this.route.shift():undefined;
     if(bay&&this.route.length)this.route.push({x:bay.x,z:bay.z});
     if(!this.route.length){
       // If an approach is unreachable, retreat to a reachable junction before
@@ -83,7 +94,7 @@ export class DemoDriver {
         if(path.length>1){this.route=laneRoute(context,path);break;}
       }
     }
-    this.segmentStart={x:car.x,z:car.z};
+    this.segmentStart=approachStart&&this.route[0]?projectToSegment(car,approachStart,this.route[0]):{x:car.x,z:car.z};
     // A car already part-way down a road need not drive back to the entry node.
     if(this.route.length>1){const first=this.route[0],next=this.route[1],projection=projectToSegment(car,first,next);
       if(distance(car,projection)<4&&distance(projection,first)>1&&distance(projection,next)>1){this.segmentStart=projection;this.route.shift();}}
@@ -98,18 +109,23 @@ export class DemoDriver {
         !(Array.isArray(colliders)?colliders:colliders.at(p,1.3)).some(r=>inRect(p,r,-1.3));
     };
     const line=(a:Point,b:Point)=>{const n=Math.ceil(distance(a,b)/.7);for(let i=1;i<=n;i++)if(!clear({x:a.x+(b.x-a.x)*i/n,z:a.z+(b.z-a.z)*i/n}))return false;return true;};
-    const length=distance(car,aim),scale=Math.min(1,28/length);
+    const length=distance(car,aim);
+    let reach=Math.min(28,length),goal={x:car.x+(aim.x-car.x)*reach/(length||1),z:car.z+(aim.z-car.z)*reach/(length||1)};
+    // A short ray can end inside the very building we must go around. If the
+    // real nearby waypoint is clear, search far enough to reconnect to it.
+    if(!clear(goal)&&length<=72&&clear(aim)){reach=length;goal=aim;}
+    const scale=reach/(length||1),range=Math.max(18,Math.ceil((reach+12)/2));
     const gx=Math.round((aim.x-car.x)*scale/2),gz=Math.round((aim.z-car.z)*scale/2);
     const point=(x:number,z:number)=>({x:car.x+x*2,z:car.z+z*2});
     const key=(x:number,z:number)=>`${x},${z}`;
     const open=[{x:0,z:0,cost:0,score:0}],costs=new Map([[key(0,0),0]]),previous=new Map<string,{x:number;z:number}>();
     let end:{x:number;z:number}|undefined;
-    for(let count=0;open.length&&count<1400;count++){
+    for(let count=0;open.length&&count<(reach>28?6000:1400);count++){
       open.sort((a,b)=>b.score-a.score);const at=open.pop()!;
       if(at.cost!==costs.get(key(at.x,at.z)))continue;
       if(at.x===gx&&at.z===gz){end=at;break;}
       for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){
-        const x=at.x+dx,z=at.z+dz;if(Math.abs(x)>18||Math.abs(z)>18)continue;
+        const x=at.x+dx,z=at.z+dz;if(Math.abs(x)>range||Math.abs(z)>range)continue;
         const cost=at.cost+Math.hypot(dx,dz),id=key(x,z);
         if(cost>=(costs.get(id)??Infinity)||!line(point(at.x,at.z),point(x,z)))continue;
         costs.set(id,cost);previous.set(id,at);open.push({x,z,cost,score:cost+Math.hypot(x-gx,z-gz)});
@@ -214,7 +230,11 @@ export class DemoDriver {
       if(this.recoveryPhase==='reverse'){
         this.recoveryAge+=dt;
         if(distance(car,this.reverseOrigin)>=5||this.recoveryAge>4){this.recoveryPhase='settle';return stop();}
-        return this.avoidImpact(car,{...idleActions(),throttle:Math.abs(car.speed)<2.5?.75:0,steer:this.recoveryTurn},colliders);
+        for(const steer of [this.recoveryTurn,0,-this.recoveryTurn]){
+          const action=this.avoidImpact(car,{...idleActions(),throttle:Math.abs(car.speed)<2.5?.75:0,steer},colliders);
+          if(!action.brake)return action;
+        }
+        return stop();
       }
       if(car.speed!==0||!parking.stopped)return stop();
       if(car.gear==='R')car.shiftGear();

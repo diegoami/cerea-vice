@@ -154,3 +154,22 @@ The taxi's reserved area follows its heading so adjacent lanes are not needlessl
 blocked while it passes. A seeded 20-minute world run completed four overtakes
 with zero collisions; focused fixtures also exercise left-side traffic and unsafe
 passing refusals.
+
+## Bovolone square regression
+
+On 6 November the owner reported a reversing loop while delivering to Municipio
+di Bovolone, Via Vescovado. The live window identified the destination; a fixed
+San Filippo Neri → Municipio fixture reproduced it from both starting directions:
+no delivery after six minutes, 21–26 recoveries and 90–111 seconds reversing.
+The orientation point inserted before the graph entry was incorrectly driven to,
+even when behind the car on a one-way segment. It now defines the occupied lane
+without becoming a backwards waypoint. The two fixtures finish in 43–74 seconds.
+
+The predictor also checks the bonnet/cabin outline against solids and courtyard
+holes, with the actual speed setting, and tests alternative reverse steering.
+Recovery can search around a building when the short ray ends inside it. The
+bounded search reaches clear nearby waypoints up to 72 m away. These protections
+use ordinary pedals/steering and do not alter player collision physics or saves.
+The new 30-minute traffic regression completed eight fares, 19.49 km and two
+overtakes with zero collisions and a maximum 20-second progress gap. Intentional
+boarding and completed gameplay actions count as progress.

@@ -38,10 +38,21 @@ body to rotate into the taxi.
 Focused evidence includes directed-sign tests for unreachable towns and misleading
 dead-end exits, unchanged map/tile signatures, circulation after a temporary
 obstruction, shoulder clearance and rejoining. The sustained traffic test now runs
-20 simulated minutes and requires paid local/inter-town work, over 11 km, no
-60-second stall and zero collisions; the measured run completed two fares over
-13.73 km, completing four overtakes. Focused tests cover both driving sides,
+30 simulated minutes and requires paid local/inter-town work, over 17 km, no
+60-second stall and zero collisions; the latest run completed eight fares over
+19.49 km, completing two overtakes, with a maximum 20 seconds without progress. Focused tests cover both driving sides,
 passing parked cars, using a clear verge, following a moving car, overtaking and
 returning to lane, refusing an unsafe pass, and escaping the
 taxi's safety buffer. Physical device
 testing and an overnight unattended traffic soak remain untested.
+
+The reported square failure on San Filippo Neri → Municipio di Bovolone is fixed.
+A synthetic lane-orientation point was being used as a destination behind the
+taxi, including at a one-way entry. It now only defines the approach orientation.
+Both starting directions deliver the passenger, replacing 21–26 reversing
+recoveries without delivery in six minutes with completion in 43–74 seconds.
+Collision prediction includes the rendered bonnet and cabin, permits retreat
+from an existing close approach, tests straight/opposite reverse steering, and
+matches the current speed setting. A recovery ray ending inside a building can
+search out to its clear nearby waypoint (at most 72 m), without pose resets.
+Regressions keep the vehicle out of building solids and preserve courtyard holes.

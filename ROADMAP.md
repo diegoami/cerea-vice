@@ -4,7 +4,7 @@ The goal is to reach a small playable version of the [game vision](VISION.md): l
 
 This is a proposed sequence, not a fixed schedule. Each milestone ends with a playable checkpoint; findings can change the next milestone's scope. Choose the first real location early, but build only a small district until the navigation loop works.
 
-## Next milestone (as of 3 November 2026)
+## Next milestone (as of 6 November 2026)
 
 `main` is ahead of the last release, `v0.14.0-rc.1` (milestone #110), by work merged on 2 November 2026,
 none of it reviewed per PR (the owner reviews at milestones only, see AGENTS.md):
@@ -15,6 +15,15 @@ none of it reviewed per PR (the owner reviews at milestones only, see AGENTS.md)
 - #117 town and village signs between the plain's towns (#84), and the save signature now ignores tile sizes.
 - #118–#121 contiguous regions (#112): one shared frame, Verona grown south to Borgo Roma, the region from
   Verona to Oppeano, and driving between the two regions at the gateway on Via Quaiotto north of Bovolone.
+
+The owner approved integration of #128 on 6 November. It includes the pending
+ancestry of #122 (handover), #124 (autonomous opening), #125 (unified world and
+inter-town fares), #126 (compact HUD), #127 (continuous service, day/night,
+scenery and cloud map authoring), and #128 itself (town boards, High demo quality,
+lane keeping, traffic recovery and overtaking). No per-PR review was requested.
+Include this inventory in the next milestone issue when the owner chooses a
+release candidate. The reported Bovolone square loop is covered by the final fix
+and real-map regressions before integration. No new release/tag is proposed here.
 
 Before the next release candidate, the owner still has to:
 - play the crossing north of Bovolone on Windows, and confirm or rename the proposed stops (the seven
