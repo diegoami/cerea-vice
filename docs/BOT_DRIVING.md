@@ -128,3 +128,20 @@ and unbooked. It advances eight hours, preserves position/money/knowledge, and l
 the player paused. The bot may rest at night between jobs; discrete dispatch/boarding
 is frozen during sleep as well as driving. Neither sleeping nor the calendar resets
 progress. Celestial movement and scenery are presentation, without GPS assistance.
+
+## Lane keeping and blocked traffic
+
+The driver now offsets directed road-centre routes into the map's correct driving
+lane. The occupied initial segment is retained even when routing selects its far
+endpoint, so that short graph-entry paths do not steer back to the centre line.
+Slower cars in the same lane impose a following speed and gap. Cars parked clear
+of that lane do not impose a speed limit. When blocked, the driver tries a bounded
+collision-checked road-edge/verge bypass before a reversing recovery; normal grass
+physics applies and no pose is changed by the planner.
+
+Traffic uses gradually changing steering, slows before bends, avoids blocked lanes
+and one-way sinks, and recovers instead of permanently parking in the carriageway.
+An oncoming conflict may use a clear shoulder; unrelated traffic does not swerve
+off the road on sight of the taxi. The taxi's conservative safety reservation lets
+an enclosed car move outward while the physical body-clearance guard remains active.
+Tests cover that mutual-deadlock regression and actual circulation/rejoining.

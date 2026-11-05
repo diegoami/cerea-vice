@@ -36,7 +36,7 @@ The main progression is personal familiarity: a district that initially feels co
 - Asking for your location or directions is possible anywhere, provided the car is stopped. It is not restricted to designated buildings or special interaction points.
 - There are a few clearly identifiable places where stopping and parking are allowed.
 - Directions use street names, compass directions, junctions and landmarks rather than exact coordinates or automatic navigation.
-- Major thoroughfares may use larger direction boards. Normal streets use small name plates at crossings, including building-mounted plates where practical, with occasional repeat plates between junctions. Plates run along and face into the street they name. Players should be able to identify lateral streets before turning.
+- Major thoroughfares use direction boards primarily to point toward other towns along real road connections. Within a single city, occasional compact boards may name local landmarks. Normal streets use small name plates at crossings, including building-mounted plates where practical, with occasional repeat plates between junctions. Plates run along and face into the street they name. Players should be able to identify lateral streets before turning.
 - Information can be requested while the atlas remains open. The same dedicated information control works on the road and in the atlas: View / Select (PS Share), or F on keyboard. A / Cross / Enter confirms menus or places an estimated marker.
 - Consulting the atlas and asking for help are legitimate parts of play, not failures.
 

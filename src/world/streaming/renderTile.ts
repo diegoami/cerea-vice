@@ -9,6 +9,7 @@ import type {Point,Rect,Bounds} from '../schema';
 import type {TileRef,TilePayload} from './schema';
 import {PLATE_RADIUS} from './TileStream';
 import {ground,paving,features as feature} from '../palette';
+import {roadsideBoards} from '../roadsideBoards';
 export type Surfaces=ReturnType<ReturnType<typeof createScenery>['createFacadeMaterials']>;
 export interface RenderedTile {group:THREE.Group;anchor:Point;bounds:Bounds;setDetail(enabled:boolean):void;updatePlates(distance:number):void;dispose():void}
 /** Tile data is local and owner-assigned; all GPU vertices are relative to its centre. */
@@ -60,7 +61,8 @@ export function renderTile(context:District,payload:TilePayload,ref:TileRef,surf
   for(const s of [-1,1]){box(group,b.x+s*b.width/2,.2,b.z,.2,.03,b.depth,paving.bayLine);box(group,b.x,.2,b.z+s*b.depth/2,b.width,.03,.2,paving.bayLine);}
 
  }
- for(const p of payload.boards){const q=local(p.position);if(p.mounted)sign(group,q.x,p.height,q.z,p.rows,p.width,p.angle,p.color);else signpost(group,q.x,q.z,p.rows,p.angle,p.color,p.width,p.height);}
+ const present=roadsideBoards(context);
+ for(const raw of payload.boards){const p=present(raw);if(!p)continue;const q=local(p.position);if(p.mounted)sign(group,q.x,p.height,q.z,p.rows,p.width,p.angle,p.color);else signpost(group,q.x,q.z,p.rows,p.angle,p.color,p.width,p.height);}
  const life=scenery.planLife(ref.bounds,payload.ground==='rural',[...payload.plates,...payload.boards]);
  scenery.dressStreets(detail,[],[...payload.props,...life].map(p=>({...p,...local(p)})));
  group.traverse(o=>{if(o instanceof THREE.Mesh&&!Array.isArray(o.material))o.material=materials.use(o.material);});

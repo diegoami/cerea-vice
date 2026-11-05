@@ -17,7 +17,15 @@ export async function checkOpening(page,resize,label,district='cerea'){
  assert.match(await page.locator('#objective-stage').innerText(),/PASSENGER|COLLECT|DROP|FARE/,'The autonomous driver accepts and services real taxi work');
  assert.equal(await page.evaluate(()=>JSON.stringify(localStorage)),before,'Demo does not write saves, dispatch history or crossing state');
  await mkdir('test-results',{recursive:true});
- for(const [w,h] of [[960,640],[1280,900],[1440,900],[1920,1080]]){await resize(w,h);await checkHudLayout(page);await page.screenshot({path:`test-results/opening-${label}-demo-${w}.png`});}
+ for(const [w,h] of [[960,640],[1280,900],[1440,900],[1920,1080]]){
+  await resize(w,h);await checkHudLayout(page);
+  await page.waitForFunction(()=>{
+   const canvas=document.querySelector('#viewport'),gl=canvas.getContext('webgl2'),limit=Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),gl.getParameter(gl.MAX_TEXTURE_SIZE),...gl.getParameter(gl.MAX_VIEWPORT_DIMS));
+   const scale=Math.min(devicePixelRatio||1,2,3840/innerWidth,2160/innerHeight,limit/innerWidth,limit/innerHeight);
+   return Math.abs(canvas.width-Math.round(innerWidth*scale))<=1&&Math.abs(canvas.height-Math.round(innerHeight*scale))<=1&&!canvas.classList.contains('pixel-picture');
+  });
+  await page.screenshot({path:`test-results/opening-${label}-demo-${w}.png`});
+ }
  // Held Enter can open the rules only once; repeated keydowns cannot confirm.
  await page.keyboard.down('Enter');await page.getByRole('button',{name:'Begin game'}).waitFor();
  const frozen=await page.locator('#timer').innerText();

@@ -2,7 +2,7 @@ import type { Actions } from "../input/Input";
 import type { SpatialGrid } from "../world/SpatialGrid";
 import { inRect, type Rect, type Point } from "../world/district";
 import { District } from "../world/district";
-export type CollisionSource=Rect[]|Pick<SpatialGrid<Rect>,'at'>;
+export type CollisionSource=Rect[]|(Pick<SpatialGrid<Rect>,'at'>&{moving?:()=>readonly (Point&{heading:number;speed:number})[]});
 export function createCar(context:District){
 const {district,isPaved,spawn}=context;
 class Car {

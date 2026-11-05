@@ -162,14 +162,17 @@ class Game {
       height = window.innerHeight;
     const ratio=window.devicePixelRatio||1,gl=this.renderer.getContext();
     const limit=Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),this.renderer.capabilities.maxTextureSize,...gl.getParameter(gl.MAX_VIEWPORT_DIMS));
-    const size=renderSize(width,height,this.settings.resolution,ratio,limit);
+    const size=renderSize(width,height,this.pictureMode,ratio,limit);
     this.renderer.setSize(size.width,size.height,false);
-    this.renderer.domElement.classList.toggle('pixel-picture',isRetro(this.settings.resolution));
+    this.renderer.domElement.classList.toggle('pixel-picture',isRetro(this.pictureMode));this.renderedPicture=this.pictureMode;
     // Report what the browser actually allocated, which can be less than requested.
     this.settingsPanel.showPicture(gl.drawingBufferWidth,gl.drawingBufferHeight,Math.round(width*ratio),Math.round(height*ratio));
     this.cockpit.camera.aspect = width / height;
     this.cockpit.camera.updateProjectionMatrix();
   }
+
+  private renderedPicture='';
+  private get pictureMode(){return this.opening?.state==='demo'?'high':this.settings.resolution;}
 
   /** Moving between displays can change the pixel ratio without a window resize. */
   private watchPixelRatio(){
@@ -556,8 +559,9 @@ class Game {
     this.interior.setPassenger(this.mission.seatedIdentity);
     this.interior.update({...this.car,...this.world.frame.toLocal(this.car)},this.motion.roll,this.motion.pitch,this.motion.wobble);
     const renderStart=context.profile.start();
+    if(this.renderedPicture!==this.pictureMode)this.resize();
     this.interior.renderMirrors(this.renderer,this.world.scene,dt);
-    if(isRetro(this.settings.resolution))this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
+    if(isRetro(this.pictureMode))this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
     else this.renderer.render(this.world.scene, this.cockpit.camera);
     context.profile.end("render",renderStart);
     if(this.timingPanel&&time>=this.timingRefresh){this.timingRefresh=time+500;this.timingPanel.textContent=context.profile.text()+(this.world instanceof StreamingWorld?`\ntiles: ${this.world.stream.resident.size} resident · ${this.world.stream.stats.loads} loads / ${this.world.stream.stats.unloads} unloads`:"");}

@@ -33,7 +33,10 @@ for creating and registering maps from other parts of the world through a PR.
 
 Launch opens a disposable autonomous drive with the normal dashboard and a small **Start**
 button. The bot requests fares, collects passengers and earns money using ordinary driving
-and service rules. After closing time it keeps exploring; it never resets on a timer.
+and service rules. It continues through day and night and never resets on a timer.
+The demo uses High picture mode for readable signs (within display/4K/GPU limits);
+normal play keeps your saved picture preference. Town-direction boards group several
+destinations at crossings, while street names remain on small plates.
 **Start** freezes it for rules and current controls. **Begin game** discards the demo and starts
 fresh once held controls are released. The instructions retain settings
 and **Continue saved game**; the demo never saves or changes your dispatch history.

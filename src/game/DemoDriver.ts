@@ -1,4 +1,5 @@
 import {RouteGraph} from '../navigation/RouteGraph';
+import {laneRoute} from '../driving/LaneRoute';
 import {createCar, type Car, type CollisionSource} from '../driving/Car';
 import type {Actions} from '../input/Input';
 import type {Mission} from '../mission/Mission';
@@ -33,11 +34,20 @@ export class DemoDriver {
   private previous?:Point;
   private steering=0;
   private turnCooldown=0;
+  private detourCooldown=0;
   private sawFinished=false;
   private readonly probe:Car;
   constructor(private context:District){this.probe=new (createCar(context).Car)();}
 
-  relocated(){this.blocked.clear();this.route=[];this.targetKey='';this.segmentStart=undefined;this.previous=undefined;this.best=Infinity;this.stalled=0;this.recoveryPhase='none';this.steering=0;this.turnCooldown=0;}
+  relocated(){this.blocked.clear();this.route=[];this.targetKey='';this.segmentStart=undefined;this.previous=undefined;this.best=Infinity;this.stalled=0;this.recoveryPhase='none';this.steering=0;this.turnCooldown=0;this.detourCooldown=0;}
+
+  private avoidImpact(car:Car,action:Actions,colliders:CollisionSource){
+    this.probe.reset();Object.assign(this.probe,{x:car.x,z:car.z,heading:car.heading,speed:car.speed,gear:car.gear,steering:car.steering});
+    for(let i=0;i<12;i++)this.probe.update(1/20,action,colliders);
+    // Low-speed contact also stops the probe, even below the impact-count threshold.
+    if(this.probe.collisions>0||this.probe.speed===0&&action.throttle>.2){action.throttle=0;action.brake=1;}
+    return action;
+  }
 
   private plan(car:Car,nodeId:string,bay?:Rect){
     const {context}=this;
@@ -48,7 +58,12 @@ export class DemoDriver {
     const road=nearest.edge;
     const entries=(road.oneWay?[road.b]:[road.a,road.b]).map(id=>({id,...graph.search(id,nodeId)}));
     entries.sort((a,b)=>(a.cost+distance(car,context.nodeById(a.id)))-(b.cost+distance(car,context.nodeById(b.id))));
-    this.route=entries[0].path.map(context.nodeById);
+    const path=[...entries[0].path];
+    // Include the occupied segment even when its far endpoint is the best graph
+    // entry. Otherwise a one-node path would aim back at the road centre.
+    if(path[0]===road.b&&path[1]!==road.a)path.unshift(road.a);
+    else if(path[0]===road.a&&!road.oneWay&&path[1]!==road.b)path.unshift(road.b);
+    this.route=laneRoute(context,path);
     if(bay&&this.route.length)this.route.push({x:bay.x,z:bay.z});
     if(!this.route.length){
       // If an approach is unreachable, retreat to a reachable junction before
@@ -56,7 +71,7 @@ export class DemoDriver {
       const alternatives=context.nodes.filter(n=>distance(car,n)>20).sort((a,b)=>distance(car,a)-distance(car,b));
       for(const node of alternatives){
         const path=graph.search(road.b,node.id).path;
-        if(path.length>1){this.route=path.map(context.nodeById);break;}
+        if(path.length>1){this.route=laneRoute(context,path);break;}
       }
     }
     this.segmentStart={x:car.x,z:car.z};
@@ -102,7 +117,7 @@ export class DemoDriver {
   update(dt:number,car:Car,parking:Parking,mission:Mission,colliders:CollisionSource):Actions{
     if(mission.finished&&!this.sawFinished){this.relocated();this.blocked.clear();}
     this.sawFinished=mission.finished;
-    this.elapsed+=dt;this.turnCooldown=Math.max(0,this.turnCooldown-dt);
+    this.elapsed+=dt;this.turnCooldown=Math.max(0,this.turnCooldown-dt);this.detourCooldown=Math.max(0,this.detourCooldown-dt);
     if(this.previous)this.distanceDriven+=distance(car,this.previous);
     this.previous={x:car.x,z:car.z};
     const stop=()=>({...idleActions(),brake:1});
@@ -159,6 +174,11 @@ export class DemoDriver {
     const remaining=distance(car,aim);
     // Distance to the next waypoint, rather than wheel motion, catches loops and oscillation.
     if(remaining<this.best-.6){this.best=remaining;this.stalled=0;}else this.stalled+=dt;
+    if(this.stalled>2.5&&this.recoveryPhase==='none'&&this.detourCooldown===0){
+      this.detourCooldown=8;
+      const bypass=this.detour(car,aim,colliders);
+      if(bypass.length){this.route.unshift(...bypass);this.segmentStart={x:car.x,z:car.z};this.best=Infinity;this.stalled=0;this.activity='Passing an obstruction using a clear road edge or verge';return stop();}
+    }
     const behind=Math.abs(angle(Math.atan2(aim.x-car.x,-(aim.z-car.z))-car.heading))>2;
     if((this.stalled>7||(behind&&Math.abs(car.speed)<.6&&remaining<60&&this.turnCooldown===0))&&this.recoveryPhase==='none'){
       const road=this.context.nearestRoad(car)?.edge;
@@ -177,7 +197,7 @@ export class DemoDriver {
       if(this.recoveryPhase==='reverse'){
         this.recoveryAge+=dt;
         if(distance(car,this.reverseOrigin)>=5||this.recoveryAge>4){this.recoveryPhase='settle';return stop();}
-        return {...idleActions(),throttle:Math.abs(car.speed)<2.5?.75:0,steer:this.recoveryTurn};
+        return this.avoidImpact(car,{...idleActions(),throttle:Math.abs(car.speed)<2.5?.75:0,steer:this.recoveryTurn},colliders);
       }
       if(car.speed!==0||!parking.stopped)return stop();
       if(car.gear==='R')car.shiftGear();
@@ -213,13 +233,15 @@ export class DemoDriver {
     const wantedSteer=Math.max(-1,Math.min(1,curvature*2.8/.6*(1+Math.abs(car.speed)*.07)));
     this.steering+=Math.max(-dt*2.5,Math.min(dt*2.5,wantedSteer-this.steering));
     if(Math.abs(error)>1)limit=Math.min(limit,3.5);
+    // Follow slower traffic in our lane instead of repeatedly arriving at its bumper.
+    if(this.route[0]?.radius!==1.4&&!Array.isArray(colliders))for(const other of colliders.moving?.()??[]){
+      const dx=other.x-car.x,dz=other.z-car.z,forward=dx*Math.sin(car.heading)-dz*Math.cos(car.heading),side=Math.abs(dx*Math.cos(car.heading)+dz*Math.sin(car.heading));
+      if(forward>0&&forward<35&&side<2.2&&Math.abs(angle(other.heading-car.heading))<.7)limit=Math.min(limit,Math.max(0,other.speed+(forward-11)*.55));
+    }
     const throttle=Math.max(0,Math.min(1,(limit-car.speed)*.6+limit*.45/9));
     const action={...idleActions(),steer:this.steering,throttle:car.speed>limit+.5?0:throttle,brake:Math.max(0,Math.min(1,(car.speed-limit)*.3))};
     // Short collision prediction brakes for unexpected obstacles; the recovery planner
     // finds a clear path instead of making last-second steering oscillations.
-    this.probe.reset();Object.assign(this.probe,{x:car.x,z:car.z,heading:car.heading,speed:car.speed,gear:car.gear,steering:car.steering});
-    for(let i=0;i<12;i++)this.probe.update(1/20,action,colliders);
-    if(this.probe.collisions>0){action.throttle=0;action.brake=1;}
-    return action;
+    return this.avoidImpact(car,action,colliders);
   }
 }

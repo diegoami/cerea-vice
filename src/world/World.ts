@@ -10,6 +10,7 @@ import { box, sign, signpost, material, streetNamePlate } from "./builders";
 import { signRows } from "./placeNames";
 import { createStreetPlates } from "./streetPlates";
 import { createSigns } from "./signs";
+import {roadsideBoards} from './roadsideBoards';
 import { District } from "./district";
 import { ground, paving, features as mapped, facadeTrim, light, haze, skyGradient } from "./palette";
 export function createWorld(logical:District){
@@ -170,7 +171,8 @@ class World {
     const plannedSigns=planJunctionSigns();
     if(plannedSigns.missing.length)console.warn("Missing clear junction sign positions",plannedSigns.missing);
     for(const plan of plannedSigns.signs) {
-      signpost(scene,plan.position.x,plan.position.z,plan.rows,plan.angle,"#31594e",plan.width,plan.height);
+      const board=roadsideBoards(context)({...plan,color:'#31594e'});
+      if(board)signpost(scene,board.position.x,board.position.z,board.rows,board.angle,board.color,board.width,board.height);
     }
     const noEntry=planVittoriaNoEntrySign();
     if(noEntry)signpost(scene,noEntry.position.x,noEntry.position.z,["SENSO VIETATO","V.LE VITTORIA"],noEntry.angle,"#943f37",noEntry.width,noEntry.height);
