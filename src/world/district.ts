@@ -17,6 +17,8 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   if (data.version !== 1 || !data.id || !data.name || !Array.isArray(data.nodes) || !Array.isArray(data.roads) || !Array.isArray(data.parkingZones) || !Array.isArray(data.landmarks) || !Array.isArray(data.buildings) || !Array.isArray(data.features) || !Array.isArray(data.areas)) throw new Error("Incomplete district file");
   const plainText = (value: unknown) => typeof value === "string" && value.length > 0 && value.length < 500 && !/[<>]/.test(value);
   if (!plainText(data.name) || !plainText(data.description) || !plainText(data.attribution) || data.nodes.some((node) => !plainText(node.label)) || data.roads.some((road) => (!plainText(road.name)||(road.roadClass!==undefined&&!plainText(road.roadClass))))) throw new Error("District names must be plain text");
+  if(data.drivingSide!==undefined&&!['left','right'].includes(data.drivingSide))throw new Error('Invalid driving side');
+  if(data.latitude!==undefined&&(!Number.isFinite(data.latitude)||Math.abs(data.latitude)>90))throw new Error('Invalid map latitude');
   if (data.stoppingPolicy !== undefined && !["marked-bays","anywhere"].includes(data.stoppingPolicy)) throw new Error("Invalid stopping policy");
   const validPoint = (point: Point) => point && Number.isFinite(point.x) && Number.isFinite(point.z);
   const ids = new Set(data.nodes.map((node) => node.id));
@@ -36,6 +38,10 @@ export function validateDistrict(value: unknown): asserts value is DistrictDefin
   if (data.gateways!==undefined&&(!Array.isArray(data.gateways)||data.gateways.some(gateway=>!plainText(gateway.id)||!ids.has(gateway.nodeId)||!/^[a-z0-9-]+$/.test(gateway.to)||!Array.isArray(gateway.sign)||!gateway.sign.length||gateway.sign.some(row=>!plainText(row))))) throw new Error("Invalid region gateway");
   if(data.taxi) {
     const taxi=data.taxi;
+    if(taxi.endless!==undefined&&typeof taxi.endless!=='boolean')throw new Error('Invalid taxi time mode');
+    if(taxi.mixedTownFares!==undefined&&typeof taxi.mixedTownFares!=='boolean')throw new Error('Invalid taxi fare kinds');
+    if(taxi.interTownPremiumCents!==undefined&&(!Number.isSafeInteger(taxi.interTownPremiumCents)||taxi.interTownPremiumCents<0))throw new Error('Invalid inter-town premium');
+    if(taxi.mixedTownFares&&taxi.stops.some(stop=>!stop.townId||!/^[a-z0-9-]+$/.test(stop.townId)||!plainText(stop.town)))throw new Error('Missing taxi town identity');
     if(!Number.isFinite(taxi.startHour)||!Number.isFinite(taxi.endHour)||taxi.startHour<0||taxi.endHour>24||taxi.startHour>=taxi.endHour||!Number.isFinite(taxi.clockRate)||taxi.clockRate<=0||taxi.clockRate>120)throw new Error("Invalid taxi shift clock");
     if([taxi.baseCents,taxi.perKmCents,taxi.maxBonusCents].some(value=>!Number.isFinite(value)||value<0))throw new Error("Invalid taxi fares");
     if(!Array.isArray(taxi.stops)||taxi.stops.length<3||!Array.isArray(taxi.fares)||!taxi.fares.length)throw new Error("Missing taxi goals");

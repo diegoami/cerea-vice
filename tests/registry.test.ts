@@ -54,12 +54,12 @@ test('an unlisted or removed district falls back to the default without deleting
  Object.defineProperty(globalThis,'window',{value:{location:{...location,get hash(){return location.hash;},reload:()=>reloads++}},configurable:true});
  Object.defineProperty(globalThis,'history',{value:{replaceState:(_s:unknown,_t:string,url:string)=>{location.hash=url;}},configurable:true});
  const list:TownRegistry={...registry};
- assert.equal(requestedDistrict(list),'cerea','Nothing chosen: the default');
+ assert.equal(requestedDistrict(list),'veronese','Nothing chosen: the default');
  location.hash='#district=harbor';assert.equal(requestedDistrict(list),'harbor','The URL choice wins');
  location.hash='#district=atlantis-centro';storage.set('cerea-district','atlantis');
- assert.equal(requestedDistrict(list),'cerea','Unlisted choices fall back to the default');
+ assert.equal(requestedDistrict(list),'veronese','Unlisted choices fall back to the default');
  assert.equal(storage.get('cerea-district'),'atlantis','The remembered choice is not overwritten');assert.equal(removed,0);
- storage.set('cerea-district','cerea-outskirts');location.hash='';assert.equal(requestedDistrict(list),'cerea-outskirts','A listed remembered choice is used');
+ storage.set('cerea-district','cerea-outskirts');location.hash='';assert.equal(requestedDistrict(list),'veronese','Hidden legacy preferences do not replace the unified default');
  selectDistrict(list.towns,'atlantis');assert.equal(reloads,0,'An unlisted district is never selected');
  selectDistrict(list.towns,'harbor');assert.equal(reloads,1);assert.equal(storage.get('cerea-district'),'harbor');assert.equal(location.hash,'#district=harbor');
 });

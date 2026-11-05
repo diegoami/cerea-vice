@@ -5,13 +5,49 @@
 
 [Game vision](VISION.md) defines the direction and scope. [Loadable districts](MAPS.md) describes the map format, sources and the new real-place pilot.
 
-**Cerea Centro** now offers a [taxi shift](TAXI.md): work from 07:00 to 17:00, collect passengers and follow their requests to nine real places across an expanded neighbourhood with 51 named streets. Completed rides pay a base fare plus a speed bonus. The accelerated day takes about 20 active minutes; the atlas and pause screens stop the clock. Start at the Municipio free to drive. When you want work, stop and request fares to compare a list of randomized pickups, destinations and guaranteed payments, accept one, then collect the passenger, who walks from a nearby doorway into the seat beside you. The library is now just one of several places to learn.
+The default **Veronese world** is one continuous real-place map. Work a
+continuous day/night [taxi service](TAXI.md), choose local or inter-town fares, collect passengers
+and find their destinations using street signs, landmarks and the stopped-only atlas.
+There is no closing time. Rest for 8 hours from the pause menu when stopped with no passenger; normal pause and atlas reading stop time.
+The game loads its assets locally and runs offline.
 
-**Verona centro** is the centre of Verona inside the Adige loop: 417 real streets, its squares to drive across, and a taxi shift with 13 stops from the Arena to the Duomo. **Lower Veronese plain** joins Cerea, Legnago, Bovolone, Sanguinetto, Nogara and Casaleone at real scale with shortened roads between them.
+## Default world
 
-**Harbor District**, the original fictional three-minute hotel journey, remains available from the briefing. Use the district buttons or **LB / RB** (**Q / E**) to switch before starting. The atlas, direction signs, stopped-only information requests and manual position estimates work in both districts. The game loads its map files locally and runs offline. Small street-name plates identify lateral streets at crossings and repeat along longer stretches; larger arrow boards are reserved for major thoroughfares.
+**Veronese world** joins Cerea, Legnago, Bovolone, Sanguinetto, Nogara, Casaleone,
+Verona centro–Borgo Roma, San Giovanni Lupatoto and Oppeano in one continuous map.
+Fresh games start at a random town landmark. One fare list mixes local trips with
+inter-town jobs, which include an extra €12 plus distance pay. Passengers and saved
+shifts can cross the old region boundary. Older maps are hidden from normal selection;
+explicit legacy URLs/launcher IDs and their existing save slots remain available.
+The demo alone jumps to another town after three paid jobs. See
+[driving analysis and measurements](docs/BOT_DRIVING.md).
 
-[Previously hosted Harbor prototype](https://cerea-vice-harbor-drive.brownclock131.chatgpt.site) (private; may lag the current desktop build).
+## Creating and choosing maps
+
+The chooser now includes **London Westminster**, a small real-street pilot with
+Elizabeth Tower, Westminster Abbey and Westminster City Hall. Veronese remains
+the default. See [the local/cloud map-authoring workflow](docs/MAP_WORKFLOW.md)
+for creating and registering maps from other parts of the world through a PR.
+
+## Opening
+
+Launch opens a disposable autonomous drive with the normal dashboard and a small **Start**
+button. The bot requests fares, collects passengers and earns money using ordinary driving
+and service rules. It continues through day and night and never resets on a timer.
+The demo uses High picture mode for readable signs (within display/4K/GPU limits);
+normal play keeps your saved picture preference. Town-direction boards group several
+destinations at crossings, while street names remain on small plates.
+**Start** freezes it for rules and current controls. **Begin game** discards the demo and starts
+fresh once held controls are released. The instructions retain settings
+and **Continue saved game**; the demo never saves or changes your dispatch history.
+The driving header shows only the current goal’s landmark, town and street, with earnings
+beside the clock. Taxi-radio updates stay brief at stops and disappear in motion. The
+demo badge reads `DEMO  MODE`.
+Scroll the instructions with arrows, Page Up/Down, the wheel, touch swipe or the controller's
+right stick. Driving supports keyboard/mouse and standard controllers; touch is for menus.
+Use `npm run test:browser` for the production browser opening and
+`npm run test:windows-opening` on WSL/Windows for a disposable native Windows check.
+See [opening implementation and checks](docs/OPENING.md).
 
 ## Run
 

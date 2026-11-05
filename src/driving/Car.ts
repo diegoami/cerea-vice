@@ -1,7 +1,8 @@
 import type { Actions } from "../input/Input";
-import { SpatialGrid } from "../world/SpatialGrid";
-import { inRect, type Rect } from "../world/district";
+import type { SpatialGrid } from "../world/SpatialGrid";
+import { inRect, type Rect, type Point } from "../world/district";
 import { District } from "../world/district";
+export type CollisionSource=Rect[]|(Pick<SpatialGrid<Rect>,'at'>&{moving?:()=>readonly (Point&{heading:number;speed:number})[]});
 export function createCar(context:District){
 const {district,isPaved,spawn}=context;
 class Car {
@@ -16,10 +17,10 @@ class Car {
   unlimited = false;
   private impactCooldown = 0;
 
-  reset() {
-    this.x = spawn.x;
-    this.z = spawn.z;
-    this.heading = spawn.heading;
+  reset(pose:Point&{heading:number}=spawn) {
+    this.x = pose.x;
+    this.z = pose.z;
+    this.heading = pose.heading;
     this.speed = 0;
     this.gear = "D";
     this.steering = 0;
@@ -33,7 +34,7 @@ class Car {
     return true;
   }
 
-  update(dt: number, input: Actions, colliders: Rect[] | SpatialGrid<Rect>) {
+  update(dt: number, input: Actions, colliders: CollisionSource) {
     this.impactCooldown = Math.max(0, this.impactCooldown - dt);
     this.steering += (input.steer - this.steering) * Math.min(1, dt * 7);
     const paved = isPaved(this);
@@ -68,7 +69,7 @@ class Car {
       const hit =
         next.x < district.bounds.minX + 1 || next.x > district.bounds.maxX - 1 ||
         next.z < district.bounds.minZ + 1 || next.z > district.bounds.maxZ - 1 ||
-        (colliders instanceof SpatialGrid?colliders.at(next,1.05):colliders).some((r) => inRect(next, r, -1.05));
+        (Array.isArray(colliders)?colliders:colliders.at(next,1.05)).some((r) => inRect(next, r, -1.05));
       if (hit) {
         if (Math.abs(this.speed) > 1 && this.impactCooldown === 0) {
           this.collisions++;

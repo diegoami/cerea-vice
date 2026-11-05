@@ -7,7 +7,7 @@ import {District,inRect,roadWidth} from '../src/world/district';
 import {SpatialGrid,rectBounds,type Box} from '../src/world/SpatialGrid';
 import {streamingColliders} from '../src/world/streaming/colliders';
 import {PLATE_RADIUS} from '../src/world/streaming/TileStream';
-import {createNavigation} from '../src/navigation/Navigation';
+import {RouteGraph} from '../src/navigation/RouteGraph';
 import {createStreetPlates} from '../src/world/streetPlates';
 import {createSigns} from '../src/world/signs';
 import type {Point,Rect} from '../src/world/schema';
@@ -30,6 +30,8 @@ export const PLATE_TEXTURE_BYTES=512*96*4*4/3;
  */
 export const BUDGETS={
  single:{bytes:1_600_000,buildings:3_500,roads:2_000,plateMiB:150},
+ // Separate cap for the owner-requested union (2026-11-05); legacy limits are unchanged.
+ unified:{manifestBytes:15_000_000,buildings:26_000,roads:17_000,tileBytes:250_000,residentPlateMiB:150},
  tiled:{manifestBytes:9_000_000,buildings:16_000,roads:9_000,tileBytes:250_000,residentPlateMiB:150},
 };
 
@@ -52,13 +54,12 @@ export function checkNetwork(context:District):CheckResult{
 export function checkStops(context:District):CheckResult{
  const taxi=context.district.taxi;
  if(!taxi)return result('stops','Stops reachable both ways',[],['no taxi shift']);
- const nav=createNavigation(context),problems:string[]=[];
+ const graph=new RouteGraph(context.nodes,context.roads),problems:string[]=[];
  for(const stop of taxi.stops){
   if(!context.parkingZones.some(b=>b.id===stop.bayId))problems.push(`${stop.id}: bay ${stop.bayId} is missing`);
   if(!context.nodeMap.has(stop.nodeId))problems.push(`${stop.id}: node ${stop.nodeId} is missing`);
  }
- if(!problems.length)for(const a of taxi.stops)for(const b of taxi.stops)
-  if(a!==b&&!Number.isFinite(nav.shortestRoute(a.nodeId,b.nodeId).cost))problems.push(`${a.id} → ${b.id} is unreachable`);
+ if(!problems.length)for(const b of taxi.stops){const costs=graph.costsTo(b.nodeId);for(const a of taxi.stops)if(a!==b&&!Number.isFinite(costs.get(a.nodeId)??Infinity))problems.push(`${a.id} → ${b.id} is unreachable`);}
  return result('stops','Stops reachable both ways',problems,[`${taxi.stops.length} stops, ${taxi.stops.length*(taxi.stops.length-1)} directed pairs`]);
 }
 
@@ -156,7 +157,7 @@ export function checkPlates(context:District,plan?:ReturnType<ReturnType<typeof 
 }
 
 export interface SizeReport {
- delivery:'single'|'tiled';bytes:number;buildings:number;roads:number;streetNames:number;
+ composed?:boolean;delivery:'single'|'tiled';bytes:number;buildings:number;roads:number;streetNames:number;
  tiles?:number;largestTile?:{id:string;bytes:number};plateNames?:number;residentPlateNames?:number;plateMiB:number;
 }
 
@@ -171,8 +172,8 @@ export function measureSize(mapFile:string,context:District):SizeReport{
  const dir=path.dirname(mapFile),names=new Map<string,Set<string>>();let largest={id:'',bytes:0};
  for(const tile of streaming.tiles){
   if(tile.bytes>largest.bytes)largest={id:tile.id,bytes:tile.bytes};
-  const payload=JSON.parse(readFileSync(path.join(dir,tile.file),'utf8')) as {plates:{name:string}[]};
-  names.set(tile.id,new Set(payload.plates.map(p=>p.name)));
+  const files=tile.sources?.map(s=>path.join(dir,'..',s.map,'tiles',`${tile.id}.json`))??[path.join(dir,tile.file)];
+  names.set(tile.id,new Set(files.flatMap(file=>(JSON.parse(readFileSync(file,'utf8')) as {plates:{name:string}[]}).plates.map(p=>p.name))));
  }
  const centre=(b:{minX:number;maxX:number;minZ:number;maxZ:number})=>({x:(b.minX+b.maxX)/2,z:(b.minZ+b.maxZ)/2});
  const tileGrid=new SpatialGrid(streaming.tiles,t=>t.bounds,streaming.tileSize);let resident=0;
@@ -181,7 +182,7 @@ export function measureSize(mapFile:string,context:District):SizeReport{
   for(const other of tileGrid.at(c,PLATE_RADIUS.hide))if(Math.hypot(Math.max(other.bounds.minX-c.x,0,c.x-other.bounds.maxX),Math.max(other.bounds.minZ-c.z,0,c.z-other.bounds.maxZ))<=PLATE_RADIUS.hide)for(const name of names.get(other.id)!)seen.add(name);
   resident=Math.max(resident,seen.size);
  }
- return {delivery:'tiled',...base,tiles:streaming.tiles.length,largestTile:largest,residentPlateNames:resident,plateMiB:resident*PLATE_TEXTURE_BYTES/2**20};
+ return {delivery:'tiled',composed:context.district.id==='veronese',...base,tiles:streaming.tiles.length,largestTile:largest,residentPlateNames:resident,plateMiB:resident*PLATE_TEXTURE_BYTES/2**20};
 }
 
 export function checkSize(size:SizeReport):CheckResult{
@@ -190,7 +191,7 @@ export function checkSize(size:SizeReport):CheckResult{
   const b=BUDGETS.single;
   over('the district file',size.bytes,b.bytes,' bytes');over('buildings',size.buildings,b.buildings);over('road segments',size.roads,b.roads);over('street-name textures',size.plateMiB,b.plateMiB,' MiB');
  }else{
-  const b=BUDGETS.tiled;
+  const b=size.composed?BUDGETS.unified:BUDGETS.tiled;
   over('the manifest',size.bytes,b.manifestBytes,' bytes');over('buildings',size.buildings,b.buildings);over('road segments',size.roads,b.roads);
   over(`the largest tile (${size.largestTile!.id})`,size.largestTile!.bytes,b.tileBytes,' bytes');over('resident street-name textures',size.plateMiB,b.residentPlateMiB,' MiB');
  }

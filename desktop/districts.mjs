@@ -12,3 +12,5 @@ export function chooseDistrict(requested, ids) {
   if (!ids.includes(requested)) throw new Error(`Unknown district "${requested}". Choose one of: ${ids.join(', ')}.`);
   return requested;
 }
+
+export function defaultDistrict(file){const data=JSON.parse(readFileSync(file,'utf8'));return chooseDistrict(data.default,districtIds(file));}

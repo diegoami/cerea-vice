@@ -12,9 +12,12 @@ export interface WaterArea { name: string; points: Point[]; holes?: Point[][]; s
 /** A square or other paved open ground (#25): drivable and paved, not a road, so not part of routing. */
 export interface PavedArea { name: string; points: Point[]; holes?: Point[][] }
 export interface NavigationTarget { name:string; nodeId:string; bay:ParkingZone; road?:string }
-export interface TaxiStop { id:string; name:string; road:string; bayId:string; nodeId:string; description:string }
+export interface TaxiStop { townId?:string; town?:string; id:string; name:string; road:string; bayId:string; nodeId:string; description:string }
 export interface TaxiFare { passenger:string; pickupId:string; destinationId:string }
 export interface TaxiDefinition {
+  endless?:boolean;
+  mixedTownFares?:boolean;
+  interTownPremiumCents?:number;
   startHour:number; endHour:number; clockRate:number;
   baseCents:number; perKmCents:number; maxBonusCents:number;
   stops:TaxiStop[]; fares:TaxiFare[];
@@ -34,6 +37,9 @@ export interface DistrictDefinition {
   description: string;
   attribution: string;
   sourceUrl: string;
+  signLanguage?:'it'|'en';
+  latitude?:number;
+  drivingSide?:'left'|'right';
   stoppingPolicy?: "marked-bays" | "anywhere";
   bounds: Bounds;
   nodes: RoadNode[];

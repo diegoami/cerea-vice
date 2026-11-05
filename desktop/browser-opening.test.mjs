@@ -1,0 +1,62 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {chromium} from 'playwright-core';
+import {checkOpening} from './opening-check.mjs';
+
+test('production browser opening, small-window touch scrolling and release handoff',{timeout:180000},async()=>{
+ const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4175','--strictPort'],{stdio:'ignore'});
+ let browser;
+ try{
+  let ready=false;
+  for(let i=0;i<100;i++){try{ready=(await fetch('http://127.0.0.1:4175')).ok;}catch{}if(ready)break;await new Promise(resolve=>setTimeout(resolve,100));}
+  assert.ok(ready,'Production preview must start');
+  browser=await chromium.launch({...(process.env.CEREA_BROWSER_EXECUTABLE?{executablePath:process.env.CEREA_BROWSER_EXECUTABLE}:{}),headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
+  const page=await browser.newPage();await page.goto('http://127.0.0.1:4175');
+  await checkOpening(page,(width,height)=>page.setViewportSize({width,height}),'browser','veronese');
+  await page.getByRole('button',{name:'Back to the road'}).click();await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await page.keyboard.down('s');await page.waitForFunction(()=>/STOP/.test(document.querySelector('#stop-state').textContent));await page.keyboard.up('s');
+  await page.keyboard.press('o');await page.locator('.fare-board').waitFor();
+  assert.equal(await page.locator('[data-fare-offer]').count(),4);
+  assert.equal(await page.locator('[data-fare-offer]').filter({hasText:/Local ·/}).count(),2);
+  assert.equal(await page.locator('[data-fare-offer]').filter({hasText:/Inter-town ·/}).count(),2);
+  assert.match(await page.locator('.fare-board').innerText(),/extra €12/);
+  await page.setViewportSize({width:960,height:640});await page.screenshot({path:'test-results/unified-mixed-fares-browser.png'});
+  for(const box of await page.locator('[data-fare-offer]').evaluateAll(items=>items.map(e=>({left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right,overflow:e.scrollWidth>e.clientWidth+1}))))assert.ok(box.left>=0&&box.right<=960&&!box.overflow,'Mixed quotes fit a small window');
+  await page.locator('[data-fare-offer]').filter({hasText:/Inter-town ·/}).first().click();await page.locator('[data-fare=accept]').click();
+  await page.locator('#overlay').waitFor({state:'hidden'});await page.keyboard.press('p');
+  await page.getByRole('button',{name:/^Save (game|shift)$/}).click();await page.locator('.save-status').filter({hasText:/Saved/}).waitFor();
+  const accepted=await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-veronese')).mission.currentFare);
+  assert.ok(accepted);await page.getByRole('button',{name:/^Continue saved (game|shift)$/}).click();await page.locator('.save-status').filter({hasText:/Loaded/}).waitFor();
+  assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-veronese')).mission.currentFare),accepted);
+  await page.close();
+  console.info('Compact HUD layouts, fares and save/load passed');
+  const controller=await browser.newPage();await controller.goto('http://127.0.0.1:4175');
+  await controller.getByRole('button',{name:'Start',exact:true}).waitFor();
+  await controller.evaluate(()=>{window.pad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.pad]});});
+  await controller.waitForFunction(()=>document.querySelector('#opening button')?.disabled===false);
+  await controller.evaluate(()=>window.pad.buttons[9].value=1);await controller.getByRole('button',{name:'Begin game'}).waitFor();
+  await controller.waitForTimeout(250);assert.equal(await controller.getByRole('button',{name:'Begin game'}).isVisible(),true);
+  await controller.evaluate(()=>window.pad.buttons[9].value=0);await controller.waitForFunction(()=>document.querySelector('.briefing-main button')?.disabled===false);
+  await controller.evaluate(()=>window.pad.buttons[0].value=1);await controller.getByRole('button',{name:'Release controls to begin…'}).waitFor();
+  await controller.evaluate(()=>window.pad.buttons[0].value=0);await controller.locator('#overlay').waitFor({state:'hidden'});await controller.close();
+  console.info('Controller-only opening passed');
+  const touch=await browser.newContext({hasTouch:true,viewport:{width:390,height:844}}),small=await touch.newPage();
+  await small.goto('http://127.0.0.1:4175');await small.getByRole('button',{name:'Start',exact:true}).tap();
+  await small.getByRole('button',{name:'Begin game'}).waitFor();
+  const cdp=await small.context().newCDPSession(small);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:200,y:420}]});
+  for(const y of [380,330,280,220])await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:200,y}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await small.waitForFunction(()=>document.querySelector('#overlay').scrollTop>10);
+  const reading=await small.locator('#overlay').boundingBox(),options=await small.locator('.presentation-settings').boundingBox();
+  assert.ok(reading.y+reading.height<=options.y,'Options do not obscure the instructions on a small viewport');
+  await small.screenshot({path:'test-results/opening-browser-touch-rules.png'});
+  await small.evaluate(()=>window.dispatchEvent(new PointerEvent('pointerdown',{pointerId:55})));
+  await small.getByRole('button',{name:'Begin game'}).tap();await small.getByRole('button',{name:'Release controls to begin…'}).waitFor();
+  await small.evaluate(()=>window.dispatchEvent(new PointerEvent('pointerup',{pointerId:55})));
+  await small.locator('#overlay').waitFor({state:'hidden'});assert.equal(await small.locator('#opening').count(),0);
+  await touch.close();
+ }finally{await browser?.close();server.kill();}
+});

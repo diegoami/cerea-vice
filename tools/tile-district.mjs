@@ -30,6 +30,10 @@ const signs=createSigns(context,{signPlaces:Boolean(sidecarFile)});
 const boards=[...signs.planJunctionSigns().signs.map(p=>({...p,color:'#31594e'})),...signs.planParkingSigns().map(p=>({...p,rows:['P',p.label],color:'#31594e'})),
  ...signs.planEdgeSigns().map(p=>({...p,rows:['END OF MAPPED ROAD','TURN BACK'],color:'#755e46'})),
  ...signs.planPlaceSigns().map(p=>({...p,color:'#234b72'})),...signs.planGatewaySigns().map(({nodeId,...p})=>({...p,color:'#234b72'})),...(sidecar.boards??[])];
+if(data.signLanguage==='en'){
+ const translate=text=>({'SENSO UNICO':'ONE WAY','CENTRO':'CENTRE','FINE ZONA':'MAPPED AREA ENDS','STRADA CHIUSA':'ROAD ENDS','TORNA INDIETRO':'TURN BACK'}[text.toUpperCase()]??text);
+ for(const board of boards)board.rows=board.rows.map(row=>typeof row==='string'?translate(row):({...row,detail:translate(row.detail)}));
+}
 // Facade plaques: the same frontage selection as the outskirts exporter, with the place name.
 for(const place of data.landmarks){
  const outline=place.points??[{x:place.x-place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z-place.depth/2},{x:place.x+place.width/2,z:place.z+place.depth/2},{x:place.x-place.width/2,z:place.z+place.depth/2}];

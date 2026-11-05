@@ -77,8 +77,8 @@ export function sign(
     ctx.fill();
     ctx.restore();
     ctx.textAlign = "left";
-    ctx.font = "bold 52px Arial";
-    ctx.fillText(line.text, 142, y - 18, 590);
+    ctx.font = line.detail ? "bold 52px Arial" : "bold 60px Arial";
+    ctx.fillText(line.text, 142, line.detail ? y - 18 : y, 590);
     ctx.font = "32px Arial";
     ctx.fillText(line.detail, 142, y + 30, 590);
     if (i > 0) {

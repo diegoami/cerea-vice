@@ -4,24 +4,39 @@ The goal is to reach a small playable version of the [game vision](VISION.md): l
 
 This is a proposed sequence, not a fixed schedule. Each milestone ends with a playable checkpoint; findings can change the next milestone's scope. Choose the first real location early, but build only a small district until the navigation loop works.
 
-## Next playtest milestones (27 October 2026)
+## Next milestone (as of 6 November 2026)
 
-The current feedback is assigned to two GitHub milestones, with implementation
-on `feat/playtest-improvements` and owner playtesting still required:
+`main` is ahead of the last release, `v0.14.0-rc.1` (milestone #110), by work merged on 2 November 2026,
+none of it reviewed per PR (the owner reviews at milestones only, see AGENTS.md):
 
-- [0.7 — Readability, people and controls](https://github.com/diegoami/cerea-vice/milestone/1):
-  #6 larger retro typography, #7 passenger presence and better people, and
-  #10 configurable keyboard/controller bindings including L3 for gears.
-- [0.8 — A shift worth continuing](https://github.com/diegoami/cerea-vice/milestone/2):
-  #8 randomized dispatch, #11 accept/decline offers, #12 worthwhile long fares,
-  and #9 persistent save/resume.
+- #114 atlas findability: zooming into a page overview turns to the detail page (#113); the place index
+  names the current destination (#87).
+- #115 back to the main screen from pause (#85); #116 Backspace no longer erases the marker (#111).
+- #117 town and village signs between the plain's towns (#84), and the save signature now ignores tile sizes.
+- #118–#121 contiguous regions (#112): one shared frame, Verona grown south to Borgo Roma, the region from
+  Verona to Oppeano, and driving between the two regions at the gateway on Via Quaiotto north of Bovolone.
 
-- 0.9 — Free driving and fare board: the follow-ups to #11 (on-demand fare
-  list instead of automatic offers) and #7 (passengers walk from the kerb and
-  board instead of permanently waiting figures), on `task/free-driving-fare-board`.
+The owner approved integration of #128 on 6 November. It includes the pending
+ancestry of #122 (handover), #124 (autonomous opening), #125 (unified world and
+inter-town fares), #126 (compact HUD), #127 (continuous service, day/night,
+scenery and cloud map authoring), and #128 itself (town boards, High demo quality,
+lane keeping, traffic recovery and overtaking). No per-PR review was requested.
+Include this inventory in the next milestone issue when the owner chooses a
+release candidate. The reported Bovolone square loop is covered by the final fix
+and real-map regressions before integration. No new release/tag is proposed here.
 
-These are the immediate release checkpoints within the longer roadmap below.
-See [behavior and validation](docs/PLAYTEST_IMPROVEMENTS.md).
+Before the next release candidate, the owner still has to:
+- play the crossing north of Bovolone on Windows, and confirm or rename the proposed stops (the seven
+  southern Verona stops, San Giovanni Lupatoto's six, Oppeano's three);
+- measure memory, load and frame time in the region from Verona to Oppeano: the streamed-map budget was
+  raised to 16,000 buildings and 9 MB for it (owner decision, 2 November 2026) on the strength of Verona
+  centro–Borgo Roma (11,407 buildings) playing well; the region itself (15,106) is unmeasured (#51).
+
+Still open on #112: "continued in …" at region edges in the atlas (step 6), and an optional second gateway
+on Via Madonna (Bovolone–San Giovanni Lupatoto). Ca' di David and Isola Rizza are deliberately left out:
+after compression they overlap Borgo Roma and Oppeano, and as a village Isola Rizza would lie off every
+corridor. #90 (device-specific prompts) is largely superseded by #93; the owner has not decided whether to
+close it.
 
 ## Current starting point
 
@@ -46,7 +61,7 @@ A stopped-only atlas is now implemented. Cerea Centro is now an initial modern-g
 
 ## Milestone 2 Complete the navigation tools
 
-**Status:** Atlas implemented with controller/keyboard page controls, paused reading time and a position marker updated by successful information requests or the player’s own estimate. Information can also be requested from within either atlas page using F, View / Select (PS Share) or its button, without closing the atlas. The atlas now includes 1×–8× zoom, pan controls, readable detail labels and a street index that can focus an individual road. It is a book: large districts read fixed 1.2 km quadrants (#92), dense compact towns such as Verona get density-chosen smaller pages (#89), zoomed-out paper prints only the major-road network with streets revealing at 2× and paths at 4× (#88), and page/grid references stay visible while zoomed (#86). 0.13.0-rc.3 (milestone #101) released this work. Since then, page turns keep the zoom (#104), and key and button names appear only under Change controls (#93); 0.14.0-rc.1 collects both for review. Still open: highlighting the current journey target in the index (#87), device-specific control prompts (#90, largely superseded by #93), town-name signs between towns (#84) and returning to the main screen from pause (#85).
+**Status:** Atlas implemented with controller/keyboard page controls, paused reading time and a position marker updated by successful information requests or the player’s own estimate. Information can also be requested from within either atlas page using F, View / Select (PS Share) or its button, without closing the atlas. The atlas now includes 1×–8× zoom, pan controls, readable detail labels and a street index that can focus an individual road. It is a book: large districts read fixed 1.2 km quadrants (#92), dense compact towns such as Verona get density-chosen smaller pages (#89), zoomed-out paper prints only the major-road network with streets revealing at 2× and paths at 4× (#88), and page/grid references stay visible while zoomed (#86). 0.13.0-rc.3 (milestone #101) released this work; 0.14.0-rc.1 (milestone #110) added page turns that keep the zoom (#104) and key and button names only under Change controls (#93). On `main` since then: overview zoom reaches street names (#113), the place index names the current destination (#87), density pages for long single towns and split pages over a region's dense city (#112). See "Next milestone" above for what is unreleased.
 
 **Deliverable:** a usable paper-style atlas and clearer stopped-only help.
 
@@ -123,8 +138,6 @@ Fleet management, company finances, production chains, vehicle collections, comb
 
 ## Immediate next work
 
-1. Playtest the taxi shift, including route variety, the 20-minute day and speed bonuses.
-2. Tune signs, narrow turns, atlas readability and pickup/dropoff areas in the expanded district.
-3. Refine customer variety and navigation help from that feedback.
-
-Keep the Cerea subset bounded while evaluating navigation and familiarity. Expand only after the first journeys are comfortable and geographically recognisable.
+1. The owner's Windows playtest of the regions and the crossing, with memory readings (see "Next milestone").
+2. Then the next milestone review and release candidate, when the owner calls it.
+3. #112 step 6 ("continued in …" at region edges), and the optional second gateway.

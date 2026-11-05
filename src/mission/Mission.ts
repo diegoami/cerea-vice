@@ -67,7 +67,8 @@ class Mission {
 
   constructor(options:{seed?:number;authored?:boolean}={}){this.options=options;this.reset();}
   get taxiMode(){return Boolean(this.taxi);}
-  get shiftSeconds(){return this.taxi?(this.taxi.endHour-this.taxi.startHour)*3600/this.taxi.clockRate:district.mission.duration;}
+  get endless(){return Boolean(this.taxi?.endless);}
+  get shiftSeconds(){return this.endless?Infinity:this.taxi?(this.taxi.endHour-this.taxi.startHour)*3600/this.taxi.clockRate:district.mission.duration;}
   get duration(){return this.taxi?this.shiftSeconds:district.mission.duration;}
   get remaining(){return Math.max(0,this.duration-(this.taxi?this.totalElapsed:this.elapsed));}
   get finished(){return this.state==='success'||this.state==='late'||this.state==='shift-complete';}
@@ -82,16 +83,27 @@ class Mission {
   /** Interior and exterior figures share this appearance. */
   get passengerIdentity(){return this.currentFare?`${this.currentFare.passenger}@${this.currentFare.pickupId}`:'';}
   get seatedIdentity(){return this.unfinishedPassenger&&this.boarding===0?this.passengerIdentity:'';}
+  isInterTown(fare:Pick<TaxiFare,'pickupId'|'destinationId'>){
+    const a=this.taxi?.stops.find(s=>s.id===fare.pickupId),b=this.taxi?.stops.find(s=>s.id===fare.destinationId);
+    return Boolean(a?.townId&&b?.townId&&a.townId!==b.townId);
+  }
+  fareLabel(fare:Pick<TaxiFare,'pickupId'|'destinationId'>){
+    if(!this.taxi?.mixedTownFares)return '';
+    const a=this.stop(fare.pickupId),b=this.stop(fare.destinationId);
+    return this.isInterTown(fare)?`Inter-town · ${a.town} → ${b.town}`:`Local · ${a.town}`;
+  }
+  private premium(fare:TaxiFare){return this.isInterTown(fare)?this.taxi?.interTownPremiumCents??0:0;}
   offerGuaranteeCents(offer:FareOffer){
     if(!this.taxi)return 0;
-    return guaranteedFare(this.taxi.baseCents,this.taxi.perKmCents,this.pairDistance(offer))+collectionSupplement(offer.approachDistance);
+    return guaranteedFare(this.taxi.baseCents,this.taxi.perKmCents,this.pairDistance(offer))+this.premium(offer)+collectionSupplement(offer.approachDistance);
   }
   offerText(offer:FareOffer){
     if(!this.taxi)return '';
     const pickup=this.stop(offer.pickupId),destination=this.stop(offer.destinationId);
-    const journey=`${offer.passenger}: ${pickup.name}, ${pickup.road} → ${destination.name}, ${destination.road}.`;
+    const journey=`${this.fareLabel(offer)?this.fareLabel(offer)+'. ':''}${offer.passenger}: ${pickup.name}, ${pickup.road} → ${destination.name}, ${destination.road}.`;
     return offer.quoted?`${journey} Guaranteed €${(this.offerGuaranteeCents(offer)/100).toFixed(2)} + up to €${(this.taxi.maxBonusCents/100).toFixed(2)} speed bonus.`:`${journey} Stop to receive a fare quote.`;
   }
+  offerRouteDistance(fare:TaxiFare){return this.pairDistance(fare);}
   private pairDistance(fare:TaxiFare){return shortestRoute(this.stop(fare.pickupId).nodeId,this.stop(fare.destinationId).nodeId).cost;}
   private random(){this.randomState=(Math.imul(this.randomState,1664525)+1013904223)>>>0;return this.randomState/4294967296;}
   private get pairs(){
@@ -108,7 +120,25 @@ class Mission {
   private issueBoard(position:Point){
     const taxi=this.taxi!,entries:TaxiFare[]=[];
     const same=(a:TaxiFare,b:TaxiFare|null)=>Boolean(b)&&a.pickupId===b!.pickupId&&a.destinationId===b!.destinationId;
-    if(this.options.authored){
+    if(taxi.mixedTownFares&&!this.options.authored){
+      const nearest=[...taxi.stops].sort((a,b)=>{const ba=parkingZones.find(p=>p.id===a.bayId)!,bb=parkingZones.find(p=>p.id===b.bayId)!;return Math.hypot(position.x-ba.x,position.z-ba.z)-Math.hypot(position.x-bb.x,position.z-bb.z);})[0];
+      const local=taxi.stops.filter(s=>s.townId===nearest.townId);
+      for(let k=0;k<FARE_BOARD_SIZE;k++){
+        const pickup=local[Math.floor(this.random()*local.length)];
+        let destinations=taxi.stops.filter(s=>s.id!==pickup.id&&(k%2===0?s.townId===pickup.townId:s.townId!==pickup.townId));
+        if(k===1){
+          // One practical nearby-town journey plus one unrestricted inter-town offer.
+          destinations.sort((a,b)=>{const pa=context.nodeById(a.nodeId),pb=context.nodeById(b.nodeId),p=context.nodeById(pickup.nodeId);return Math.hypot(pa.x-p.x,pa.z-p.z)-Math.hypot(pb.x-p.x,pb.z-p.z);});
+          const town=destinations[0]?.townId;destinations=destinations.filter(s=>s.townId===town);
+        }
+        const open=destinations.filter(s=>!entries.some(e=>e.pickupId===pickup.id&&e.destinationId===s.id));
+        const different=open.filter(s=>!same({pickupId:pickup.id,destinationId:s.id,passenger:''},this.previousFare)),available=different.length?different:open;
+        if(!available.length)continue;
+        const destination=available[Math.floor(this.random()*available.length)];
+        const names=taxi.fares.filter(f=>!entries.some(e=>e.passenger===f.passenger)),roster=names.length?names:taxi.fares;
+        if(Number.isFinite(shortestRoute(pickup.nodeId,destination.nodeId).cost))entries.push({pickupId:pickup.id,destinationId:destination.id,passenger:roster[Math.floor(this.random()*roster.length)].passenger});
+      }
+    }else if(this.options.authored){
       for(let k=0;k<Math.min(FARE_BOARD_SIZE,taxi.fares.length);k++)entries.push({...taxi.fares[(this.fareIndex+k)%taxi.fares.length]});
     }else for(let k=0;k<FARE_BOARD_SIZE;k++){
       const open=this.pairs.filter(p=>!entries.some(e=>same(p,e)));
@@ -177,11 +207,11 @@ class Mission {
     if(this.boarding>0)return `${this.passenger} is getting in. Stay stopped.`;
     return `${this.taxiStage==='pickup'?`Collect ${this.passenger} at`:`Take ${this.passenger} to`} ${target.name}, ${target.road}. Stop in ${target.bay.name}.`;
   }
-  get clockHours(){return this.taxi?Math.min(this.taxi.endHour,this.taxi.startHour+this.totalElapsed*this.taxi.clockRate/3600):7;}
+  get clockHours(){if(!this.taxi)return 7;const hour=this.taxi.startHour+this.totalElapsed*this.taxi.clockRate/3600;return this.endless?((hour%24)+24)%24:Math.min(this.taxi.endHour,hour);}
   private clockAt(hour:number){const minutes=Math.min(24*60-1,Math.floor(hour*60+1e-6));return `${Math.floor(minutes/60).toString().padStart(2,'0')}:${(minutes%60).toString().padStart(2,'0')}`;}
   get clockText(){return this.clockAt(this.clockHours);}
   get shiftLabel(){return this.taxi?`${this.clockAt(this.taxi.startHour)}–${this.clockAt(this.taxi.endHour)}`:'';}
-  get baseFareCents(){return this.taxi&&this.currentFare?guaranteedFare(this.taxi.baseCents,this.taxi.perKmCents,this.rideDistance)+collectionSupplement(this.approachDistance):0;}
+  get baseFareCents(){return this.taxi&&this.currentFare?guaranteedFare(this.taxi.baseCents,this.taxi.perKmCents,this.rideDistance)+(this.currentFare?this.premium(this.currentFare):0)+collectionSupplement(this.approachDistance):0;}
   get potentialBonusCents(){return this.taxi&&this.currentFare&&this.taxiStage==='dropoff'?Math.round(this.taxi.maxBonusCents*Math.max(0,1-this.elapsed/this.rideBudget)):0;}
   get unfinishedPassenger(){return Boolean(this.taxi&&this.currentFare&&this.taxiStage==='dropoff');}
   get routeDistance(){return this.rideDistance;}
@@ -194,6 +224,12 @@ class Mission {
     this.randomState=(this.options.seed??Math.floor(Math.random()*4294967296))>>>0;
     this.notice=this.taxi?this.freeNotice():district.mission.hint;
     this.revision++;
+  }
+  /** Voluntary rest changes the clock, never fares or earnings. The caller enforces a settled stop. */
+  rest(hours=8){
+    if(!this.endless||this.hasRide||this.boarding>0||!Number.isFinite(hours)||hours<=0||hours>24)return false;
+    const seconds=hours*3600/this.taxi!.clockRate;this.totalElapsed+=seconds;this.elapsed+=seconds;this.departure=null;this.revision++;
+    this.notice=`Rested ${hours} hours. ${this.freeNotice()}`;return true;
   }
   recordDirectionRequest(stopped:boolean,legallyParked:boolean):boolean {
     if(!stopped||this.finished)return false;
@@ -229,6 +265,7 @@ class Mission {
       boarding:this.boarding,randomState:this.randomState,notice:this.notice});
   }
   restore(value:MissionSnapshot){
+    if(this.endless&&value?.state==='shift-complete')value={...value,state:'active',notice:'Service continues. Stop to read your fare or request a new one.'};
     const nonnegative=(n:number)=>Number.isFinite(n)&&n>=0;
     const integer=(n:number)=>Number.isSafeInteger(n)&&n>=0;
     if(!value||!nonnegative(value.elapsed)||!nonnegative(value.totalElapsed)||value.totalElapsed>this.duration||value.elapsed>value.totalElapsed||
@@ -248,7 +285,7 @@ class Mission {
         value.fareBoard.some(o=>!validFare(o)||!integer(o.id)||o.id>=value.boardSerial||typeof o.quoted!=='boolean'||!nonnegative(o.approachDistance)||o.approachDistance>1000000||(!o.quoted&&o.approachDistance!==0))||
         ids.size!==value.fareBoard.length||(fare!==null&&value.fareBoard.length>0)||
         (fare===null&&(value.taxiStage!=='pickup'||value.approachDistance!==0))||(value.boarding>0&&(fare===null||value.taxiStage!=='dropoff'))||
-        !['active','shift-complete'].includes(value.state)||(value.state==='shift-complete')!==(value.totalElapsed===this.duration))throw new Error('Invalid saved fare');
+        !['active','shift-complete'].includes(value.state)||(!this.endless&&(value.state==='shift-complete')!==(value.totalElapsed===this.duration))||(this.endless&&value.state!=='active'))throw new Error('Invalid saved fare');
       if(fare)distance=this.pairDistance(fare);
     }else if(value.currentFare!==null||value.previousFare!==null||value.fareBoard.length||value.boardSerial||value.boarding||value.receipts.length)throw new Error('Invalid saved journey');
     for(const r of value.receipts)if(!r||![r.passenger,r.pickup,r.destination].every(s=>typeof s==='string'&&s.length<=200)||

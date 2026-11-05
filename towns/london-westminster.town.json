@@ -1,0 +1,147 @@
+{
+  "specVersion": 1,
+  "id": "london-westminster",
+  "name": "London Westminster",
+  "townName": "London",
+  "description": "Real streets of London Westminster.",
+  "dataVersion": 1,
+  "subtitle": "REAL STREETS / DAY AND NIGHT",
+  "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+  "sourceUrl": "https://www.openstreetmap.org/copyright",
+  "output": "public/maps/london-westminster/manifest.json",
+  "delivery": "tiled",
+  "preset": "town",
+  "stoppingPolicy": "anywhere",
+  "drivingSide": "left",
+  "source": {
+    "extract": "data/sources/london-westminster-osm.json",
+    "label": "OpenStreetMap / Overpass API"
+  },
+  "area": {
+    "origin": {
+      "lat": 51.502,
+      "lon": -0.129
+    },
+    "bbox": {
+      "south": 51.496,
+      "west": -0.145,
+      "north": 51.508,
+      "east": -0.113
+    }
+  },
+  "landmarks": [
+    {
+      "osmId": 123557148,
+      "id": "big-ben",
+      "name": "Elizabeth Tower (Big Ben)",
+      "road": "Bridge Street",
+      "kind": "civic",
+      "height": 40,
+      "frontage": "nearest"
+    },
+    {
+      "osmId": 364313092,
+      "id": "abbey",
+      "name": "Westminster Abbey",
+      "road": "Broad Sanctuary",
+      "kind": "church",
+      "height": 24,
+      "frontage": "nearest"
+    },
+    {
+      "osmId": 16409717,
+      "id": "city-hall",
+      "name": "Westminster City Hall",
+      "road": "Victoria Street",
+      "kind": "civic",
+      "height": 22,
+      "frontage": "nearest"
+    }
+  ],
+  "stops": [
+    {
+      "landmark": "big-ben",
+      "bay": "Stop Elizabeth Tower (Big Ben)"
+    },
+    {
+      "landmark": "abbey",
+      "bay": "Stop Westminster Abbey"
+    },
+    {
+      "landmark": "city-hall",
+      "bay": "Stop Westminster City Hall"
+    }
+  ],
+  "features": {
+    "waterWidth": 3,
+    "railWidth": 3,
+    "buildingRelations": true,
+    "waterAreas": true,
+    "pavedAreas": true,
+    "unnamed": {
+      "water": "Waterway",
+      "rail": "Railway",
+      "square": "Square"
+    }
+  },
+  "areas": [
+    {
+      "name": "London Westminster"
+    }
+  ],
+  "content": {
+    "start": "abbey",
+    "taxi": {
+      "endless": true,
+      "startHour": 7,
+      "endHour": 17,
+      "clockRate": 30,
+      "baseCents": 400,
+      "perKmCents": 120,
+      "maxBonusCents": 600
+    },
+    "fares": [
+      [
+        "Alex",
+        "big-ben",
+        "abbey"
+      ],
+      [
+        "Sam",
+        "abbey",
+        "city-hall"
+      ],
+      [
+        "Morgan",
+        "city-hall",
+        "big-ben"
+      ],
+      [
+        "Charlie",
+        "big-ben",
+        "abbey"
+      ],
+      [
+        "Taylor",
+        "abbey",
+        "city-hall"
+      ],
+      [
+        "Jamie",
+        "city-hall",
+        "big-ben"
+      ]
+    ],
+    "mission": {
+      "name": "London Westminster taxi driving",
+      "objective": "Serve passengers at any hour.",
+      "hint": "Stop and request fares.",
+      "duration": 360,
+      "target": "big-ben"
+    }
+  },
+  "notes": [
+    "Real OSM geometry. Heights, colours, stopping bays and scenery are game interpretations.",
+    "The first three stops are authored game stopping areas near OSM landmarks, not claims about licensed taxi ranks. London uses left-hand ambient traffic."
+  ]
+}

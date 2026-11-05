@@ -21,7 +21,7 @@ async function start() {
     console.error(error);
     if(error instanceof DistrictLoadError){
       // A broken entry must not lock the player out: offer the other listed districts.
-      const others=error.registry.towns.filter((town)=>town.id!==error.town.id);
+      const others=error.registry.towns.filter((town)=>town.id!==error.town.id&&!town.hidden);
       app.innerHTML=`<div class="fatal"><h1>Unable to open ${escapeHtml(error.town.name)}</h1><p>Its map file (maps/${escapeHtml(error.town.map)}) is missing or damaged. Saves are kept. Choose another district:</p><div class="district-switch">${others.map((town)=>`<button type="button" data-district="${escapeHtml(town.id)}">${escapeHtml(town.name)}</button>`).join("")}</div></div>`;
       app.querySelectorAll<HTMLButtonElement>("[data-district]").forEach((button)=>button.addEventListener("click",()=>selectDistrict(others,button.dataset.district!)));
       app.querySelector<HTMLButtonElement>("[data-district]")?.focus();

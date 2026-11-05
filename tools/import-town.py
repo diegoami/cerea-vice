@@ -32,6 +32,8 @@ def validate(spec):
     area=spec.get('area',{});origin=area.get('origin',{});bbox=area.get('bbox',{})
     need(all(isinstance(origin.get(k),(int,float)) for k in ('lat','lon')),'"area.origin" needs numeric "lat" and "lon"')
     need(all(isinstance(bbox.get(k),(int,float)) for k in ('south','west','north','east')),'"area.bbox" needs numeric south, west, north and east')
+    need(-85<origin['lat']<85 and -180<=origin['lon']<=180,'origin is outside supported latitude/longitude bounds')
+    need(-85<bbox['south']<85 and -85<bbox['north']<85 and -180<=bbox['west']<=180 and -180<=bbox['east']<=180,'bbox is outside supported latitude/longitude bounds')
     need(bbox['south']<bbox['north'] and bbox['west']<bbox['east'],'"area.bbox" must have south < north and west < east')
     need(spec.get('kind','town') in ('town','village'),'"kind" must be "town" or "village"')
     need(spec.get('delivery','single') in ('single','tiled'),'"delivery" must be "single" or "tiled"')
@@ -300,6 +302,9 @@ def build(spec,output):
     if not village:
      t=content['taxi']
      taxi={'startHour':t['startHour'],'endHour':t['endHour'],'clockRate':t['clockRate'],'baseCents':t['baseCents'],'perKmCents':t['perKmCents'],'maxBonusCents':t['maxBonusCents'],'stops':stop_data,'fares':[{'passenger':name,'pickupId':pickup,'destinationId':dropoff} for name,pickup,dropoff in content['fares']]}
+     if t.get('endless'):taxi['endless']=True
+     if t.get('endless'):
+      for stop in stop_data:stop.update({'townId':spec['id'],'town':spec.get('townName',spec['name'])})
      a,b=nodes[spawn_road['a']],nodes[spawn_road['b']]
      if not spawn_road['oneWay'] and b['z']>a['z']:a,b=b,a
     feature_spec=spec.get('features',{});widths=feature_spec.get('waterWidths',{});unnamed=feature_spec.get('unnamed',{'water':'Canale','rail':'Ferrovia'})
@@ -358,6 +363,8 @@ def build(spec,output):
     mission=content.get('mission',{})
     if not village:
      district={'version':1,'id':spec['id'],'dataVersion':spec['dataVersion'],**({} if preset=='town' else {'preset':preset}),**({'subtitle':spec['subtitle']} if spec.get('subtitle') else {}),'stoppingPolicy':spec['stoppingPolicy'],'name':spec['name'],'description':spec['description'],'attribution':spec['attribution'],'sourceUrl':spec['sourceUrl'],'bounds':bounds,'nodes':sorted(nodes.values(),key=lambda n:n['id']),'roads':roads,'parkingZones':bays,'taxi':taxi,'landmarks':landmarks,'buildings':buildings,'features':features,**({'waterAreas':water_areas} if water_areas else {}),**({'pavedAreas':paved_areas} if paved_areas else {}),'areas':areas,'spawn':{'x':spawn_bay['x'],'z':spawn_bay['z'],'heading':math.atan2(b['x']-a['x'],-(b['z']-a['z'])),'name':spawn_bay['name']},'mission':{'name':mission['name'],'objective':mission['objective'],'hint':mission['hint'],'duration':mission['duration'],'bayId':target,'nodeId':target_node},'provenance':{'source':spec['source']['label'],'osmTimestamp':source['osm3s']['timestamp_osm_base'],'origin':{'lat':lat0,'lon':lon0},'bbox':{'south':south,'west':west,'north':north,'east':east},'omittedConflictingFootprints':omitted,'notes':spec.get('notes',[])}}
+    if not village and content.get('taxi',{}).get('endless'):
+     district.update({'latitude':lat0,'drivingSide':spec.get('drivingSide','right'),'signLanguage':spec.get('signLanguage','en')})
     output.parent.mkdir(parents=True,exist_ok=True)
     # Prepare a temporary file and rename it into place, so a reader (the game, a test, a region build)
     # never sees a district that has been written but not yet prepared.

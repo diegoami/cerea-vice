@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "default": "cerea",
+  "default": "veronese",
   "towns": [
     {
       "id": "cerea",
@@ -25,7 +25,8 @@
           "name": "teatro",
           "bay": "teatro"
         }
-      ]
+      ],
+      "hidden": true
     },
     {
       "id": "harbor",
@@ -36,7 +37,8 @@
       "frame": "authored",
       "taxi": false,
       "provenance": false,
-      "spec": null
+      "spec": null,
+      "hidden": true
     },
     {
       "id": "cerea-outskirts",
@@ -62,7 +64,8 @@
           "name": "hamlet",
           "bay": "test-hamlet"
         }
-      ]
+      ],
+      "hidden": true
     },
     {
       "id": "lower-verona",
@@ -87,7 +90,8 @@
           "name": "sanguinetto",
           "bay": "sanguinetto:castello"
         }
-      ]
+      ],
+      "hidden": true
     },
     {
       "id": "verona",
@@ -112,7 +116,8 @@
           "name": "duomo",
           "bay": "duomo"
         }
-      ]
+      ],
+      "hidden": true
     },
     {
       "id": "verona-south",
@@ -123,7 +128,8 @@
       "frame": "local",
       "taxi": true,
       "provenance": true,
-      "spec": "towns/verona-south.town.json"
+      "spec": "towns/verona-south.town.json",
+      "hidden": true
     },
     {
       "id": "verona-plain",
@@ -148,7 +154,45 @@
           "name": "oppeano",
           "bay": "oppeano:sangiovanni"
         }
+      ],
+      "hidden": true
+    },
+    {
+      "id": "veronese",
+      "name": "Veronese world",
+      "map": "veronese/manifest.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "regional",
+      "taxi": true,
+      "provenance": true,
+      "spec": null,
+      "views": [
+        {
+          "name": "cerea",
+          "bay": "cerea:municipio"
+        },
+        {
+          "name": "verona",
+          "bay": "verona-south:barbieri"
+        },
+        {
+          "name": "oppeano",
+          "bay": "oppeano:sangiovanni"
+        }
       ]
+    },
+    {
+      "id": "london-westminster",
+      "name": "London Westminster",
+      "map": "london-westminster/manifest.json",
+      "dataVersion": 1,
+      "attribution": "© OpenStreetMap contributors · ODbL 1.0",
+      "frame": "local",
+      "taxi": true,
+      "provenance": true,
+      "spec": "towns/london-westminster.town.json",
+      "hidden": false
     }
   ]
 }

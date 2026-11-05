@@ -1,0 +1,14 @@
+{
+  "endpoint": "https://overpass-api.de/api/interpreter",
+  "bbox": {
+    "south": 51.496,
+    "west": -0.145,
+    "north": 51.508,
+    "east": -0.113
+  },
+  "fetchedAt": "2026-11-05T21:11:52.848283+00:00",
+  "osmTimestamp": "2026-11-05T21:10:51Z",
+  "sha256": "5404f20a8bcce1f20d412eed093eb816f08e148587dfc76f60a92df0924006f1",
+  "licence": "ODbL-1.0",
+  "source": "OpenStreetMap contributors"
+}

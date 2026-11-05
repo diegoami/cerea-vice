@@ -1,3 +1,4 @@
+import {DayNight} from "./DayNight";
 import { LocalFrame, translateDistrict } from "./LocalFrame";
 import { SpatialGrid, rectBounds } from "./SpatialGrid";
 import * as THREE from "three";
@@ -9,6 +10,7 @@ import { box, sign, signpost, material, streetNamePlate } from "./builders";
 import { signRows } from "./placeNames";
 import { createStreetPlates } from "./streetPlates";
 import { createSigns } from "./signs";
+import {roadsideBoards} from './roadsideBoards';
 import { District } from "./district";
 import { ground, paving, features as mapped, facadeTrim, light, haze, skyGradient } from "./palette";
 export function createWorld(logical:District){
@@ -42,6 +44,7 @@ class World {
   private readonly detail=new THREE.Group();
   private sky?:THREE.CanvasTexture;
   private skyHour=-1;
+  private cycle?:DayNight;
   private daylightSun?:THREE.DirectionalLight;
   private daylightAmbient?:THREE.HemisphereLight;
   constructor() {
@@ -168,7 +171,8 @@ class World {
     const plannedSigns=planJunctionSigns();
     if(plannedSigns.missing.length)console.warn("Missing clear junction sign positions",plannedSigns.missing);
     for(const plan of plannedSigns.signs) {
-      signpost(scene,plan.position.x,plan.position.z,plan.rows,plan.angle,"#31594e",plan.width,plan.height);
+      const board=roadsideBoards(context)({...plan,color:'#31594e'});
+      if(board)signpost(scene,board.position.x,board.position.z,board.rows,board.angle,board.color,board.width,board.height);
     }
     const noEntry=planVittoriaNoEntrySign();
     if(noEntry)signpost(scene,noEntry.position.x,noEntry.position.z,["SENSO VIETATO","V.LE VITTORIA"],noEntry.angle,"#943f37",noEntry.width,noEntry.height);
@@ -204,15 +208,17 @@ class World {
     this.sky=new THREE.CanvasTexture(canvas);this.sky.colorSpace=THREE.SRGBColorSpace;
     scene.background=this.sky;
     this.installFrame();
+    if(district.taxi?.endless){if(this.daylightSun)this.scene.remove(this.daylightSun);if(this.daylightAmbient)this.scene.remove(this.daylightAmbient);this.cycle=new DayNight(this.scene,district.latitude??45);}
 
   }
   private installFrame(){
     for(const child of [...this.scene.children])if(!(child instanceof THREE.Light))this.content.add(child);
     this.scene.add(this.content);
   }
-  updateFrame(position:Point){this.frame.rebase(position);const offset=this.frame.contentOffset;this.content.position.set(offset.x,0,offset.z);}
+  updateFrame(position:Point&{heading?:number}){this.frame.rebase(position);const offset=this.frame.contentOffset;this.content.position.set(offset.x,0,offset.z);this.cycle?.position(this.frame.toLocal(position),position.heading??0);}
   setDetail(enabled:boolean){this.detail.visible=enabled;this.simpleBuildings.visible=!enabled;}
   updateDaylight(hour:number) {
+    if(this.cycle){this.cycle.update(hour);return;}
     if(!this.daylightSun||!this.daylightAmbient)return;
     const daylight=Math.max(0,Math.sin((hour-6)/12*Math.PI));
     const sky=new THREE.Color(haze.low).lerp(new THREE.Color(haze.high),daylight);
@@ -228,6 +234,7 @@ class World {
     const angle=(hour-6)/12*Math.PI;this.daylightSun.position.set(Math.cos(angle)*350,Math.max(70,Math.sin(angle)*350),100);
   }
 
+  dispose(){this.cycle?.dispose();this.sky?.dispose();}
 }
 return {World};
 }

@@ -283,3 +283,28 @@ with its heading, speed and gear, and the shift carries on with its clock, earni
 within a region (owner decision): with a passenger booked or aboard, the road simply ends and a hint says so.
 The fare list starts fresh, and the atlas has no marked position until you ask for information or mark your own
 estimate. The hand-over is a small record in local storage, read once by the next region.
+
+
+## Unified default: Veronese world
+
+`public/maps/veronese/manifest.json` combines the two shipped regional manifests
+without moving or simplifying their geometry. `npm run build:world` regenerates it
+through `tools/build-unified.ts`. The common Via Quaiotto node 1027266513 is an ordinary
+connection in one directed graph, including with a passenger aboard. All nine towns,
+six corridor hamlets and 69 taxi stops are included. The fictional Harbor/outskirts
+content is retained as legacy data rather than inserted into the real geography.
+
+The new manifest reuses source tiles through validated map IDs and index offsets.
+Overlapping cells merge into one render tile; unused rectangular padding is virtual
+and needs no file fetch. Source manifests and payloads are unchanged. The resident
+logical union has 13,069 road nodes, 15,852 road segments and 24,901 buildings, and a
+14.1 MB manifest. A separate unified-map diagnostic budget allows this requested
+union without raising the limits for older maps; local texture streaming remains
+bounded by the existing near-car plate radius.
+
+The unified map is data version 1 with its own save key. Existing saves for the
+older standalone maps remain available through explicit legacy URLs/launcher IDs.
+The registry hides those maps from ordinary selection and ignores a remembered
+legacy preference when choosing the default. The old gateway reload and same-region
+fare restriction still describe standalone legacy regions; the unified default has
+no region reload and offers inter-town rides across that connection.

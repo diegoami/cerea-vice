@@ -11,7 +11,7 @@
     "desktop:setup": "install-electron",
     "desktop": "npm run desktop:setup && npm run build && electron .",
     "desktop:package": "npm run desktop:setup && npm run build && node desktop/package.mjs",
-    "test:desktop": "npm run desktop:setup && npm run build && node --test desktop/smoke.test.mjs",
+    "test:desktop": "npm run desktop:setup && npm run build && node --test --test-concurrency=1 desktop/opening.test.mjs desktop/smoke.test.mjs",
     "desktop:package:win": "npm run desktop:setup && npm run build && node desktop/package.mjs --platform=win32 --arch=x64",
     "desktop:win": "npm run desktop:package:win && node desktop/run-windows.mjs",
     "release:win": "node desktop/release-windows.mjs",
@@ -19,7 +19,12 @@
     "build:verona": "python3 tools/import-town.py towns/verona.town.json",
     "build:verona-south": "python3 tools/import-town.py towns/verona-south.town.json",
     "build:region": "python3 tools/build-region.py regions/lower-verona.region.json && node --import tsx tools/tile-district.mjs build/regions/lower-verona.json public/maps/lower-verona build/regions/lower-verona.tiling.json",
-    "build:region:verona-plain": "python3 tools/build-region.py regions/verona-plain.region.json && node --import tsx tools/tile-district.mjs build/regions/verona-plain.json public/maps/verona-plain build/regions/verona-plain.tiling.json"
+    "build:region:verona-plain": "python3 tools/build-region.py regions/verona-plain.region.json && node --import tsx tools/tile-district.mjs build/regions/verona-plain.json public/maps/verona-plain build/regions/verona-plain.tiling.json",
+    "test:browser": "npm run build && node --test --test-concurrency=1 desktop/browser-opening.test.mjs desktop/living-world.test.mjs",
+    "test:windows-opening": "npm run desktop:package:win && node desktop/windows-opening-smoke.mjs",
+    "build:world": "node --import tsx tools/build-unified.ts",
+    "map": "python3 tools/map-workflow.py",
+    "map:validate": "node --import tsx tools/validate-map.ts"
   },
   "dependencies": {
     "three": "^0.180.0"

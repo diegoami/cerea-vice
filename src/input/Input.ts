@@ -52,6 +52,7 @@ export class Input {
   context:'driving'|'atlas'|'menu'='driving';
   currentPad:Gamepad|undefined;
   drivingReleased=true;
+  allReleased=true;
   /** Fixed fare-board controls still held from the context that opened it. */
   menuHeld=false;
   // Presentation menu input must retain its source; keyboard Enter always drives.
@@ -65,6 +66,7 @@ export class Input {
   private previousResetLook = false;
   private queuedResetLook = false;
   private keys = new Set<string>();
+  private heldKeys = new Set<string>();
   private previousInteract = false;
   private previousPause = false;
   private queuedInteract = false;
@@ -98,6 +100,8 @@ export class Input {
   private hadController = false;
 
   constructor(readonly bindings:Bindings=readBindings()) {
+    window.addEventListener("keydown", event=>this.heldKeys.add(event.code),{capture:true});
+    window.addEventListener("keyup", event=>this.heldKeys.delete(event.code),{capture:true});
     window.addEventListener("keydown", (event) => {
       if (blockedKeys.has(event.code) || (this.context==='driving' && Object.values(this.bindings).some(b=>b.keys.includes(event.code)))) event.preventDefault();
       const matches=(action:ControlAction,fallback:string[])=>this.context==='driving'?this.bindings[action].keys.includes(event.code):fallback.includes(event.code);
@@ -132,7 +136,7 @@ export class Input {
     });
     window.addEventListener("keyup", (event) => this.keys.delete(event.code));
     window.addEventListener("blur", () => {
-      this.keys.clear();
+      this.keys.clear();this.heldKeys.clear();
       this.queuedInteract = false;
       this.queuedPause = false;
       this.queuedReminder = false;
@@ -175,6 +179,7 @@ export class Input {
       (p) => p?.connected && p.mapping === "standard",
     );
     this.currentPad=pad??undefined;
+    this.allReleased=this.heldKeys.size===0&&!(pad?.buttons.some(b=>b.value>.1))&&!(pad?.axes.some(a=>Math.abs(a)>.16));
     this.controllerDisconnected = this.hadController && !pad;
     this.hadController = Boolean(pad);
     this.controllerStatus = pad

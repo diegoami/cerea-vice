@@ -24,9 +24,9 @@ interface Harness {
  frame(time:number):void;pause():void;requestInformation():void;
 }
 const idle:Actions={steer:0,throttle:0,brake:0,handbrake:false,glance:0,interact:false,pause:false,reminder:false,atlas:false,back:false,declineOffer:false,requestFares:false,radioNext:false,refreshFares:false,atlasPage:0,atlasMoveX:0,atlasMoveY:0,clearMarker:false,information:false,shiftGear:false,lookX:0,lookY:0,mouseX:0,mouseY:0,resetLook:false,atlasZoom:0,atlasZoomStep:0,atlasPanX:0,atlasPanY:0};
-function harness(data:unknown=contextHarbor){
- if(data!==contextHarbor){context=new District(data);({Game}=createGame(context));({Car}=createCar(context));({Parking}=createParking(context));({Mission}=createMission(context));}
- else if(context.district.id!=='harbor'){context=new District(contextHarbor);({Game}=createGame(context));({Car}=createCar(context));({Parking}=createParking(context));({Mission}=createMission(context));}
+function harness(data:unknown=contextHarbor,maps?:{id:string;name:string;hidden?:boolean}[]){
+ if(data!==contextHarbor||maps){context=new District(data);({Game}=createGame(context,maps));({Car}=createCar(context));({Parking}=createParking(context));({Mission}=createMission(context));}
+ else if(context.district.id!=='harbor'){context=new District(contextHarbor);({Game}=createGame(context,maps));({Car}=createCar(context));({Parking}=createParking(context));({Mission}=createMission(context));}
  Object.defineProperty(globalThis,'document',{configurable:true,value:{pointerLockElement:null}});
  let actions={...idle},markers=0,estimates=0,clock=1000,radioSkips=0;
  const game=Object.create(Game.prototype) as Harness;
@@ -36,7 +36,7 @@ function harness(data:unknown=contextHarbor){
   streamStatus:{hidden:true,textContent:''},screen:'running',car:new Car(),parking:new Parking(),mission:new Mission(),previousTime:1000,accumulator:0,
   districtSwitchReady:false,ignorePauseUntil:0,missionRevision:-1,waitForDrivingRelease:false,
   input:{bindings:structuredClone(defaultBindings),settingsInput:{move:0,confirm:false,keyboardConfirm:false},poll:()=>({...actions}),controllerDisconnected:false,setMouseCaptured:noop,menuHeld:false,drivingReleased:true},
-  retro:{render:noop},renderer:{domElement:{focus:noop},render:noop},world:{frame:new LocalFrame({x:0,z:0}),updateFrame:noop,collisionIndex:[],colliders:[],updateDaylight:noop},
+  resize:noop,retro:{render:noop},renderer:{domElement:{focus:noop},render:noop},world:{frame:new LocalFrame({x:0,z:0}),updateFrame:noop,collisionIndex:[],colliders:[],updateDaylight:noop},
   cockpit:{update:noop,camera:{}},interior:{update:noop,renderMirrors:noop,setPassenger:noop},sound:{update:noop,unlock:noop,state:'running'},radio:{update:noop,next:()=>radioSkips++,playable:true,summary:'1/2 Test'},motion:new BodyMotion(),
   settings:{...defaults},settingsPanel:{update:()=>false},
   hud:{setHint:noop,confirmAtlasPosition:()=>markers++,setAtlasInformation:noop,show:noop,update:noop,setTaxiMessage:noop,
@@ -135,4 +135,75 @@ test('Radio next track works only while driving with the folder radio on, and ne
  h.step({radioNext:true});assert.equal(h.game.mission.elapsed,elapsed);h.step({back:true});h.game.pause();h.step({radioNext:true});
  assert.equal(h.radioSkips(),1,'Atlas and pause ignore the driving radio control');
  assert.equal(h.markers(),0);assert.equal(h.estimates(),0);
+});
+
+test('only the demo jumps to another town after three completed jobs, retaining score and car statistics',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const data=JSON.parse(readFileSync('public/maps/veronese/manifest.json','utf8'));
+ const h=harness(data),g=h.game as any;
+ const receipts=Array.from({length:3},(_,i)=>({passenger:`Passenger ${i}`,pickup:'A',destination:'B',distanceMetres:1000,seconds:100,baseCents:1000,bonusCents:0,totalCents:1000}));
+ g.mission.receipts=receipts;g.mission.earningsCents=3000;g.car.collisions=4;g.parking.unsafeStops=2;
+ g.cockpit.reset=()=>{};let replanned=0;g.demo={relocated:()=>replanned++};g.demoTown='cerea';g.nextDemoRelocation=3;
+ const missionBefore=g.mission.snapshot();const position={x:g.car.x,z:g.car.z};g.relocateDemo();assert.deepEqual({x:g.car.x,z:g.car.z},position,'Actual player sessions never jump');
+ g.opening={state:'rules'};g.relocateDemo();assert.equal(replanned,0,'Reading rules freezes showcase movement');
+ g.opening.state='demo';g.relocateDemo();
+ assert.equal(replanned,1);assert.notEqual(g.demoTown,'cerea');assert.equal(g.mission.earningsCents,3000);assert.deepEqual(g.mission.receipts,receipts);assert.deepEqual(g.mission.snapshot(),missionBefore);
+ assert.equal(g.car.collisions,4);assert.equal(g.parking.unsafeStops,2);assert.equal(g.car.speed,0);assert.equal(g.car.gear,'D');
+ const after={x:g.car.x,z:g.car.z};g.relocateDemo();assert.deepEqual({x:g.car.x,z:g.car.z},after,'The same completed jobs cannot trigger repeated jumps');
+});
+
+
+test('hidden legacy regions remain available to the gateway loader while absent from the chooser',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const data=JSON.parse(readFileSync('public/maps/lower-verona/manifest.json','utf8'));
+ const h=harness(data,[{id:'lower-verona',name:'Lower plain',hidden:true},{id:'verona-plain',name:'North plain',hidden:true},{id:'veronese',name:'Veronese world'}]),g=h.game as any;
+ const gateway=data.gateways[0],node=data.nodes.find((n:any)=>n.id===gateway.nodeId);Object.assign(g.car,{x:node.x,z:node.z});g.gatewayArmed=true;
+ const storage=new Map<string,string>();let destination='',reloads=0;
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{setItem:(key:string,value:string)=>storage.set(key,value)}});
+ Object.defineProperty(globalThis,'history',{configurable:true,value:{replaceState:(_s:unknown,_t:string,url:string)=>destination=url}});
+ Object.defineProperty(globalThis,'window',{configurable:true,value:{location:{reload:()=>reloads++}}});
+ g.checkGateways();assert.equal(destination,'#district=verona-plain');assert.equal(reloads,1);assert.equal(JSON.parse(storage.get('cerea-crossing')!).to,'verona-plain');
+});
+
+test('a pending demo jump lets the passenger walk away before booking another job',async()=>{
+ const {readFileSync}=await import('node:fs');const data=JSON.parse(readFileSync('public/maps/veronese/manifest.json','utf8'));
+ const h=harness(data),g=h.game as any;g.cockpit.reset=()=>{};
+ g.mission.receipts=Array.from({length:3},()=>({passenger:'P',pickup:'A',destination:'B',distanceMetres:1000,seconds:100,baseCents:1000,bonusCents:0,totalCents:1000}));g.mission.earningsCents=3000;
+ g.mission.departure={identity:'P',stopId:'cerea:municipio',remaining:.15};g.nextDemoRelocation=3;g.demoTown='cerea';
+ let booked=0,jumped=0;
+ g.opening={state:'demo',update:()=>false,setActivity:()=>{},refreshButton:()=>{}};
+ g.demo={activity:'',relocated:()=>jumped++,update:()=>{booked++;return {...idle};}};
+ h.step({},100);assert.equal(booked,0);assert.equal(jumped,0);assert.ok(g.mission.departure,'The passenger is still walking');
+ h.step({},100);assert.equal(booked,0);assert.equal(jumped,1);assert.equal(g.mission.departure,null);assert.notEqual(g.demoTown,'cerea');
+ h.step({},100);assert.equal(booked,1,'Dispatch resumes only after the jump');assert.equal(jumped,1);
+});
+
+test('a showcase jump excludes the arrival town after an inter-town job, rather than only the original start town',async()=>{
+ const {readFileSync}=await import('node:fs');const data=JSON.parse(readFileSync('public/maps/veronese/manifest.json','utf8'));
+ const h=harness(data),g=h.game as any;g.cockpit.reset=()=>{};
+ g.mission.receipts=Array.from({length:3},()=>({passenger:'P',pickup:'A',destination:'B',distanceMetres:1000,seconds:100,baseCents:1000,bonusCents:0,totalCents:1000}));
+ g.nextDemoRelocation=3;g.demoTown='cerea';g.opening={state:'demo'};g.demo={relocated:()=>{}};
+ const stop=data.taxi.stops.find((s:any)=>s.townId==='legnago'),bay=data.parkingZones.find((b:any)=>b.id===stop.bayId);g.car.reset({...bay,heading:0});
+ const random=Math.random;
+ try{Math.random=()=>0;g.relocateDemo();}finally{Math.random=random;}
+ assert.notEqual(g.demoTown,'legnago');assert.equal(g.demoTown,'cerea','Returning to the original start is allowed when the taxi arrived from a different town');
+});
+
+test('rest requires a settled unbooked endless game, preserves pose/score, and leaves the player paused',async()=>{
+ const {readFileSync}=await import('node:fs');const data=JSON.parse(readFileSync('public/maps/veronese/manifest.json','utf8')),h=harness(data),g=h.game as any;
+ g.hasStarted=true;g.screen='paused';g.sleepUntil=0;g.saveStatus={textContent:''};g.restOverlay={hidden:true};
+ const position={x:g.car.x,z:g.car.z,heading:g.car.heading},earnings=g.mission.earningsCents;
+ g.parking.stopped=false;g.rest();assert.equal(g.mission.clockText,'07:00');g.parking.stopped=true;g.rest();
+ assert.equal(g.mission.clockText,'15:00');assert.equal(g.screen,'paused');assert.equal(g.restOverlay.hidden,false);assert.equal(g.mission.earningsCents,earnings);assert.deepEqual({x:g.car.x,z:g.car.z,heading:g.car.heading},position);
+ const elapsed=g.mission.totalElapsed;g.rest();assert.equal(g.mission.totalElapsed,elapsed,'Held or repeated rest cannot skip another night while asleep');
+});
+
+test('the bot rests between night jobs and performs no dispatch or boarding while asleep',async()=>{
+ const {readFileSync}=await import('node:fs');const data=JSON.parse(readFileSync('public/maps/veronese/manifest.json','utf8')),h=harness(data),g=h.game as any;
+ g.mission.totalElapsed=1800;g.mission.receipts=Array.from({length:2},()=>({passenger:'P',pickup:'A',destination:'B',distanceMetres:1000,seconds:100,baseCents:1000,bonusCents:0,totalCents:1000}));g.mission.earningsCents=2000;g.mission.departure={identity:'P',stopId:'cerea:municipio',remaining:.15};
+ g.lastBotRestElapsed=-Infinity;g.sleepUntil=0;g.restOverlay={hidden:true};g.saveStatus={textContent:''};g.nextDemoRelocation=3;
+ let dispatch=0;g.opening={state:'demo',update:()=>false,refreshButton:()=>{}};g.demo={activity:'',relocated:()=>{},update:()=>{dispatch++;return {...idle};}};
+ h.step({},100);assert.equal(dispatch,0);assert.equal(g.restOverlay.hidden,true);h.step({},100);assert.equal(g.restOverlay.hidden,false);assert.equal(Math.floor(g.mission.clockHours),6);assert.equal(g.waitForDrivingRelease,false);
+ h.step({},100);assert.equal(dispatch,0,'Sleep must freeze discrete interactions too, not only driving physics');assert.equal(g.mission.earningsCents,2000);
+ g.sleepUntil=0;h.step({},100);assert.equal(dispatch,1);assert.equal(g.restOverlay.hidden,true);
 });

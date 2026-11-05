@@ -1,3 +1,7 @@
+import {Traffic} from "../world/Traffic";
+import {chooseStartPlace} from "./StartPlace";
+import { DemoDriver, idleActions } from "./DemoDriver";
+import { Opening } from "../ui/Opening";
 import { StreamingWorld } from "../world/streaming/StreamingWorld";
 import { SettingsPanel, readSettings, renderSize, isRetro } from "../presentation/Settings";
 import { Sound, musicGain } from "../presentation/Sound";
@@ -15,18 +19,19 @@ import { createParking } from "../navigation/Parking";
 import { createMission } from "../mission/Mission";
 import { createWorld } from "../world/World";
 import { createHud, type FareChoice, type Screen } from "../ui/Hud";
-import { District } from "../world/district";
+import { District, inRect } from "../world/district";
 import {PassengerPresence} from '../world/People';
 import {ControlsPanel} from '../input/ControlsPanel';
 import {decodeSave,mapDataVersion,mapSignature,MapVersionError,saveKey,SAVE_VERSION,type SaveData} from './Save';
-export function createGame(context:District,towns:readonly Pick<TownEntry,"id"|"name">[]=[{id:context.district.id,name:context.district.name}]){
+export function createGame(context:District,towns:readonly Pick<TownEntry,"id"|"name"|"hidden">[]=[{id:context.district.id,name:context.district.name}]){
 const {district}=context;
+const visibleTowns=towns.filter(t=>!t.hidden);
 const {Car}=createCar(context);
 const {directionHint,locationHint}=createNavigation(context);
 const {Parking}=createParking(context);
 const {Mission}=createMission(context);
 const makeWorld=()=>district.streaming?new StreamingWorld(context):new (createWorld(context).World)();
-const {Hud}=createHud(context,towns);
+const {Hud}=createHud(context,visibleTowns);
 /** A shift handed from one region to its neighbour across a gateway, read once by the next game (#112). */
 const CROSSING_KEY='cerea-crossing';
 class Game {
@@ -46,6 +51,8 @@ class Game {
   private readonly people = new PassengerPresence(context,this.world.scene,this.world.collisionIndex);
   private readonly streamStatus=document.createElement("div");
   private readonly car = new Car();
+  private readonly traffic=district.taxi?.endless?new Traffic(context,this.world.scene,this.world.collisionIndex):undefined;
+  private get collisionSource(){return this.traffic?.collisionSource??this.world.collisionIndex;}
   private readonly cockpit = new CockpitCamera(this.world.frame);
   private readonly interior = new Cockpit(this.world.scene);
   private readonly input = new Input();
@@ -59,10 +66,18 @@ class Game {
   private gatewayArmed=false;
   private savedThisPause=false;
   private hasStarted=false;
+  private restButton?:HTMLButtonElement;
+  private sleepUntil=0;
+  private lastBotRestElapsed=-Infinity;
+  private readonly restOverlay=document.createElement('div');
   private readonly parking = new Parking();
   private readonly mission = new Mission();
   private readonly hud: InstanceType<typeof Hud>;
   private screen: Screen = "briefing";
+  private opening?:Opening;
+  private demo?:DemoDriver;
+  private nextDemoRelocation=3;
+  private demoTown?:string;
   private previousTime = 0;
   private accumulator = 0;
   private districtSwitchReady = false;
@@ -84,6 +99,7 @@ class Game {
       `First-person view of ${district.name}`,
     );
     root.append(this.renderer.domElement);
+    this.restOverlay.id='rest-overlay';this.restOverlay.hidden=true;this.restOverlay.textContent='Resting · 8 hours';this.restOverlay.setAttribute('role','status');root.append(this.restOverlay);
     this.streamStatus.id="stream-status";this.streamStatus.hidden=true;this.streamStatus.setAttribute("role","status");root.append(this.streamStatus);
     if(this.timingPanel){this.timingPanel.id="performance-stats";this.timingPanel.setAttribute("aria-label","CPU profiling timings");root.append(this.timingPanel);}
     this.hud = new Hud(root, () => this.activate(), () => this.requestInformation(),(choice,id)=>this.chooseFare(choice,id));
@@ -100,14 +116,15 @@ class Game {
     this.radio.onChange=()=>{radioStatus.textContent=this.radio.message;};this.radio.onChange();
     void this.radio.load();
     this.settingsPanel.addAction('Change controls',()=>this.controlsPanel.open());
-    this.saveButton=this.settingsPanel.addAction('Save shift',()=>this.save());
-    this.settingsPanel.addAction('Continue saved shift',()=>this.load());
+    if(this.mission.endless)this.restButton=this.settingsPanel.addAction('Rest for 8 hours',()=>this.rest());
+    this.saveButton=this.settingsPanel.addAction(this.mission.endless?'Save game':'Save shift',()=>this.save());
+    this.settingsPanel.addAction(this.mission.endless?'Continue saved game':'Continue saved shift',()=>this.load());
     this.mainScreenButton=this.settingsPanel.addAction('Main screen',()=>this.leaveForMainScreen());
     this.saveStatus=document.createElement('p');this.saveStatus.setAttribute('role','status');this.saveStatus.className='save-status';
     this.saveButton.parentElement!.append(this.saveStatus);
     this.world.setDetail(this.settings.detail);
     this.renderer.domElement.addEventListener("click", () => {
-      if(this.screen!=="running" || document.pointerLockElement===this.renderer.domElement)return;
+      if(this.opening||this.screen!=="running" || document.pointerLockElement===this.renderer.domElement)return;
       try { const result=this.renderer.domElement.requestPointerLock(); result?.catch(()=>this.hud.setHint("Mouse look could not capture the pointer. Click the windshield again to look around.")); }
       catch { this.hud.setHint("Click the windshield to look around with the mouse."); }
     });
@@ -119,7 +136,7 @@ class Game {
     });
     window.addEventListener("pointerdown",()=>this.sound.unlock());
     window.addEventListener("keydown",()=>this.sound.unlock());
-    window.addEventListener("pagehide",()=>{this.sound.dispose();if(this.world instanceof StreamingWorld)this.world.dispose();},{once:true});
+    window.addEventListener("pagehide",()=>{this.traffic?.dispose();this.opening?.dispose();this.sound.dispose();this.world.dispose();},{once:true});
     this.resize();
     window.addEventListener("resize", () => this.resize());
     this.watchPixelRatio();
@@ -136,6 +153,7 @@ class Game {
     });
     this.cockpit.update(1, this.car, 0);
     this.arriveFromCrossing();
+    if(!this.hasStarted){if(district.taxi?.endless){const place=chooseStartPlace(context);this.car.reset(place);this.demoTown=place.townId;this.hud.forgetAtlasMarker(this.car);this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);}this.demo=new DemoDriver(context);this.opening=new Opening(root,context,this.input.bindings);this.screen="running";}
     this.renderer.setAnimationLoop((time) => this.frame(time));
   }
 
@@ -144,14 +162,17 @@ class Game {
       height = window.innerHeight;
     const ratio=window.devicePixelRatio||1,gl=this.renderer.getContext();
     const limit=Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),this.renderer.capabilities.maxTextureSize,...gl.getParameter(gl.MAX_VIEWPORT_DIMS));
-    const size=renderSize(width,height,this.settings.resolution,ratio,limit);
+    const size=renderSize(width,height,this.pictureMode,ratio,limit);
     this.renderer.setSize(size.width,size.height,false);
-    this.renderer.domElement.classList.toggle('pixel-picture',isRetro(this.settings.resolution));
+    this.renderer.domElement.classList.toggle('pixel-picture',isRetro(this.pictureMode));this.renderedPicture=this.pictureMode;
     // Report what the browser actually allocated, which can be less than requested.
     this.settingsPanel.showPicture(gl.drawingBufferWidth,gl.drawingBufferHeight,Math.round(width*ratio),Math.round(height*ratio));
     this.cockpit.camera.aspect = width / height;
     this.cockpit.camera.updateProjectionMatrix();
   }
+
+  private renderedPicture='';
+  private get pictureMode(){return this.opening?.state==='demo'?'high':this.settings.resolution;}
 
   /** Moving between displays can change the pixel ratio without a window resize. */
   private watchPixelRatio(){
@@ -159,6 +180,7 @@ class Game {
   }
 
   private pause() {
+    if(this.opening)return;
     if (this.screen === "running" || this.screen === "atlas" || this.screen==='fares') {
       this.screen = "paused";
       this.accumulator = 0;
@@ -172,11 +194,13 @@ class Game {
   }
 
   private activate() {
+    if(this.opening){this.opening.activate();return;}
     if (this.screen === "running") return;
     if(this.screen === "atlas")this.waitForDrivingRelease=true;
     if (this.screen === "briefing" || this.screen === "result") {
-      this.hasStarted=true;
-      this.car.reset();
+      this.hasStarted=true;this.sleepUntil=0;if(this.restOverlay)this.restOverlay.hidden=true;this.traffic?.clear();
+      const startPlace=district.taxi?.endless?chooseStartPlace(context):undefined;
+      this.car.reset(startPlace);
       this.parking.reset();
       this.mission.reset();
       if(this.mission.taxiMode){
@@ -186,6 +210,7 @@ class Game {
         }catch{/* Dispatch still works without persistent browser storage. */}
       }
       this.hud.resetAtlasNotes();
+      if(startPlace){this.hud.forgetAtlasMarker(this.car);this.mission.notice=`Starting at ${startPlace.name}. ${this.mission.notice}`;}
       this.cockpit.reset();
       this.motion.reset();
       this.hud.setHint(this.mission.notice);
@@ -245,19 +270,45 @@ class Game {
   }
 
   private save(){
-    if(!this.hasStarted||this.mission.finished)return;
+    if(this.opening||!this.hasStarted||this.mission.finished)return;
     try{
       const {x,z,heading,speed,gear,steering,collisions}=this.car;
       const value:SaveData={version:SAVE_VERSION,district:district.id,map:mapSignature(context),dataVersion:mapDataVersion(context),savedAt:new Date().toISOString(),
         car:{x,z,heading,speed,gear,steering,collisions},unsafeStops:this.parking.unsafeStops,mission:this.mission.snapshot(),atlas:this.hud.saveAtlas()};
       decodeSave(context,JSON.stringify(value));
       localStorage.setItem(saveKey(context),JSON.stringify(value));
-      this.saveStatus.textContent=`Saved ${this.mission.clockText}. A new shift keeps this save until you save again.`;this.savedThisPause=true;
+      this.saveStatus.textContent=`Saved ${this.mission.clockText}. ${this.mission.endless?"A new game":"A new shift"} keeps this save until you save again.`;this.savedThisPause=true;
     }catch{this.saveStatus.textContent='Save failed. Storage is unavailable or full; the previous save has been kept.';}
+  }
+
+  private get sleeping(){return performance.now()<(this.sleepUntil??0);}
+  private get demoRestPending(){return this.mission.endless&&this.opening?.state==='demo'&&!this.mission.hasRide&&this.mission.completedFares>=2&&(this.mission.clockHours>=22||this.mission.clockHours<5)&&this.mission.totalElapsed-this.lastBotRestElapsed>12*3600/district.taxi!.clockRate;}
+  private rest(demo=false){
+    if(!this.mission.endless||(!demo&&(!this.hasStarted||this.screen!=='paused'))||!this.parking.stopped||this.car.speed!==0||this.mission.hasRide||this.sleeping)return;
+    if(!this.mission.rest(8))return;
+    if(this.restOverlay)this.restOverlay.hidden=false;this.traffic?.clear();this.demo?.relocated();
+    this.sleepUntil=performance.now()+1500;this.lastBotRestElapsed=this.mission.totalElapsed;this.accumulator=0;
+    this.waitForDrivingRelease=!this.opening;this.savedThisPause=false;this.leavePending=false;
+    if(this.mainScreenButton)this.mainScreenButton.textContent='Main screen';
+    this.saveStatus.textContent=`Rested 8 hours. It is ${this.mission.clockText}.`;
+  }
+
+  private get demoJumpPending(){return new Set(district.taxi?.stops.map(s=>s.townId)??[]).size>1&&this.opening?.state==='demo'&&!this.mission.hasRide&&this.mission.boarding===0&&this.mission.completedFares>=this.nextDemoRelocation;}
+
+  /** Demo-only showcase jump after three paid jobs; never moves a player's car or a booked passenger. */
+  private relocateDemo(){
+    if(!this.demoJumpPending||!this.demo||this.mission.departure)return;
+    const currentStop=district.taxi!.stops.find(stop=>inRect(this.car,context.parkingZones.find(b=>b.id===stop.bayId)!,1.1));
+    const place=chooseStartPlace(context,Math.random,currentStop?.townId??this.demoTown),collisions=this.car.collisions,unsafeStops=this.parking.unsafeStops;
+    this.car.reset(place);this.car.collisions=collisions;this.parking.reset();this.parking.unsafeStops=unsafeStops;
+    this.demoTown=place.townId;this.nextDemoRelocation=this.mission.completedFares+3;this.demo.relocated();
+    this.cockpit.reset();this.motion.reset();this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);
+    this.hud.setHint(`Demo moved to ${place.name}. Earnings and completed fares are retained.`);
   }
 
   /** Region gateways (#112): reaching one with no fare booked carries the shift into the neighbouring region. */
   private checkGateways(){
+    if(this.opening)return;
     const gateways=district.gateways??[];if(!gateways.length)return;
     const near=gateways.map(gateway=>({gateway,distance:Math.hypot(this.car.x-context.nodeById(gateway.nodeId).x,this.car.z-context.nodeById(gateway.nodeId).z)})).sort((a,b)=>a.distance-b.distance)[0];
     if(!this.gatewayArmed){if(near.distance>40)this.gatewayArmed=true;return;}
@@ -302,18 +353,19 @@ class Game {
   private leaveForMainScreen(){
     if(this.screen!=='paused'||!this.hasStarted)return;
     if(!this.leavePending){
-      this.leavePending=true;this.mainScreenButton.textContent='Confirm: leave shift';
-      this.saveStatus.textContent=`${this.savedThisPause||this.mission.finished?'Nothing is lost: your shift is saved.':'Progress since your last save will be lost.'} Choose again to leave for the main screen, or resume to keep driving.`;
+      this.leavePending=true;this.mainScreenButton.textContent=this.mission.endless?'Confirm: leave game':'Confirm: leave shift';
+      this.saveStatus.textContent=`${this.savedThisPause||this.mission.finished?`Nothing is lost: your ${this.mission.endless?'game':'shift'} is saved.`:'Progress since your last save will be lost.'} Choose again to leave for the main screen, or resume to keep driving.`;
       return;
     }
-    selectDistrict(towns,district.id);
+    selectDistrict(visibleTowns,visibleTowns.find(t=>t.id===district.id)?.id??visibleTowns[0].id);
   }
 
   private load(){
     try{
       const text=localStorage.getItem(saveKey(context));
-      if(!text){this.saveStatus.textContent='No saved shift for this district yet.';return;}
-      const value=decodeSave(context,text);
+      if(!text){this.saveStatus.textContent=this.mission.endless?'No saved game for this map yet.':'No saved shift for this district yet.';return;}
+      const value=decodeSave(context,text);this.sleepUntil=0;if(this.restOverlay)this.restOverlay.hidden=true;this.traffic?.clear();
+      if(this.opening){this.opening.dispose();this.opening=undefined;this.demo=undefined;}
       this.mission.restore(value.mission);Object.assign(this.car,value.car);
       this.parking.reset();this.parking.unsafeStops=value.unsafeStops;this.parking.update(0,this.car,this.car.speed);
       this.hud.restoreAtlas(value.atlas);this.world.updateFrame(this.car);
@@ -336,6 +388,7 @@ class Game {
   }
 
   private requestInformation() {
+    if(this.opening)return;
     if (this.screen !== "running" && this.screen !== "atlas") return;
     if (this.mission.recordDirectionRequest(this.parking.stopped, this.parking.legal)) {
       const target=this.mission.target;
@@ -351,14 +404,31 @@ class Game {
       ? Math.min((time - this.previousTime) / 1000, 0.1)
       : 0;
     this.previousTime = time;
-    this.input.context=this.screen==='atlas'?'atlas':this.screen==='running'?'driving':'menu';
-    const actions = this.input.poll();
+    this.input.context=this.opening?'menu':this.screen==='atlas'?'atlas':this.screen==='running'?'driving':'menu';
+    let actions = this.input.poll();
+    if(this.opening){
+      if(this.opening.update(dt,actions,this.input.allReleased)){
+        this.opening.dispose();this.opening=undefined;this.demo=undefined;
+        this.screen='briefing';this.activate();actions=idleActions();
+      }else{
+        this.screen=this.opening.state==='demo'?'running':'briefing';
+        const ready=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
+        if(this.opening.state==='demo'){
+          if(this.demoJumpPending||this.demoRestPending){actions={...idleActions(),brake:1};this.demo!.activity='Waiting for passenger exit before a town jump';}
+          else actions=ready&&!this.sleeping?this.demo!.update(dt,this.car,this.parking,this.mission,this.collisionSource):idleActions();
+        }
+        else if(this.opening.state==='waiting')actions=idleActions();
+      }
+    }
+    if(this.sleeping)actions=idleActions();
+    if(this.restOverlay)this.restOverlay.hidden=!this.sleeping;
     const menu=this.input.settingsInput;
     const editing=this.controlsPanel.visible;
-    this.controlsPanel.update(dt,this.input.currentPad);
+    if(!this.sleeping)this.controlsPanel.update(dt,this.input.currentPad);
     if(editing){actions.interact=false;actions.pause=false;actions.atlasPage=0;}
-    if(this.settingsPanel.update(!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
-    this.saveButton.disabled=!this.hasStarted||this.mission.finished;
+    if(this.settingsPanel.update(!this.sleeping&&!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
+    this.saveButton.disabled=!this.hasStarted||this.mission.finished||this.sleeping;
+    if(this.restButton)this.restButton.disabled=!this.hasStarted||!this.parking.stopped||this.car.speed!==0||this.mission.hasRide||this.sleeping;
     this.mainScreenButton.disabled=this.screen!=='paused'||!this.hasStarted;
     if(this.screen!=='paused'){this.savedThisPause=false;if(this.leavePending){this.leavePending=false;this.mainScreenButton.textContent='Main screen';}}
     if(this.screen==='running'&&this.waitForDrivingRelease&&this.input.drivingReleased===false){
@@ -367,11 +437,11 @@ class Game {
     if (this.screen === "briefing" && actions.glance === 0) this.districtSwitchReady = true;
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
       this.districtSwitchReady = false;
-      const index=towns.findIndex((map)=>map.id===district.id);
-      if(towns.length>1)selectDistrict(towns,towns[(index+towns.length+Math.sign(actions.atlasPage))%towns.length].id);
+      const index=visibleTowns.findIndex((map)=>map.id===district.id);
+      if(visibleTowns.length>1)selectDistrict(visibleTowns,visibleTowns[(index+visibleTowns.length+Math.sign(actions.atlasPage))%visibleTowns.length].id);
       return;
     }
-    if (this.input.controllerDisconnected) {
+    if (!this.opening&&this.input.controllerDisconnected) {
       this.pause();
       this.hud.setHint("Controller disconnected. Reconnect it, or use the keyboard, and resume when ready.");
     }
@@ -394,7 +464,7 @@ class Game {
         else if (actions.interact) this.hud.placeAtlasMarker();
         if (actions.clearMarker) this.hud.removeAtlasMarker();
       }
-    } else if (!this.input.controllerDisconnected) {
+    } else if ((!this.opening||this.opening.state==='rules')&&!this.input.controllerDisconnected) {
       if (actions.pause && performance.now() >= this.ignorePauseUntil) {
         if (this.screen !== "running") this.activate();
         else this.pause();
@@ -430,7 +500,7 @@ class Game {
     this.streamStatus.hidden=worldReady||this.screen!=="running";
     this.streamStatus.textContent=this.world instanceof StreamingWorld&&this.world.stream.recovering?'Scenery load interrupted. Retrying automatically… time is paused. Restart the application if it persists.':'Loading scenery… simulation time is paused.';
     if(this.screen==="running"&&!worldReady)this.accumulator=0;
-    if (this.screen === "running"&&worldReady) {
+    if (this.screen === "running"&&worldReady&&!this.sleeping) {
       if(this.waitForDrivingRelease&&actions.throttle<.1&&actions.brake<.1&&(this.input.drivingReleased??true))this.waitForDrivingRelease=false;
       // The taxi stays put while a passenger walks to it and gets in.
       const driving=this.waitForDrivingRelease||this.mission.boarding>0?{...actions,throttle:0,brake:0,steer:0,handbrake:false}:actions;
@@ -439,12 +509,13 @@ class Game {
       while (this.accumulator >= 1 / 60) {
         const physicsStart=context.profile.start();
         this.car.unlimited=this.settings.unlimitedSpeed;
-        this.car.update(1 / 60, driving, this.world.collisionIndex);
+        this.traffic?.update(1 / 60,this.car);
+        this.car.update(1 / 60, driving, this.collisionSource);
         this.parking.update(1 / 60, this.car, this.car.speed);
         this.mission.update(1 / 60, this.car, this.parking.stopped);
         context.profile.end("physics-step",physicsStart);
         this.accumulator -= 1 / 60;
-        if (this.mission.finished) {
+        if (this.mission.finished&&!this.opening) {
           this.screen = "result";
           this.accumulator = 0;
           this.releaseMouseLook();
@@ -453,14 +524,21 @@ class Game {
       }
       this.world.updateFrame(this.car);
       this.cockpit.update(dt, this.car, actions.glance, actions);
-      if(this.screen==='running')this.checkGateways();
+      if(this.screen==='running'){this.checkGateways();if(this.demoRestPending&&!this.mission.departure)this.rest(true);else this.relocateDemo();}
     }
     if(this.mission.revision!==this.missionRevision) {
       this.missionRevision=this.mission.revision;
       if(this.mission.taxiMode)this.hud.setTaxiMessage(this.mission.notice);
     }
     if(this.mission.taxiMode)this.world.updateDaylight(this.mission.clockHours);
-    this.hud.show(this.screen, this.mission, this.car, this.parking);
+    this.hud.show(this.opening?.state==='demo'?"running":this.screen, this.mission, this.car, this.parking);
+    this.opening?.refreshButton();
+    if(this.opening?.state==='rules'){
+      const content=document.querySelector<HTMLElement>('.opening-instructions');
+      const bindings=JSON.stringify(this.input.bindings);
+      if(!content){const side=document.querySelector<HTMLElement>('.briefing-side');if(side){const rules=document.createElement('div');rules.className='opening-instructions';rules.dataset.bindings=bindings;rules.innerHTML=this.opening.instructions();side.prepend(rules);}}
+      else if(content.dataset.bindings!==bindings){content.dataset.bindings=bindings;content.innerHTML=this.opening.instructions();}
+    }
     this.hud.update(
       this.car,
       this.mission,
@@ -469,19 +547,21 @@ class Game {
       this.input.gamepadBlocked,
       this.input.controllerStatus,
     );
-    const running=this.screen==='running',held=!running||this.waitForDrivingRelease||this.mission.boarding>0;
+    const running=this.screen==='running'&&!this.sleeping,held=!running||this.waitForDrivingRelease||this.mission.boarding>0;
     const pedals=held?{throttle:0,brake:0,handbrake:false}:actions;
     const folderRadio=this.settings.radio&&this.settings.radioSource==='folder';
     this.sound.update(dt,running,this.car,pedals,this.settings,folderRadio&&!this.radio.playable);
     this.radio.update(running&&folderRadio,musicGain(this.settings,pedals.throttle));
     this.hud.setSound(this.soundStatus(folderRadio));
     if(this.screen==='running')this.motion.update(dt,this.car.speed,this.car.steering,this.settings.motion);
+    this.traffic?.render(this.world.frame);
     this.people.update(this.mission,this.world.frame,this.car);
     this.interior.setPassenger(this.mission.seatedIdentity);
     this.interior.update({...this.car,...this.world.frame.toLocal(this.car)},this.motion.roll,this.motion.pitch,this.motion.wobble);
     const renderStart=context.profile.start();
+    if(this.renderedPicture!==this.pictureMode)this.resize();
     this.interior.renderMirrors(this.renderer,this.world.scene,dt);
-    if(isRetro(this.settings.resolution))this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
+    if(isRetro(this.pictureMode))this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
     else this.renderer.render(this.world.scene, this.cockpit.camera);
     context.profile.end("render",renderStart);
     if(this.timingPanel&&time>=this.timingRefresh){this.timingRefresh=time+500;this.timingPanel.textContent=context.profile.text()+(this.world instanceof StreamingWorld?`\ntiles: ${this.world.stream.resident.size} resident · ${this.world.stream.stats.loads} loads / ${this.world.stream.stats.unloads} unloads`:"");}
