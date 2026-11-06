@@ -173,3 +173,18 @@ use ordinary pedals/steering and do not alter player collision physics or saves.
 The new 30-minute traffic regression completed eight fares, 19.49 km and two
 overtakes with zero collisions and a maximum 20-second progress gap. Intentional
 boarding and completed gameplay actions count as progress.
+
+## Parking approaches and repeated recovery
+
+The next driving pass adds strategy changes to repeated recovery: prefer a legal
+forward loop, use a real crossing for a turnaround, or back out to another street
+connection. Failed entries are remembered across replanning at the same location.
+A local connector can choose a different forward street entry when an offset
+parking bay would otherwise require an awkward turn back to the nearest node.
+Occupied waypoints can be bypassed without returning to them afterward.
+
+Stopping uses Mission.canServe's actual geometry, and completing service clears
+the previous reversing state. The new tests exercise these behaviours with actual
+car physics and include left-side traffic and a short forward adjustment needed
+before a safe reverse. The Bovolone forward-start fixture now completes in about
+47 seconds with no reverse manoeuvre. No map-specific workaround is used.
