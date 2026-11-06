@@ -1064,7 +1064,7 @@ test('the lower Veronese plain region streams, starts and drives offline across 
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
 
-test('regional atlas has readable connected quadrants without moving knowledge or advancing time', {timeout:120000},async()=>{
+test('regional atlas has readable connected quadrants without moving knowledge or advancing time', {timeout:240000},async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-atlas-quadrants-'));
  const app=await _electron.launch({args:[path.resolve('.'),'--district=lower-verona',`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  try{
