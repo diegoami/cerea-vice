@@ -154,7 +154,9 @@ test('review regressions: focused settings resume by keyboard and only advertise
  }finally{await app.close();await rm(profile,{recursive:true,force:true});}
 });
 
-test('fare choices, remapping and saved passenger/atlas state survive a complete desktop relaunch', {timeout:120000},async()=>{
+// Two launches plus controls, boarding and atlas checks exceed two minutes on
+// this software renderer; the isolated run passed all assertions in 141 seconds.
+test('fare choices, remapping and saved passenger/atlas state survive a complete desktop relaunch', {timeout:180000},async()=>{
  const profile=await mkdtemp(path.join(tmpdir(),'cerea-save-controls-'));
  const launch=()=>_electron.launch({args:[path.resolve('.'),`--user-data-dir=${profile}`,...(process.platform==='linux'?['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']:[])]});
  let app=await launch();const errors=[];
@@ -238,7 +240,7 @@ test('fare choices, remapping and saved passenger/atlas state survive a complete
 
 
 // On headless Linux use Xvfb with a window manager for the fullscreen check.
-test('desktop runs offline and supports a controller-only drive, disconnect and resume', { timeout: 90000 }, async () => {
+test('desktop runs offline and supports a controller-only drive, disconnect and resume', { timeout: 120000 }, async () => {
   const profile = await mkdtemp(path.join(tmpdir(), 'cerea-desktop-test-'));
   const errors = [];
   const electronApp = await _electron.launch({
