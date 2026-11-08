@@ -11,6 +11,7 @@ export class RouteGraph {
  private nodes:Map<string,RoadNode>;
  private order:Map<string,number>;
  private links=new Map<string,{id:string;distance:number}[]>();
+ private reverse?:Map<string,{id:string;distance:number}[]>;
  constructor(nodes:RoadNode[],roads:Road[]){
   this.nodes=new Map(nodes.map(n=>[n.id,n]));this.order=new Map(nodes.map((n,i)=>[n.id,i]));
   for(const n of nodes)this.links.set(n.id,[]);
@@ -18,14 +19,14 @@ export class RouteGraph {
   for(const r of roads){const d=distance(this.nodes.get(r.a)!,this.nodes.get(r.b)!);this.links.get(r.a)!.push({id:r.b,distance:d});if(!r.oneWay)this.links.get(r.b)!.push({id:r.a,distance:d});}
  }
  /** Route cost from every node that can reach the target, following one-way streets (a search over reversed links). */
- costsTo(target:string):Map<string,number>{
-  const costs=new Map<string,number>();if(!this.nodes.has(target))return costs;
-  const reverse=new Map<string,{id:string;distance:number}[]>();
-  for(const [from,links] of this.links)for(const link of links){if(!reverse.has(link.id))reverse.set(link.id,[]);reverse.get(link.id)!.push({id:from,distance:link.distance});}
-  const heap=new Heap();costs.set(target,0);heap.push({id:target,cost:0,order:this.order.get(target)!});
+ costsTo(target:string|readonly string[],limit=Infinity):Map<string,number>{
+  const costs=new Map<string,number>(),targets=typeof target==='string'?[target]:target;
+  if(!this.reverse){this.reverse=new Map();for(const [from,links] of this.links)for(const link of links){if(!this.reverse.has(link.id))this.reverse.set(link.id,[]);this.reverse.get(link.id)!.push({id:from,distance:link.distance});}}
+  const reverse=this.reverse,heap=new Heap();
+  for(const id of targets)if(this.nodes.has(id)&&!costs.has(id)){costs.set(id,0);heap.push({id,cost:0,order:this.order.get(id)!});}
   for(let current=heap.pop();current;current=heap.pop()){
    if(current.cost!==costs.get(current.id))continue;
-   for(const link of reverse.get(current.id)??[]){const cost=current.cost+link.distance;if(cost<(costs.get(link.id)??Infinity)){costs.set(link.id,cost);heap.push({id:link.id,cost,order:this.order.get(link.id)!});}}
+   for(const link of reverse.get(current.id)??[]){const cost=current.cost+link.distance;if(cost<=limit&&cost<(costs.get(link.id)??Infinity)){costs.set(link.id,cost);heap.push({id:link.id,cost,order:this.order.get(link.id)!});}}
   }
   return costs;
  }

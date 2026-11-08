@@ -61,10 +61,11 @@ export function sign(
       ctx.fillText(line, 384, y, 716);
       return;
     }
+    if(line.kind==='landmark'){ctx.fillStyle='#6b5739';ctx.fillRect(12,i*128+12,744,112);ctx.fillStyle='#f6f0d3';}
     // Draw arrows as geometry so their shape does not depend on installed fonts.
     ctx.save();
     ctx.translate(76, y);
-    ctx.rotate(line.direction === "left" ? -Math.PI / 2 : line.direction === "right" ? Math.PI / 2 : 0);
+    ctx.rotate(line.turnAngle??(line.direction === "left" ? -Math.PI / 2 : line.direction === "right" ? Math.PI / 2 : 0));
     ctx.beginPath();
     ctx.moveTo(-9, 36);
     ctx.lineTo(9, 36);

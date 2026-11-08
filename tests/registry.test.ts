@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {existsSync,readFileSync} from 'node:fs';
 import registryData from '../public/maps/towns.json';
 import {District} from '../src/world/district';
-import {validateRegistry,requestedDistrict,selectDistrict,type TownRegistry} from '../src/world/load';
+import {validateRegistry,requestedDistrict,selectDistrict,consumeOpeningRules,type TownRegistry} from '../src/world/load';
 
 const registry=validateRegistry(registryData);
 const load=(map:string)=>JSON.parse(readFileSync(`public/maps/${map}`,'utf8'));
@@ -62,6 +62,9 @@ test('an unlisted or removed district falls back to the default without deleting
  storage.set('cerea-district','cerea-outskirts');location.hash='';assert.equal(requestedDistrict(list),'veronese','Hidden legacy preferences do not replace the unified default');
  selectDistrict(list.towns,'atlantis');assert.equal(reloads,0,'An unlisted district is never selected');
  selectDistrict(list.towns,'harbor');assert.equal(reloads,1);assert.equal(storage.get('cerea-district'),'harbor');assert.equal(location.hash,'#district=harbor');
+ selectDistrict(list.towns,'veronese',true);assert.equal(location.hash,'#district=veronese&opening=rules');
+ assert.equal(consumeOpeningRules(),true);assert.equal(location.hash,'#district=veronese');
+ assert.equal(consumeOpeningRules(),false,'Map selection resumes rules only once; a later launch may show the demo');
 });
 
 test('the region manifest is reproducible from its specs and keeps its towns at real scale',{timeout:400000},async()=>{
@@ -144,7 +147,10 @@ test('every listed district labels its places with their own names; only Cerea k
   const html=atlas.atlasMarkup('map');
   const shown=[...html.matchAll(/class="atlas-place-label"[^>]*>([^<]*)<\/text>/g)].map(m=>m[1]);
   const xml=(s:string)=>s.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
-  assert.deepEqual(shown,context.landmarks.map(place=>xml(atlasLabel(place).toUpperCase())),`${town.id}: atlas labels`);
+  if(atlas.townModes){
+   const local=atlas.sheets.flatMap(sheet=>{atlas.setAtlasSheet(sheet.id);return [...atlas.atlasMarkup('map').matchAll(/class="atlas-place-label"[^>]*>([^<]*)<\/text>/g)].map(m=>m[1]);});
+   assert.deepEqual([...new Set(local)].sort(),[...new Set(context.landmarks.map(place=>xml(atlasLabel(place).toUpperCase())))].sort(),`${town.id}: every place keeps its name on its town map`);
+  }else assert.deepEqual(shown,context.landmarks.map(place=>xml(atlasLabel(place).toUpperCase())),`${town.id}: atlas labels`);
   // Distinct places never share a label.
   const byLabel=new Map<string,Set<string>>();for(const place of context.landmarks){const label=atlasLabel(place);byLabel.set(label,(byLabel.get(label)??new Set()).add(place.name));}
   for(const [label,names] of byLabel)assert.equal(names.size,1,`${town.id}: ${label} names ${[...names].join(', ')}`);

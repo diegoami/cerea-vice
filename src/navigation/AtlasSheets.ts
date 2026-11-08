@@ -1,6 +1,7 @@
 import { type Point, District } from '../world/district';
+import {createTownSheets} from './TownSheets';
 
-export interface AtlasSheet { id:string; column:number; row:number; minX:number; minZ:number; span:number; name:string; overlap:number }
+export interface AtlasSheet { id:string; column:number; row:number; minX:number; minZ:number; span:number; name:string; overlap:number; width?:number;depth?:number;town?:boolean;regionalName?:string }
 /** A page stays readable while it carries no more distinct street labels than the busiest page of the accepted regional atlas. */
 const MAX_PAGE_LABELS=90;
 /** Detail pages overlap their neighbours so streets near an edge still sit fully on a page. */
@@ -69,6 +70,7 @@ function densitySheets(context:District,letters:(column:number)=>string){
 }
 /** Printed, overlapping kilometre quadrants. Selection depends on the reader, never the car. */
 export function createAtlasSheets(context:District) {
+  if(context.district.taxi?.endless)return createTownSheets(context);
   const {bounds,areas,spawn}=context.district;
   // The fixed kilometre book is for regions (several towns over more than 4 km); a single large town gets density pages.
   const regional=areas.length>1&&Math.max(bounds.maxX-bounds.minX,bounds.maxZ-bounds.minZ)>4000;

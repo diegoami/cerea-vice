@@ -40,7 +40,7 @@ function harness(data:unknown=contextHarbor,maps?:{id:string;name:string;hidden?
   cockpit:{update:noop,camera:{}},interior:{update:noop,renderMirrors:noop,setPassenger:noop},sound:{update:noop,unlock:noop,state:'running'},radio:{update:noop,next:()=>radioSkips++,playable:true,summary:'1/2 Test'},motion:new BodyMotion(),
   settings:{...defaults},settingsPanel:{update:()=>false},
   hud:{setHint:noop,confirmAtlasPosition:()=>markers++,setAtlasInformation:noop,show:noop,update:noop,setTaxiMessage:noop,
-   turnAtlasPage:noop,controlAtlasView:noop,moveAtlasCursor:noop,placeAtlasMarker:()=>estimates++,removeAtlasMarker:noop,refresh:noop,setFareSelection:noop,remindMission:noop,setSound:noop},
+   prepareAtlas:noop,turnAtlasPage:noop,controlAtlasView:noop,moveAtlasCursor:noop,placeAtlasMarker:()=>estimates++,removeAtlasMarker:noop,refresh:noop,setFareSelection:noop,remindMission:noop,setSound:noop},
  });
  game.parking.update(1,game.car,0);
  return {game,step:(next:Partial<Actions>={},dt=100)=>{actions={...idle,...next};clock+=dt;game.frame(clock);},markers:()=>markers,estimates:()=>estimates,radioSkips:()=>radioSkips};
@@ -206,4 +206,33 @@ test('the bot rests between night jobs and performs no dispatch or boarding whil
  h.step({},100);assert.equal(dispatch,0);assert.equal(g.restOverlay.hidden,true);h.step({},100);assert.equal(g.restOverlay.hidden,false);assert.equal(Math.floor(g.mission.clockHours),6);assert.equal(g.waitForDrivingRelease,false);
  h.step({},100);assert.equal(dispatch,0,'Sleep must freeze discrete interactions too, not only driving physics');assert.equal(g.mission.earningsCents,2000);
  g.sleepUntil=0;h.step({},100);assert.equal(dispatch,1);assert.equal(g.restOverlay.hidden,true);
+});
+
+test('leaving the demo destroys autonomous control before a fresh player handoff',()=>{
+ const h=harness(),g=h.game as any;
+ let confirmed=false,disposed=0,botUpdates=0;
+ Object.defineProperty(globalThis,'document',{configurable:true,value:{pointerLockElement:null,querySelector:(selector:string)=>selector==='.opening-instructions'?{dataset:{bindings:JSON.stringify(defaultBindings)}}:null}});
+ g.opening={state:'rules',update:()=>confirmed,navigateRules:()=>false,refreshButton:()=>{},dispose:()=>disposed++};
+ g.demo={update:()=>{botUpdates++;return {...idle,throttle:1,steer:1};}};
+ g.cockpit.reset=()=>{};g.hud.resetAtlasNotes=()=>{};
+ g.mission.elapsed=30;g.car.x+=20;
+ const demoPose=[g.car.x,g.car.z];
+ h.step();assert.equal(g.demo,undefined,'Start discards the bot while the rules are still open');
+ assert.equal(botUpdates,0);assert.equal(g.mission.elapsed,30);assert.deepEqual([g.car.x,g.car.z],demoPose);
+ confirmed=true;h.step();assert.equal(disposed,1);assert.equal(g.opening,undefined);assert.equal(g.hasStarted,true);
+ assert.equal(g.screen,'running');assert.ok(g.mission.elapsed<.2,'Begin resets demo progress');
+ const playerPose=[g.car.x,g.car.z,g.car.heading];
+ for(let i=0;i<100;i++)h.step();
+ assert.equal(botUpdates,0);assert.deepEqual([g.car.x,g.car.z,g.car.heading],playerPose,'No autonomous movement remains during play');
+ h.step({throttle:1});assert.ok(g.car.speed>0,'Only player input accelerates the fresh car');
+});
+
+test('atlas controls remain live without repeatedly rendering the frozen 3D scene and mirrors',()=>{
+ const h=harness(),g=h.game as any;let draws=0,mirrors=0;
+ g.retro.render=()=>draws++;g.interior.renderMirrors=()=>mirrors++;
+ h.step();h.step({atlas:true});const frozenDraws=draws;
+ for(let i=0;i<20;i++)h.step();
+ assert.equal(draws,frozenDraws);assert.equal(mirrors,frozenDraws);
+ h.step({interact:true});assert.equal(h.estimates(),1,'Paper controls do not depend on 3D redraws');
+ h.step({back:true});assert.ok(draws>frozenDraws,'Leaving the atlas immediately redraws the drive');
 });

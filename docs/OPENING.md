@@ -9,6 +9,13 @@ briefing with rules and the current remapped controls. Begin game is a separate
 confirmation: every key, standard controller button/axis and pointer contact must
 be released before the car, mission, atlas and cockpit reset for actual play. Opening
 listeners are aborted on handoff; renderer resizing remains attached for gameplay.
+Start also drops the bot immediately. World selection is above the rules, with
+D-pad or left-stick navigation through worlds, Begin game and options, with A
+confirmation; keyboard left/right and Enter also select worlds. A highlighted world owns
+confirmation, so it cannot also activate settings or Begin game. Selecting a
+different world carries a one-shot `opening=rules` URL flag through the reload;
+the flag is consumed and the new map opens frozen, without constructing a bot.
+Held A across that reload must be released before the separate Begin confirmation.
 Continue saved shift remains available on the frozen briefing and loads paused as
 before. The unified world is the default; legacy maps are hidden from normal selection. Region crossings during a real
 shift retain the existing seamless continuation.
@@ -43,6 +50,14 @@ The bot can still collide and recover; it is not a perfect human driver.
 unchanged storage during the demo, frozen rules, held/repeated Enter, keyboard and
 controller scrolling, remapped instructions, held acceleration at confirmation,
 fresh score/session, listener removal, save/load and resizing in all three stages.
+It also checks idle player time after handoff: the car does not turn or accelerate
+and dispatch stays idle. The browser suite selects London with a simulated D-pad
+and A, holds A through its reload, verifies the frozen rules, and then checks
+exclusive player acceleration/braking after confirmation.
+Arrow keys and the D-pad also select street-index entries in the atlas, with
+Enter / A opening the selected street. Map arrows retain crosshair movement and
+view follow; neither browsing path changes the knowledge marker. Browser checks
+cover both keyboard and D-pad movement and index confirmation while time stays frozen.
 `npm run test:browser` runs the same checks in Chromium against the production
 browser build, plus controller-only Start/confirmation, touch scrolling at 390×844
 and a held pointer at confirmation. It requires Playwright Chromium

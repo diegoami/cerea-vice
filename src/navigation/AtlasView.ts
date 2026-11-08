@@ -17,9 +17,9 @@ class AtlasView {
   get box(){return {x:this.centre.x-this.base.width/this.zoom/2,z:this.centre.z-this.base.height/this.zoom/2,width:this.base.width/this.zoom,height:this.base.height/this.zoom};}
   private clamp(){const hw=this.base.width/this.zoom/2,hh=this.base.height/this.zoom/2;this.centre.x=Math.max(this.base.x+hw,Math.min(this.base.x+this.base.width-hw,this.centre.x));this.centre.z=Math.max(this.base.z+hh,Math.min(this.base.z+this.base.height-hh,this.centre.z));}
   reset(){this.zoom=1;this.centre={x:this.base.x+this.base.width/2,z:this.base.z+this.base.height/2};}
-  setSheet(sheet?:{minX:number;minZ:number;span:number}){
+  setSheet(sheet?:{minX:number;minZ:number;span:number;width?:number;depth?:number}){
     const u=sheet?sheet.span/240:0;
-    this.base=sheet?{x:sheet.minX-14*u,z:sheet.minZ-17*u,width:sheet.span+28*u,height:sheet.span+28*u}:{...this.overview};
+    this.base=sheet?{x:sheet.minX-14*u,z:sheet.minZ-17*u,width:(sheet.width??sheet.span)+28*u,height:(sheet.depth??sheet.span)+28*u}:{...this.overview};
     this.reset();
   }
   /** Turn to another detail page at the same zoom: a neighbouring page continues from the same ground, a distant one keeps the reader's place on the page. */

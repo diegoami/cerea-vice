@@ -7,6 +7,11 @@ export interface DirectionRow {
   text: string;
   detail: string;
   direction: SignDirection;
+  /** Exact outgoing road bearing relative to the approach, for surveyed destination boards. */
+  turnAngle?:number;
+  kind?:'town'|'landmark';
+  destinationId?:string;
+  destinationIds?:string[];
 }
 export function createDirections(context:District,{signPlaces=false}:{signPlaces?:boolean}={}){
 const {district,landmarks,nodes,nodeById}=context;

@@ -4,7 +4,7 @@ import {spawn} from 'node:child_process';
 import {chromium} from 'playwright-core';
 import {checkOpening} from './opening-check.mjs';
 
-test('production browser opening, small-window touch scrolling and release handoff',{timeout:180000},async()=>{
+test('production browser opening, small-window touch scrolling and release handoff',{timeout:240000},async()=>{
  const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4175','--strictPort'],{stdio:'ignore'});
  let browser;
  try{
@@ -32,16 +32,65 @@ test('production browser opening, small-window touch scrolling and release hando
   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('cerea-save-veronese')).mission.currentFare),accepted);
   await page.close();
   console.info('Compact HUD layouts, fares and save/load passed');
-  const controller=await browser.newPage();await controller.goto('http://127.0.0.1:4175');
+  const controller=await browser.newPage();
+  await controller.addInitScript(()=>{window.pad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},(_,i)=>({value:i===0&&sessionStorage.getItem('test-held-A')?1:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.pad]});});
+  await controller.goto('http://127.0.0.1:4175');
   await controller.getByRole('button',{name:'Start',exact:true}).waitFor();
-  await controller.evaluate(()=>{window.pad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.pad]});});
   await controller.waitForFunction(()=>document.querySelector('#opening button')?.disabled===false);
   await controller.evaluate(()=>window.pad.buttons[9].value=1);await controller.getByRole('button',{name:'Begin game'}).waitFor();
   await controller.waitForTimeout(250);assert.equal(await controller.getByRole('button',{name:'Begin game'}).isVisible(),true);
-  await controller.evaluate(()=>window.pad.buttons[9].value=0);await controller.waitForFunction(()=>document.querySelector('.briefing-main button')?.disabled===false);
+  await controller.evaluate(()=>window.pad.buttons[9].value=0);await controller.waitForFunction(()=>document.querySelector('.briefing-main > button')?.disabled===false);
+  const worlds=await controller.locator('.world-choice').boundingBox(),rules=await controller.locator('.opening-instructions').boundingBox();
+  assert.ok(worlds.y+worlds.height<rules.y,'World selection appears before rules and controls');
+  await controller.evaluate(()=>window.pad.buttons[13].value=1);
+  await controller.waitForFunction(()=>document.activeElement?.getAttribute('data-district')==='london-westminster');
+  await controller.evaluate(()=>window.pad.buttons[13].value=0);
+  await controller.evaluate(()=>{localStorage.setItem('cerea-save-london-westminster','map selection sentinel');sessionStorage.setItem('test-held-A','1');window.pad.buttons[0].value=1;});
+  await controller.waitForFunction(()=>document.querySelector('#hud')?.getAttribute('data-district')==='london-westminster');
+  await controller.getByRole('button',{name:'Begin game'}).waitFor();
+  assert.equal(await controller.getByRole('button',{name:'Start',exact:true}).isVisible(),false,'Selecting a world must not restart its demo');
+  const selectedClock=await controller.locator('#timer').innerText();await controller.waitForTimeout(1500);
+  assert.equal(await controller.locator('#timer').innerText(),selectedClock,'Held A cannot start the selected world');
+  await controller.evaluate(()=>{sessionStorage.removeItem('test-held-A');window.pad.buttons[0].value=0;});
+  await controller.waitForFunction(()=>document.querySelector('.briefing-main > button')?.disabled===false);
+  // A on the current world focuses Begin game, with a separate confirmation still required.
+  const moveTo=async(button,predicate)=>{
+   await controller.evaluate(i=>window.pad.buttons[i].value=1,button);
+   await controller.waitForFunction(predicate);
+   await controller.evaluate(i=>window.pad.buttons[i].value=0,button);
+   await controller.waitForFunction(()=>document.querySelector('.briefing-main > button')?.disabled===false);
+  };
+  await moveTo(12,()=>document.activeElement?.getAttribute('data-district')==='veronese');
+  await moveTo(13,()=>document.activeElement?.getAttribute('data-district')==='london-westminster');
+  await controller.evaluate(()=>window.pad.buttons[0].value=1);
+  await controller.waitForFunction(()=>document.activeElement?.textContent?.startsWith('Begin game'));
+  await controller.waitForTimeout(300);assert.equal(await controller.locator('#overlay').isVisible(),true);
+  await controller.evaluate(()=>window.pad.buttons[0].value=0);
+  await controller.waitForFunction(()=>document.querySelector('.briefing-main > button')?.disabled===false);
+  await moveTo(13,()=>document.activeElement?.getAttribute('data-key')==='detail');
+  await moveTo(13,()=>document.activeElement?.getAttribute('data-key')==='resolution');
+  const picture=await controller.locator('[data-key=resolution]').inputValue();
+  await controller.evaluate(()=>window.pad.buttons[0].value=1);
+  await controller.waitForFunction(before=>document.querySelector('[data-key=resolution]').value!==before,picture);
+  assert.equal(await controller.locator('#overlay').isVisible(),true,'D-pad settings and A cannot also begin');
+  await controller.evaluate(()=>window.pad.buttons[0].value=0);
+  await controller.waitForFunction(()=>document.querySelector('.briefing-main > button')?.disabled===false);
+  await moveTo(12,()=>document.activeElement?.getAttribute('data-key')==='detail');
+  await moveTo(12,()=>document.activeElement?.textContent?.startsWith('Begin game'));
+  await controller.screenshot({path:'test-results/opening-controller-world-choice.png'});
   await controller.evaluate(()=>window.pad.buttons[0].value=1);await controller.getByRole('button',{name:'Release controls to begin…'}).waitFor();
-  await controller.evaluate(()=>window.pad.buttons[0].value=0);await controller.locator('#overlay').waitFor({state:'hidden'});await controller.close();
-  console.info('Controller-only opening passed');
+  await controller.evaluate(()=>window.pad.buttons[0].value=0);await controller.locator('#overlay').waitFor({state:'hidden'});
+  await controller.locator('#stream-status').waitFor({state:'hidden'});await controller.waitForTimeout(6000);
+  assert.equal(await controller.locator('#speed').innerText(),'00');
+  assert.match(await controller.locator('#objective-stage').innerText(),/FREE DRIVING/,'Selected world has no autonomous driver after Begin game');
+  assert.equal(await controller.evaluate(()=>localStorage.getItem('cerea-save-london-westminster')),'map selection sentinel');
+  await controller.evaluate(()=>window.pad.buttons[7].value=1);
+  await controller.waitForFunction(()=>Number(document.querySelector('#speed').textContent)>2);
+  await controller.evaluate(()=>{window.pad.buttons[7].value=0;window.pad.buttons[6].value=1;});
+  await controller.waitForFunction(()=>document.querySelector('#speed').textContent==='00');
+  await controller.evaluate(()=>window.pad.buttons[6].value=0);
+  await controller.close();
+  console.info('Controller world choice, held A across reload and exclusive player control passed');
   const touch=await browser.newContext({hasTouch:true,viewport:{width:390,height:844}}),small=await touch.newPage();
   await small.goto('http://127.0.0.1:4175');await small.getByRole('button',{name:'Start',exact:true}).tap();
   await small.getByRole('button',{name:'Begin game'}).waitFor();
@@ -58,5 +107,47 @@ test('production browser opening, small-window touch scrolling and release hando
   await small.evaluate(()=>window.dispatchEvent(new PointerEvent('pointerup',{pointerId:55})));
   await small.locator('#overlay').waitFor({state:'hidden'});assert.equal(await small.locator('#opening').count(),0);
   await touch.close();
+ }finally{await browser?.close();server.kill();}
+});
+
+test('keyboard arrows and controller D-pad navigate the atlas map and street index',{timeout:90000},async()=>{
+ const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4177','--strictPort'],{stdio:'ignore'});let browser;
+ try{
+  let ready=false;for(let i=0;i<100;i++){try{ready=(await fetch('http://127.0.0.1:4177')).ok;}catch{}if(ready)break;await new Promise(resolve=>setTimeout(resolve,100));}assert.ok(ready);
+  browser=await chromium.launch({...(process.env.CEREA_BROWSER_EXECUTABLE?{executablePath:process.env.CEREA_BROWSER_EXECUTABLE}:{}),headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
+  const controller=await browser.newPage(),errors=[];controller.on('pageerror',e=>errors.push(e.message));
+  await controller.addInitScript(()=>{window.pad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{value:()=>[window.pad]});});
+  await controller.goto('http://127.0.0.1:4177/#district=london-westminster&opening=rules');
+  await controller.getByRole('button',{name:'Begin game',exact:true}).click();await controller.locator('#overlay').waitFor({state:'hidden'});await controller.locator('#stream-status').waitFor({state:'hidden'});
+  await controller.waitForFunction(()=>/STOP/.test(document.querySelector('#stop-state').textContent));
+  await controller.evaluate(()=>window.pad.buttons[3].value=1);await controller.locator('.atlas-map').waitFor();
+  await controller.evaluate(()=>window.pad.buttons[3].value=0);
+  const atlasPin=await controller.locator('.atlas-pin').getAttribute('transform'),atlasTime=await controller.locator('#timer').innerText();
+  let cursor=await controller.locator('.atlas-cursor').getAttribute('transform');
+  await controller.keyboard.down('ArrowRight');
+  await controller.waitForFunction(before=>document.querySelector('.atlas-cursor').getAttribute('transform')!==before,cursor);
+  await controller.keyboard.up('ArrowRight');
+  cursor=await controller.locator('.atlas-cursor').getAttribute('transform');
+  await controller.evaluate(()=>window.pad.buttons[13].value=1);
+  await controller.waitForFunction(before=>document.querySelector('.atlas-cursor').getAttribute('transform')!==before,cursor);
+  await controller.evaluate(()=>window.pad.buttons[13].value=0);
+  assert.equal(await controller.locator('.atlas-pin').getAttribute('transform'),atlasPin,'Arrow navigation never places or relocates knowledge');
+  const indexTurn=await controller.locator('.atlas-sheet-navigation').count()?4:5;
+  await controller.evaluate(i=>window.pad.buttons[i].value=1,indexTurn);await controller.locator('.atlas-index').waitFor();
+  await controller.evaluate(i=>window.pad.buttons[i].value=0,indexTurn);
+  await controller.keyboard.down('ArrowDown');await controller.locator('[data-atlas-street][aria-pressed=true]').waitFor();await controller.keyboard.up('ArrowDown');
+  const firstStreet=await controller.locator('[data-atlas-street][aria-pressed=true]').getAttribute('data-atlas-street');
+  await controller.evaluate(()=>window.pad.buttons[13].value=1);
+  await controller.waitForFunction(first=>document.querySelector('[data-atlas-street][aria-pressed=true]')?.getAttribute('data-atlas-street')!==first,firstStreet);
+  await controller.evaluate(()=>window.pad.buttons[13].value=0);
+  await controller.screenshot({path:'test-results/atlas-controller-arrow-index.png'});
+  await controller.evaluate(()=>window.pad.buttons[0].value=1);await controller.locator('.atlas-map').waitFor();
+  await controller.evaluate(()=>window.pad.buttons[0].value=0);
+  assert.equal(await controller.locator('.atlas-pin').getAttribute('transform'),atlasPin,'Street lookup does not update the marker');
+  assert.equal(await controller.locator('#timer').innerText(),atlasTime);
+  await controller.evaluate(()=>window.pad.buttons[1].value=1);await controller.locator('#overlay').waitFor({state:'hidden'});
+  await controller.evaluate(()=>window.pad.buttons[1].value=0);
+  assert.equal(await controller.locator('#gear').innerText(),'D','Atlas D-pad and confirmation never leak into driving');
+  assert.deepEqual(errors,[]);await controller.close();
  }finally{await browser?.close();server.kill();}
 });

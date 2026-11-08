@@ -2,8 +2,9 @@ import { roadWidth, type Point } from "../world/district";
 import { District } from "../world/district";
 import { atlasLabel } from "../world/placeNames";
 import { createAtlasSheets, type AtlasSheet } from '../navigation/AtlasSheets';
+import {drawTownAtlas} from './TownAtlasDrawing';
 export type AtlasPage = "map" | "index";
-interface AtlasPaper { minX:number;minZ:number;span:number }
+interface AtlasPaper { minX:number;minZ:number;span:number;width?:number;depth?:number }
 const MAJOR_ROADS=new Set(["primary","trunk","secondary","secondary_link","tertiary","tertiary_link","unclassified"]);
 const STREET_ROADS=new Set(["residential","pedestrian","living_street"]);
 /** Printed prominence: 1 prints at every scale, 2 (streets) from 2×, 3 (service roads, paths, anything unknown) from 4×. Authored districts without a class always print. */
@@ -12,35 +13,39 @@ export function roadTier(roadClass?:string){return !roadClass||MAJOR_ROADS.has(r
 export function roadTiersVisible(zoom:number){return zoom<2?1:zoom<4?2:3;}
 /** Paper-edge grid labels clamped into the visible box, so page references stay readable while zoomed (#86). */
 export function pinnedGridLabels(frame:AtlasPaper,box:{x:number;z:number;width:number;height:number},inset:number){
-  const cell=frame.span/4,letters:{index:number;x:number;y:number}[]=[],numbers:{index:number;x:number;y:number}[]=[];
+  const cellX=(frame.width??frame.span)/4,cellZ=(frame.depth??frame.span)/4,letters:{index:number;x:number;y:number}[]=[],numbers:{index:number;x:number;y:number}[]=[];
   const clamp=(value:number,low:number,high:number)=>Math.min(Math.max(value,low),Math.max(low,high));
   for(let i=0;i<4;i++){
-    if(frame.minX+i*cell+cell>box.x&&frame.minX+i*cell<box.x+box.width)letters.push({index:i,x:clamp(frame.minX+(i+0.5)*cell,box.x+inset,box.x+box.width-inset),y:Math.max(frame.minZ-inset,box.z+inset)});
-    if(frame.minZ+i*cell+cell>box.z&&frame.minZ+i*cell<box.z+box.height)numbers.push({index:i,x:Math.max(frame.minX-inset,box.x+inset),y:clamp(frame.minZ+(i+0.5)*cell,box.z+inset,box.z+box.height-inset)});
+    if(frame.minX+i*cellX+cellX>box.x&&frame.minX+i*cellX<box.x+box.width)letters.push({index:i,x:clamp(frame.minX+(i+0.5)*cellX,box.x+inset,box.x+box.width-inset),y:Math.max(frame.minZ-inset,box.z+inset)});
+    if(frame.minZ+i*cellZ+cellZ>box.z&&frame.minZ+i*cellZ<box.z+box.height)numbers.push({index:i,x:Math.max(frame.minX-inset,box.x+inset),y:clamp(frame.minZ+(i+0.5)*cellZ,box.z+inset,box.z+box.height-inset)});
   }
   return {letters,numbers};
 }
 export function createAtlas(context:District){
 const {district,areaAt,landmarks,nodeById,parkingZones,roads}=context;
 const {sheets,sheetAt,neighbour}=createAtlasSheets(context);
+const townModes=Boolean(district.taxi?.endless);
 let activeSheet:AtlasSheet|undefined;
+let currentTown:string|undefined;
 const setAtlasSheet=(id?:string)=>{activeSheet=sheets.find(sheet=>sheet.id===id);};
+const setCurrentTown=(id?:string)=>{currentTown=id;};
 /** The current journey's stop, named in the place index only (#87): never drawn on the map. */
 let journey:{objective:string;bay:{id:string;x:number;z:number}}|undefined;
 const setAtlasJourney=(value?:typeof journey)=>{journey=value;};
 function atlasFrame(sheet=activeSheet) {
-  if(sheet)return {...sheet,unit:sheet.span/240};
+  if(sheet)return {...sheet,width:sheet.width??sheet.span,depth:sheet.depth??sheet.span,unit:sheet.span/240};
   const bounds=district.bounds;
   const span=Math.max(bounds.maxX-bounds.minX,bounds.maxZ-bounds.minZ);
-  if(sheets.length)return {minX:bounds.minX,minZ:bounds.minZ,span,unit:span/240};
+  if(sheets.length)return {minX:bounds.minX,minZ:bounds.minZ,span,width:bounds.maxX-bounds.minX,depth:bounds.maxZ-bounds.minZ,unit:span/240};
   const cx=(bounds.minX+bounds.maxX)/2,cz=(bounds.minZ+bounds.maxZ)/2;
-  return {minX:cx-span/2,minZ:cz-span/2,span,unit:span/240};
+  return {minX:cx-span/2,minZ:cz-span/2,span,width:span,depth:span,unit:span/240};
 }
 function atlasReference(point: Point): string {
-  const sheet=sheetAt(point),frame=atlasFrame(sheet);
-  const column=Math.max(0,Math.min(3,Math.floor((point.x-frame.minX)/frame.span*4)));
-  const row=Math.max(0,Math.min(3,Math.floor((point.z-frame.minZ)/frame.span*4)));
-  return `${sheet?sheet.id+' · ':''}${"ABCD"[column]}${row+1}`;
+  const sheet=sheetAt(point);if(townModes&&!sheet)return 'Regional map';
+  const frame=atlasFrame(sheet);
+  const column=Math.max(0,Math.min(3,Math.floor((point.x-frame.minX)/frame.width*4)));
+  const row=Math.max(0,Math.min(3,Math.floor((point.z-frame.minZ)/frame.depth*4)));
+  return `${sheet?(townModes?sheet.name:sheet.id)+' · ':''}${"ABCD"[column]}${row+1}`;
 }
 const xml=(value:string)=>value.replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]!));
 function streetEntries(sheet?:AtlasSheet) {
@@ -50,7 +55,7 @@ function streetEntries(sheet?:AtlasSheet) {
     if(sheet){
       // Clip the candidate to the paper so a road continuing across a page gets its own label.
       const dx=b.x-a.x,dz=b.z-a.z;let start=0,end=1;
-      for(const [p,q] of [[-dx,a.x-sheet.minX],[dx,sheet.minX+sheet.span-a.x],[-dz,a.z-sheet.minZ],[dz,sheet.minZ+sheet.span-a.z]]){
+      for(const [p,q] of [[-dx,a.x-sheet.minX],[dx,sheet.minX+(sheet.width??sheet.span)-a.x],[-dz,a.z-sheet.minZ],[dz,sheet.minZ+(sheet.depth??sheet.span)-a.z]]){
         if(p===0){if(q<0){end=-1;break;}}else if(p<0)start=Math.max(start,q/p);else end=Math.min(end,q/p);
       }
       if(start>=end)continue;
@@ -62,13 +67,25 @@ function streetEntries(sheet?:AtlasSheet) {
   return [...grouped].sort(([a],[b])=>a.localeCompare(b)).map(([name,{a,b,tier}])=>{
     const x=(a.x+b.x)/2,z=(a.z+b.z)/2;
     let angle=Math.atan2(b.z-a.z,b.x-a.x)*180/Math.PI;if(angle>90)angle-=180;if(angle< -90)angle+=180;
-    const frame=atlasFrame(sheet),column=Math.max(0,Math.min(3,Math.floor((x-frame.minX)/frame.span*4))),row=Math.max(0,Math.min(3,Math.floor((z-frame.minZ)/frame.span*4)));
-    return {name,key:sheet?`${sheet.id}|${name}`:name,sheet:sheet?.id,x,z,angle,tier,reference:`${sheet?sheet.id+' · ':''}${'ABCD'[column]}${row+1}`};
+    const frame=atlasFrame(sheet),column=Math.max(0,Math.min(3,Math.floor((x-frame.minX)/frame.width*4))),row=Math.max(0,Math.min(3,Math.floor((z-frame.minZ)/frame.depth*4)));
+    return {name,key:sheet?`${sheet.id}|${name}`:name,sheet:sheet?.id,x,z,angle,tier,reference:`${sheet?(townModes?sheet.name:sheet.id)+' · ':''}${'ABCD'[column]}${row+1}`};
   });
 }
 let streetCache:ReturnType<typeof streetEntries>|undefined;
-function atlasStreetEntries(){return streetCache??=(sheets.length?sheets.flatMap(sheet=>streetEntries(sheet)):streetEntries()).sort((a,b)=>a.name.localeCompare(b.name)||a.reference.localeCompare(b.reference));}
+const townStreets=new Map<string,ReturnType<typeof streetEntries>>();
+const streetsFor=(sheet:AtlasSheet)=>{let value=townStreets.get(sheet.id);if(!value){value=streetEntries(sheet);townStreets.set(sheet.id,value);}return value;};
+function atlasStreetEntries(){
+ if(townModes&&activeSheet)return streetsFor(activeSheet);
+ return streetCache??=(sheets.length?sheets.flatMap(sheet=>townModes?streetsFor(sheet):streetEntries(sheet)):streetEntries()).sort((a,b)=>a.name.localeCompare(b.name)||a.reference.localeCompare(b.reference));
+}
+const drawings=new Map<string,string>();
 function mapSvg() {
+  if(townModes){
+    const key=activeSheet?`town:${activeSheet.id}`:'region',cached=drawings.get(key);if(cached)return cached;
+    const drawing=drawTownAtlas(context,activeSheet,sheets,activeSheet?streetsFor(activeSheet):[],atlasFrame(),roadTier);
+    drawings.set(key,drawing);if(drawings.size>4)drawings.delete([...drawings.keys()].find(k=>k!=='region'&&k!==key)!);
+    return drawing;
+  }
   const {minX,minZ,span,unit:u}=atlasFrame();
   const overview=sheets.length>0&&!activeSheet;
   const width=overview?district.bounds.maxX-district.bounds.minX:span,height=overview?district.bounds.maxZ-district.bounds.minZ:span;
@@ -101,27 +118,32 @@ function mapSvg() {
   </svg>`;
 }
 function indexMarkup() {
-  const entries = [...landmarks.map((place) => ({ id: place.id, name: place.name, road: place.road, area: areaAt(place), ref: atlasReference(place) })),
-    ...parkingZones.map((zone) => ({ id: zone.id, name: zone.name, road: "Legal stopping bay", area: areaAt(zone), ref: atlasReference(zone) }))]
+  const inScope=(p:Point)=>!townModes||!activeSheet||(p.x>=activeSheet.minX&&p.x<=activeSheet.minX+activeSheet.width!&&p.z>=activeSheet.minZ&&p.z<=activeSheet.minZ+activeSheet.depth!);
+  const entries = [...landmarks.filter(inScope).map((place) => ({ id: place.id, name: place.name, road: place.road, area: areaAt(place), ref: atlasReference(place) })),
+    ...parkingZones.filter(inScope).map((zone) => ({ id: zone.id, name: zone.name, road: "Legal stopping bay", area: areaAt(zone), ref: atlasReference(zone) }))]
     .sort((a, b) => a.name.localeCompare(b.name));
   // A stop's landmark and its bay share the stop's id.
   const destination=journey?`<section class="atlas-destination" aria-label="Current destination"><strong>CURRENT DESTINATION</strong><p>${xml(journey.objective)}</p><span class="atlas-ref">${atlasReference(journey.bay)}</span></section>`:'';
-  return `<div class="atlas-index">${destination}<h2>Places and parking</h2><table><thead><tr><th scope="col">Place</th><th scope="col">Street / area</th><th scope="col">${sheets.length?'Page · grid':'Grid'}</th></tr></thead><tbody>${entries.map((entry) => {const target=entry.id===journey?.bay.id;return `<tr${target?' class="atlas-destination-row" aria-current="location"':''}><th scope="row">${xml(entry.name)}${target?'<small>Current destination</small>':''}</th><td>${xml(entry.road)}<small>${xml(entry.area)}</small></td><td class="atlas-ref">${entry.ref}</td></tr>`;}).join("")}</tbody></table><p>Grid letters run west to east; numbers run north to south.${sheets.length?' Page letters and numbers identify regional quadrants; the second reference is the local grid.':''}</p><h2>Street index</h2><table class="atlas-street-index"><thead><tr><th scope="col">Street</th><th scope="col">Grid</th></tr></thead><tbody>${atlasStreetEntries().map(street=>`<tr><th scope="row"><button type="button" class="atlas-street-link" data-atlas-street="${xml(street.key)}">${xml(street.name)}${sheets.length?`<small>${xml(sheets.find(sheet=>sheet.id===street.sheet)!.name)}</small>`:''}</button></th><td class="atlas-ref">${street.reference}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="atlas-index">${destination}<h2>Places and parking</h2><table><thead><tr><th scope="col">Place</th><th scope="col">Street / area</th><th scope="col">${sheets.length?'Page · grid':'Grid'}</th></tr></thead><tbody>${entries.map((entry) => {const target=entry.id===journey?.bay.id;return `<tr${target?' class="atlas-destination-row" aria-current="location"':''}><th scope="row">${xml(entry.name)}${target?'<small>Current destination</small>':''}</th><td>${xml(entry.road)}<small>${xml(entry.area)}</small></td><td class="atlas-ref">${xml(entry.ref)}</td></tr>`;}).join("")}</tbody></table><p>Grid letters run west to east; numbers run north to south.${sheets.length?' Page letters and numbers identify regional quadrants; the second reference is the local grid.':''}</p><h2>Street index</h2><table class="atlas-street-index"><thead><tr><th scope="col">Street</th><th scope="col">Grid</th></tr></thead><tbody>${atlasStreetEntries().map(street=>`<tr><th scope="row"><button type="button" class="atlas-street-link" data-atlas-street="${xml(street.key)}">${xml(street.name)}${sheets.length?`<small>${xml(sheets.find(sheet=>sheet.id===street.sheet)!.name)}</small>`:''}</button></th><td class="atlas-ref">${xml(street.reference)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function sheetNavigation(){
   if(!sheets.length)return '';
+  if(townModes){
+    const town=sheets.find(s=>s.id===currentTown);
+    return `<nav class="atlas-mode-navigation" aria-label="Atlas scale"><button type="button" data-atlas-overview aria-pressed="${!activeSheet}">Regional map</button>${town?`<button type="button" data-atlas-sheet="${xml(town.id)}" aria-pressed="${activeSheet?.id===town.id}">${xml(town.name)} map</button>`:''}${activeSheet?'':'<strong>Towns and connecting roads</strong>'}</nav>`;
+  }
   return `<nav class="atlas-sheet-navigation" aria-label="Atlas quadrants"><strong>${activeSheet?`${activeSheet.id} · ${xml(activeSheet.name)}`:'Region overview · select a quadrant'}</strong>${activeSheet?[[0,-1,'North'],[-1,0,'West'],[1,0,'East'],[0,1,'South']].map(([dx,dz,label])=>{const next=neighbour(activeSheet!,Number(dx),Number(dz));return `<button type="button" ${next?`data-atlas-sheet="${next.id}"`:'disabled'}>${label}${next?' · '+next.id:''}</button>`;}).join(''):'<span>Choose a quadrant to open its detail page</span>'}</nav>`;
 }
 function atlasMarkup(page: AtlasPage): string {
-  return `<section class="atlas-book${sheets.length?' regional-atlas':''}" role="dialog" aria-modal="true" aria-labelledby="atlas-title">
-    <header class="atlas-header"><div><span class="atlas-edition">STREET ATLAS${district.subtitle ? ` · ${xml(district.subtitle)}` : district.streaming ? " · FICTIONAL TEST LINK" : ""}</span><h1 id="atlas-title">${xml(district.name)}</h1></div><span class="atlas-paused">TIMER PAUSED</span></header>
-    <nav class="atlas-tabs" aria-label="Atlas pages"><button type="button" data-atlas-page="map" aria-pressed="${page === "map"}">01 · District map</button><button type="button" data-atlas-page="index" aria-pressed="${page === "index"}">02 · Place index</button></nav>
+  return `<section class="atlas-book${sheets.length?' regional-atlas':''}" ${townModes?`data-atlas-mode="${activeSheet?'town':'regional'}"`:''} role="dialog" aria-modal="true" aria-labelledby="atlas-title">
+    <header class="atlas-header"><div><span class="atlas-edition">${townModes?activeSheet?'TOWN ATLAS':'REGIONAL ATLAS':'STREET ATLAS'}${!townModes&&district.subtitle ? ` · ${xml(district.subtitle)}` : !townModes&&district.streaming ? " · FICTIONAL TEST LINK" : ""}</span><h1 id="atlas-title">${xml(townModes?activeSheet?.name??district.name:district.name)}</h1></div><span class="atlas-paused">TIMER PAUSED</span></header>
+    <nav class="atlas-tabs" aria-label="Atlas pages"><button type="button" data-atlas-page="map" aria-pressed="${page === "map"}">01 · ${townModes?'Map':'District map'}</button><button type="button" data-atlas-page="index" aria-pressed="${page === "index"}">02 · Place index</button></nav>
     ${page === "index" ? `<section class="atlas-information" aria-label="Local information" hidden><strong>LAST INFORMATION RECEIVED</strong><p id="atlas-information-text" role="status"></p></section>` : ""}
     ${page==='map'?sheetNavigation():''}
-    <div class="atlas-content">${page === "map" ? `<div class="atlas-sheet"><div class="atlas-zoom-controls" aria-label="Map zoom"><button type="button" data-atlas-zoom="-1" aria-label="Zoom out">−</button><output id="atlas-zoom-level" aria-label="Map zoom level">100%</output><button type="button" data-atlas-zoom="1" aria-label="Zoom in">+</button><button type="button" data-atlas-overview>Overview</button><output id="atlas-view-reference" aria-label="Printed page and grid under the view centre"></output></div>${mapSvg()}</div><aside class="atlas-margin"><section class="atlas-information atlas-information-sidebar" aria-label="Local information" hidden><strong>LAST INFORMATION RECEIVED</strong><p id="atlas-information-text" role="status"></p></section><h3>Key</h3><ul><li><span class="atlas-key-road"></span> Road</li><li><b>P</b> Legal stopping bay</li><li><span class="atlas-key-building"></span> Landmark</li><li><span class="atlas-key-water"></span> Water</li></ul><p>${sheets.length&&!activeSheet?'Select a quadrant for streets. Detail pages overlap at their edges.':'The marker moves only when you ask for information or mark your own estimate.'}</p></aside>` : indexMarkup()}</div>
-    <div class="atlas-tools"><span id="atlas-marker-status" role="status">No position marked.</span><button type="button" data-atlas-information>Ask for information</button><button type="button" data-atlas-place>${sheets.length&&!activeSheet?'Open quadrant':'Mark my position'}</button><button type="button" data-atlas-remove>Erase marker</button></div>
+    <div class="atlas-content">${page === "map" ? `<div class="atlas-sheet"><div class="atlas-zoom-controls" aria-label="Map zoom"><button type="button" data-atlas-zoom="-1" aria-label="Zoom out">−</button><output id="atlas-zoom-level" aria-label="Map zoom level">100%</output><button type="button" data-atlas-zoom="1" aria-label="Zoom in">+</button>${townModes?'':'<button type="button" data-atlas-overview>Overview</button>'}<output id="atlas-view-reference" aria-label="Printed page and grid under the view centre"></output></div>${mapSvg()}</div><aside class="atlas-margin"><section class="atlas-information atlas-information-sidebar" aria-label="Local information" hidden><strong>LAST INFORMATION RECEIVED</strong><p id="atlas-information-text" role="status"></p></section><h3>Key</h3><ul><li><span class="atlas-key-road"></span> Road</li><li><b>P</b> Legal stopping bay</li><li><span class="atlas-key-building"></span> Landmark</li><li><span class="atlas-key-water"></span> Water</li></ul><p>${townModes?activeSheet?'Drag past the town edge to browse the region. The position marker changes only after information or your own estimate.':'Towns and connecting roads. Select a town for detailed streets.':sheets.length&&!activeSheet?'Select a quadrant for streets. Detail pages overlap at their edges.':'The marker moves only when you ask for information or mark your own estimate.'}</p></aside>` : indexMarkup()}</div>
+    <div class="atlas-tools"><span id="atlas-marker-status" role="status">No position marked.</span><button type="button" data-atlas-information>Ask for information</button><button type="button" data-atlas-place>${sheets.length&&!activeSheet?townModes?'Open town':'Open quadrant':'Mark my position'}</button><button type="button" data-atlas-remove>Erase marker</button></div>
     <footer class="atlas-footer"><div class="atlas-attribution">${xml(district.attribution)}${district.id === "cerea" ? " · Modern street subset; simplified scenery and game stopping bays." : ""}</div><button type="button" data-atlas-close>Close atlas</button></footer>
   </section>`;
 }
-return {atlasFrame,atlasReference,atlasStreetEntries,atlasMarkup,sheets,sheetAt,setAtlasSheet,setAtlasJourney};
+return {atlasFrame,atlasReference,atlasStreetEntries,atlasMarkup,sheets,sheetAt,setAtlasSheet,setAtlasJourney,townModes,setCurrentTown};
 }

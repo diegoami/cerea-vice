@@ -1,5 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import {mkdir} from 'node:fs/promises';
+import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 
 // WSL or Windows: exercise the native export in a disposable profile, then close only this instance.
@@ -9,6 +11,7 @@ const win=p=>process.platform==='win32'?p:execFileSync('wslpath',['-w',p],{encod
 const literal=s=>`'${s.replaceAll("'","''")}'`;
 const source=win(path.join(root,'release','Cerea Vice-win32-x64'));
 const images=win(path.join(root,'test-results'));
+const destinationViews=JSON.parse(execFileSync(process.execPath,['--import','tsx',path.join(root,'desktop/destination-view.mjs')],{cwd:root,encoding:'utf8'}));
 const script=`$ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
 $target=Join-Path $env:TEMP ('CereaOpeningCheck-'+[guid]::NewGuid().ToString('N'))
@@ -51,6 +54,8 @@ try {
   return $reply.result
  }
  function Js($expression){$reply=Cdp 'Runtime.evaluate' @{expression=$expression;returnByValue=$true;awaitPromise=$true};if($reply.exceptionDetails){throw ($reply.exceptionDetails|ConvertTo-Json -Compress)};return $reply.result.value}
+ Cdp 'Emulation.setFocusEmulationEnabled' @{enabled=$true} | Out-Null
+ Js "Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[]})" | Out-Null
  for($attempt=0;$attempt -lt 60;$attempt++){if(Js "Boolean(document.querySelector('#opening button:not(:disabled)'))"){break};Start-Sleep -Milliseconds 250}
  $ready=Js "Boolean(document.querySelector('#opening button:not(:disabled)'))"
  if(-not $ready){throw 'Windows demo did not become ready'}
@@ -69,7 +74,7 @@ try {
  $clock=Js "document.querySelector('#timer').textContent"
  Start-Sleep -Milliseconds 700
  if((Js "document.querySelector('#timer').textContent") -ne $clock){throw 'Windows rules did not freeze time'}
- Js "Math.random=(()=>{const values=[.68,.1,.4];return()=>values.shift()??.37})();document.querySelector('.briefing-main button').click()" | Out-Null
+ Js "Math.random=(()=>{const values=[.68,.1,.4];return()=>values.shift()??.37})();document.querySelector('.briefing-main > button').click()" | Out-Null
  Start-Sleep -Milliseconds 700
  $fresh=Js "({opening:!!document.querySelector('#opening'),stage:document.querySelector('#objective-stage').textContent,money:document.querySelector('#taxi-status').textContent,startHint:document.querySelector('#hint').textContent,save:localStorage.getItem('cerea-save-veronese')})"
  if($fresh.opening -or $fresh.stage -notmatch 'FREE DRIVING' -or $fresh.money -notmatch '0.00' -or $fresh.save -ne 'Windows isolation sentinel'){throw ('Windows handoff failed: '+($fresh|ConvertTo-Json -Compress))}
@@ -79,6 +84,38 @@ try {
  $performance=Js "(async()=>{const times=[];let last=await new Promise(requestAnimationFrame);for(let i=0;i<120;i++){const now=await new Promise(requestAnimationFrame);times.push(now-last);last=now;}times.sort((a,b)=>a-b);return {frameMeanMs:times.reduce((a,b)=>a+b,0)/times.length,frameP95Ms:times[Math.floor(times.length*.95)],heapMiB:performance.memory?.usedJSHeapSize/1048576};})()"
  $shot=Cdp 'Page.captureScreenshot' @{format='png'}
  [IO.File]::WriteAllBytes((Join-Path ${literal(images)} 'opening-windows-playing.png'),[Convert]::FromBase64String($shot.data))
+ Cdp 'Input.dispatchKeyEvent' @{type='keyDown';key='f';code='KeyF'} | Out-Null
+ Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='f';code='KeyF'} | Out-Null
+ Start-Sleep -Milliseconds 250
+ Cdp 'Input.dispatchKeyEvent' @{type='keyDown';key='t';code='KeyT'} | Out-Null
+ Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='t';code='KeyT'} | Out-Null
+ Start-Sleep -Milliseconds 700
+ $atlasTown=Js "({mode:document.querySelector('.atlas-book')?.dataset.atlasMode,title:document.querySelector('#atlas-title')?.textContent,nodes:document.querySelector('.atlas-map')?.querySelectorAll('*').length,time:document.querySelector('#timer').textContent,marker:document.querySelector('.atlas-pin')?.getAttribute('transform'),paused:!!document.querySelector('.pause'),stopped:document.querySelector('#stop-state').textContent,sceneryReady:document.querySelector('#stream-status').hidden,focused:document.hasFocus()})"
+ if($atlasTown.mode -ne 'town' -or $atlasTown.title -notmatch 'Verona' -or $atlasTown.nodes -gt 1400){throw ('Native town atlas failed: '+($atlasTown|ConvertTo-Json -Compress))}
+ $atlasZoom=Js ${literal("(async()=>{const start=performance.now();document.querySelector('[data-atlas-zoom=\"1\"]').click();const handlerMs=performance.now()-start;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {handlerMs,paintMs:performance.now()-start,level:document.querySelector('#atlas-zoom-level').textContent};})()")}
+ $shot=Cdp 'Page.captureScreenshot' @{format='png'}
+ [IO.File]::WriteAllBytes((Join-Path ${literal(images)} 'town-atlas-windows-town.png'),[Convert]::FromBase64String($shot.data))
+ Js "document.querySelector('.atlas-mode-navigation [data-atlas-overview]').click()" | Out-Null
+ Start-Sleep -Milliseconds 300
+ $atlasRegion=Js "({mode:document.querySelector('.atlas-book')?.dataset.atlasMode,nodes:document.querySelector('.atlas-map')?.querySelectorAll('*').length,time:document.querySelector('#timer').textContent,marker:document.querySelector('.atlas-pin')?.getAttribute('transform')})"
+ if($atlasRegion.mode -ne 'regional' -or $atlasRegion.nodes -gt 300 -or $atlasRegion.marker -ne $atlasTown.marker -or $atlasRegion.time -ne $atlasTown.time){throw 'Native regional atlas changed knowledge/time or retained global detail'}
+ $shot=Cdp 'Page.captureScreenshot' @{format='png'}
+ [IO.File]::WriteAllBytes((Join-Path ${literal(images)} 'town-atlas-windows-region.png'),[Convert]::FromBase64String($shot.data))
+ Js "document.querySelector('.atlas-mode-navigation [data-atlas-sheet]').click()" | Out-Null
+ $atlasBox=Js "(()=>{const b=document.querySelector('.atlas-map').getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height};})()"
+ $dragX=[double]$atlasBox.x+[double]$atlasBox.width*.5
+ $dragY=[double]$atlasBox.y+[double]$atlasBox.height*.5
+ Cdp 'Input.dispatchMouseEvent' @{type='mousePressed';x=$dragX;y=$dragY;button='left';buttons=1;clickCount=1} | Out-Null
+ Cdp 'Input.dispatchMouseEvent' @{type='mouseMoved';x=($dragX-80);y=$dragY;buttons=1} | Out-Null
+ $escaped=Js "({mode:document.querySelector('.atlas-book').dataset.atlasMode,captured:document.querySelector('.atlas-map').hasPointerCapture(1),view:document.querySelector('.atlas-map').getAttribute('viewBox')})"
+ if($escaped.mode -ne 'regional' -or -not $escaped.captured){throw 'Native town drag did not continue into the region'}
+ Cdp 'Input.dispatchMouseEvent' @{type='mouseMoved';x=($dragX-200);y=$dragY;buttons=1} | Out-Null
+ Cdp 'Input.dispatchMouseEvent' @{type='mouseReleased';x=($dragX-200);y=$dragY;button='left';buttons=0;clickCount=1} | Out-Null
+ if((Js "document.querySelector('.atlas-map').getAttribute('viewBox')") -eq $escaped.view){throw 'Native region drag remained blocked at a town border'}
+ if((Js "document.querySelector('.atlas-pin').getAttribute('transform')") -ne $atlasTown.marker){throw 'Native dragging placed an unintended estimate'}
+ Cdp 'Input.dispatchKeyEvent' @{type='keyDown';key='t';code='KeyT'} | Out-Null
+ Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='t';code='KeyT'} | Out-Null
+ Start-Sleep -Milliseconds 400
  Cdp 'Input.dispatchKeyEvent' @{type='keyDown';key='p';code='KeyP'} | Out-Null
  Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='p';code='KeyP'} | Out-Null
  Start-Sleep -Milliseconds 500
@@ -93,6 +130,27 @@ try {
  if($night.time -notmatch '^23:' -or $night.money -notmatch '0.00' -or $night.save -ne 'Windows isolation sentinel'){throw 'Native rest changed progression or failed to reach night'}
  $shot=Cdp 'Page.captureScreenshot' @{format='png'}
  [IO.File]::WriteAllBytes((Join-Path ${literal(images)} 'living-windows-night.png'),[Convert]::FromBase64String($shot.data))
+ Cdp 'Input.dispatchKeyEvent' @{type='keyDown';key='p';code='KeyP'} | Out-Null
+ Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='p';code='KeyP'} | Out-Null
+ Start-Sleep -Milliseconds 300
+ Js "[...document.querySelectorAll('.presentation-settings button')].find(b=>b.textContent==='Save game').click()" | Out-Null
+ $views=Js ${literal(`(()=>{const poses=${JSON.stringify(destinationViews)};window.destinationViews=poses;return poses.length;})()`)}
+ for($viewIndex=0;$viewIndex -lt $views;$viewIndex++){
+  Js ('(()=>{const pose=window.destinationViews['+$viewIndex+'],s=JSON.parse(localStorage.getItem("cerea-save-veronese"));Object.assign(s.car,pose.car);s.mission.totalElapsed=600;s.mission.elapsed=0;localStorage.setItem("cerea-save-veronese",JSON.stringify(s));[...document.querySelectorAll(".presentation-settings button")].find(b=>b.textContent==="Continue saved game").click();const picture=document.querySelector("[data-key=resolution]");picture.value="high";picture.dispatchEvent(new Event("change",{bubbles:true}));})()') | Out-Null
+  Start-Sleep -Milliseconds 300
+  if(-not (Js "[...document.querySelectorAll('.save-status')].some(e=>e.textContent.startsWith('Loaded'))")){throw 'Native destination-view fixture did not load through the normal save path'}
+  Js "document.querySelector('#overlay button').click()" | Out-Null
+  for($attempt=0;$attempt -lt 80;$attempt++){if(Js "document.querySelector('#stream-status').hidden && /STOP/.test(document.querySelector('#stop-state').textContent)"){break};Start-Sleep -Milliseconds 250}
+  $poseName=Js ('window.destinationViews['+$viewIndex+'].name')
+  $shot=Cdp 'Page.captureScreenshot' @{format='png'}
+  [IO.File]::WriteAllBytes((Join-Path ${literal(images)} ('destination-windows-'+$poseName+'.png')),[Convert]::FromBase64String($shot.data))
+  Cdp 'Input.dispatchKeyEvent' @{type='keyDown';key='p';code='KeyP'} | Out-Null
+  Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='p';code='KeyP'} | Out-Null
+  Start-Sleep -Milliseconds 300
+ }
+ Write-Output ($atlasTown|ConvertTo-Json -Compress)
+ Write-Output ($atlasZoom|ConvertTo-Json -Compress)
+ Write-Output ($atlasRegion|ConvertTo-Json -Compress)
  Write-Output ($night|ConvertTo-Json -Compress)
  Write-Output ('Windows native opening passed: '+$process.MainWindowTitle)
  Write-Output ($demo|ConvertTo-Json -Compress)
@@ -104,5 +162,10 @@ try {
  for($attempt=0;$attempt -lt 20;$attempt++){try{if(Test-Path $target){Remove-Item -LiteralPath $target -Recurse -Force};break}catch{if($attempt -eq 19){throw};Start-Sleep -Milliseconds 250}}
 }
 `;
-const encoded=Buffer.from(script,'utf16le').toString('base64');
-process.stdout.write(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',encoded],{encoding:'utf8',timeout:120000,maxBuffer:1024*1024}));
+// A file avoids Windows' command-line length limit as native checks grow.
+const scriptDirectory=mkdtempSync(path.join(tmpdir(),'cerea-windows-check-'));
+const scriptFile=path.join(scriptDirectory,'check.ps1');
+try{
+ writeFileSync(scriptFile,'\ufeff'+script,'utf8');
+ process.stdout.write(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',win(scriptFile)],{encoding:'utf8',timeout:120000,maxBuffer:1024*1024}));
+}finally{rmSync(scriptDirectory,{recursive:true,force:true});}

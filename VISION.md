@@ -31,12 +31,12 @@ The main progression is personal familiarity: a district that initially feels co
 - No GPS, minimap, floating destination marker or route line.
 - No live current-street readout; street names are learned from signs or a stopped information request.
 - A visible compass shows the car’s heading—not the direction of the objective.
-- The atlas is available only while stopped.
+- The atlas is available only while stopped. Continuous-service maps open a town page for the current town, with a separate regional view for towns and connections. This broad town context does not relocate the knowledge marker.
 - Its position marker updates only after a successful information request or when the player manually marks where they think they are. Driving and parking alone do not update it; manual estimates may be wrong.
 - Asking for your location or directions is possible anywhere, provided the car is stopped. It is not restricted to designated buildings or special interaction points.
 - There are a few clearly identifiable places where stopping and parking are allowed.
 - Directions use street names, compass directions, junctions and landmarks rather than exact coordinates or automatic navigation.
-- Major thoroughfares use direction boards primarily to point toward other towns along real road connections. Within a single city, occasional compact boards may name local landmarks. Normal streets use small name plates at crossings, including building-mounted plates where practical, with occasional repeat plates between junctions. Plates run along and face into the street they name. Players should be able to identify lateral streets before turning.
+- Major thoroughfares use direction boards primarily to point toward other towns along real road connections. Boards identify the legal exit to take at the actual junction, including angled exits and one-way access. Local brown boards name landmarks; co-located civic destinations can share a row. This guidance is static across fares. Normal streets use small name plates at crossings, including building-mounted plates where practical, with occasional repeat plates between junctions. Plates run along and face into the street they name. Players should be able to identify lateral streets before turning.
 - Information can be requested while the atlas remains open. The same dedicated information control works on the road and in the atlas: View / Select (PS Share), or F on keyboard. A / Cross / Enter confirms menus or places an estimated marker.
 - Consulting the atlas and asking for help are legitimate parts of play, not failures.
 
