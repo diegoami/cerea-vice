@@ -73,9 +73,16 @@ export async function loadSelectedDistrict() {
   if(context.district.id!==town.id)throw new DistrictLoadError(town,registry);
   return {context,towns:registry.towns};
 }
-export function selectDistrict(towns:readonly Pick<TownEntry,"id">[], id: string) {
+/** One-shot continuation across a map reload; never resumes autonomous play after selection. */
+export function consumeOpeningRules(){
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  const rules=hash.get('opening')==='rules';
+  if(hash.has('opening')){hash.delete('opening');history.replaceState(null,'',`#${hash}`);}
+  return rules;
+}
+export function selectDistrict(towns:readonly Pick<TownEntry,"id">[], id: string, openingRules=false) {
   if(!towns.some((town)=>town.id===id))return;
   try { localStorage.setItem("cerea-district",id); } catch { /* Hash remains a fallback. */ }
-  history.replaceState(null,"",`#district=${id}`);
+  history.replaceState(null,"",`#district=${id}${openingRules?'&opening=rules':''}`);
   window.location.reload();
 }

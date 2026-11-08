@@ -127,7 +127,8 @@ class Hud {
       if(button.hasAttribute("data-atlas-overview")){this.resetAtlasView();return;}
       if(button.dataset.atlasStreet){this.focusAtlasStreet(button.dataset.atlasStreet);return;}
       if (button.dataset.district) {
-        selectDistrict(towns,button.dataset.district);
+        if(button.dataset.district===district.id)this.overlay.querySelector<HTMLButtonElement>('.briefing-main > button')?.focus();
+        else selectDistrict(towns,button.dataset.district,true);
       } else if (button.dataset.atlasPage) {
         this.setAtlasPage(button.dataset.atlasPage as AtlasPage);
       } else if (button.hasAttribute("data-atlas-place")) this.placeAtlasMarker();
@@ -266,12 +267,14 @@ class Hud {
     if(this.atlasPage!=="map")this.setAtlasPage("map");else this.updateAtlasView();
   }
 
-  controlAtlasView(dt:number,zoom:number,step:number,panX:number,panY:number,overview:boolean){
+  controlAtlasView(dt:number,zoom:number,step:number,panX:number,panY:number,overview:boolean,indexMoveY=0){
     if(this.currentScreen!=="atlas")return;
     if(this.atlasPage==="index"){
-      const direction=Math.abs(panY)>.4?Math.sign(panY):0;this.indexSelectDelay-=dt;
+      const movement=panY||indexMoveY;
+      const direction=Math.abs(movement)>.4?Math.sign(movement):0;this.indexSelectDelay-=dt;
       if(direction&&(direction!==this.indexSelectDirection||this.indexSelectDelay<=0)){
-        const entries=atlasStreetEntries();this.indexStreet=this.indexStreet<0?0:Math.max(0,Math.min(entries.length-1,this.indexStreet+direction));
+        const entries=atlasStreetEntries();if(!entries.length)return;
+        this.indexStreet=this.indexStreet<0?0:Math.max(0,Math.min(entries.length-1,this.indexStreet+direction));
         this.indexSelectDelay=.18;
         for(const button of this.overlay.querySelectorAll<HTMLButtonElement>('[data-atlas-street]')){
           const selected=button.dataset.atlasStreet===entries[this.indexStreet].key;button.setAttribute('aria-pressed',String(selected));
@@ -365,7 +368,7 @@ class Hud {
 
   moveAtlasCursor(dt: number, x: number, z: number) {
     if(this.currentScreen!=="atlas")return;
-    if(this.atlasPage==="index") { const index=this.overlay.querySelector<HTMLElement>(".atlas-index");if(index)index.scrollTop+=z*dt*300;return; }
+    if(this.atlasPage==="index")return; // Index arrows select in controlAtlasView, with one repeat timer.
     const pageScale=this.atlasView.base.width/this.atlasView.overview.width;
     if(this.atlasNotes.move(dt*pageScale/this.atlasView.zoom,x,z)){this.atlasView.ensureVisible(this.atlasNotes.cursor);this.updateAtlasNotes();}
   }
@@ -452,18 +455,18 @@ class Hud {
     const controlsNote=`<small class="controller-note">Every key and button is listed under Change controls in the Picture &amp; Sound panel.</small>`;
     if (screen === "briefing") {
       this.overlay.innerHTML = `<section class="briefing modal" aria-labelledby="screen-title">
-        <div class="briefing-main"><span class="eyebrow accent">CEREA VICE</span>
+        <div class="briefing-main">${towns.length>1?`<div class="world-choice"><span class="eyebrow accent">CHOOSE WORLD</span><div class="district-switch" aria-label="Choose world">${towns.map(map=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${escapeHtml(map.name)}</button>`).join('')}</div><small class="controller-note">D-pad / left stick: choose world or Begin game · A: confirm. Keyboard: ← / →, Enter.</small></div>`:''}<span class="eyebrow accent">CEREA VICE</span>
           <h1 id="screen-title">${mission.taxiMode ? mission.endless?`Taxi driving<br> <em>Day &amp; night</em>`:`Taxi shift<br> <em>${mission.shiftLabel}</em>` : `Find<br> <em>${district.mission.name}</em>`}</h1>
           <p class="intro">${mission.taxiMode ? mission.endless?`Take passengers around the towns at any hour. Rest when you want.`:`Collect passengers and earn as much as you can before ${mission.shiftLabel.split("–")[1]}.` : district.mission.objective}</p>
           <button type="button">Begin game <span aria-hidden="true">&gt;</span></button>${mission.taxiMode ? "" : `<span class="button-note">${Math.round(district.mission.duration/60)} MINUTE DRIVE</span>`}
         </div>
-        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop, request the fare list and accept a fare. Stop in the pickup's named bay to collect them, and again at their destination.`:district.mission.hint}</p>${towns.length>1?`<div class="district-switch" aria-label="Choose district">${towns.map((map)=>`<button type="button" data-district="${map.id}" aria-pressed="${map.id===district.id}">${escapeHtml(map.name)}</button>`).join("")}</div><small class="controller-note">Choose a district before starting.</small>`:""}<small class="controller-note">${district.attribution}</small>
+        <div class="briefing-side"><span class="eyebrow">${district.name.toUpperCase()}</span><p>${mission.taxiMode?`When you want a passenger, stop, request the fare list and accept a fare. Stop in the pickup's named bay to collect them, and again at their destination.`:district.mission.hint}</p><small class="controller-note">${district.attribution}</small>
           <div class="briefing-tip">${mission.taxiMode ? `<b>${mission.endless?"Service never closes. Rest for 8 hours from the pause menu when stopped and free of passengers.":`${mission.shiftLabel} in about ${Math.ceil(mission.duration/60)} active minutes.`}</b><p>Faster rides earn a bigger bonus; slow rides still pay the base fare. The clock runs while you drive and stops while paused or reading the atlas or fare list.</p>` : ""}<b>Lost? Pull over.</b><p>Come to a full stop anywhere, then open the atlas or ask for information. Marked P bays are legal stopping places.</p></div>
           ${controlsNote}<small class="controller-note" id="controller-status" role="status"></small>
         </div>
       </section>`;
-      // With many districts the list scrolls; keep the current one in view.
-      this.overlay.querySelector<HTMLElement>('.district-switch [aria-pressed="true"]')?.scrollIntoView({block:"nearest"});
+      // World choice comes first; never open scrolled down past it.
+      this.overlay.scrollTop=0;
     } else if (screen === "paused") {
       this.overlay.innerHTML = `<section class="pause modal" aria-labelledby="screen-title"><span class="eyebrow accent">TIMER PAUSED</span><h1 id="screen-title">Paused</h1>${controlsNote}<small class="controller-note" id="controller-status" role="status"></small><button type="button">Back to the road <span aria-hidden="true">&gt;</span></button></section>`;
     } else if(mission.taxiMode) {

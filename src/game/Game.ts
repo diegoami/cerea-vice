@@ -8,7 +8,7 @@ import { Sound, musicGain } from "../presentation/Sound";
 import { Radio } from "../presentation/Radio";
 import { BodyMotion } from "../presentation/Motion";
 import { Retro } from "../presentation/Retro";
-import { selectDistrict, type TownEntry } from "../world/load";
+import { consumeOpeningRules, selectDistrict, type TownEntry } from "../world/load";
 import { WebGLRenderer } from "three";
 import { createCar } from "../driving/Car";
 import { CockpitCamera } from "../driving/CockpitCamera";
@@ -153,7 +153,12 @@ class Game {
     });
     this.cockpit.update(1, this.car, 0);
     this.arriveFromCrossing();
-    if(!this.hasStarted){if(district.taxi?.endless){const place=chooseStartPlace(context);this.car.reset(place);this.demoTown=place.townId;this.hud.forgetAtlasMarker(this.car);this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);}this.demo=new DemoDriver(context);this.opening=new Opening(root,context,this.input.bindings);this.screen="running";}
+    if(!this.hasStarted){
+      const rules=consumeOpeningRules();
+      if(district.taxi?.endless){const place=chooseStartPlace(context);this.car.reset(place);this.demoTown=place.townId;this.hud.forgetAtlasMarker(this.car);this.world.updateFrame(this.car);this.cockpit.update(1,this.car,0);}
+      if(!rules)this.demo=new DemoDriver(context);
+      this.opening=new Opening(root,context,this.input.bindings,rules);this.screen=rules?'briefing':'running';
+    }
     this.renderer.setAnimationLoop((time) => this.frame(time));
   }
 
@@ -412,6 +417,8 @@ class Game {
         this.screen='briefing';this.activate();actions=idleActions();
       }else{
         this.screen=this.opening.state==='demo'?'running':'briefing';
+        // Once Start is pressed, autonomous control has no remaining owner.
+        if(this.opening.state!=='demo')this.demo=undefined;
         const ready=!(this.world instanceof StreamingWorld)||this.world.readyAt(this.car);
         if(this.opening.state==='demo'){
           if(this.demoJumpPending||this.demoRestPending){actions={...idleActions(),brake:1};this.demo!.activity='Waiting for passenger exit before a town jump';}
@@ -426,7 +433,9 @@ class Game {
     const editing=this.controlsPanel.visible;
     if(!this.sleeping)this.controlsPanel.update(dt,this.input.currentPad);
     if(editing){actions.interact=false;actions.pause=false;actions.atlasPage=0;}
-    if(this.settingsPanel.update(!this.sleeping&&!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,menu.move,menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
+    const worldChoice=!editing&&this.opening?.state==='rules'&&this.opening.navigateRules(dt,actions,menu.move,menu.keyboardConfirm);
+    if(worldChoice)actions.interact=false;
+    if(this.settingsPanel.update(!this.sleeping&&!editing&&(this.screen==="briefing"||this.screen==="paused"),dt,worldChoice?0:menu.move,worldChoice?false:menu.confirm)&&!menu.keyboardConfirm)actions.interact=false;
     this.saveButton.disabled=!this.hasStarted||this.mission.finished||this.sleeping;
     if(this.restButton)this.restButton.disabled=!this.hasStarted||!this.parking.stopped||this.car.speed!==0||this.mission.hasRide||this.sleeping;
     this.mainScreenButton.disabled=this.screen!=='paused'||!this.hasStarted;
@@ -438,7 +447,7 @@ class Game {
     if (this.screen === "briefing" && this.districtSwitchReady && actions.atlasPage) {
       this.districtSwitchReady = false;
       const index=visibleTowns.findIndex((map)=>map.id===district.id);
-      if(visibleTowns.length>1)selectDistrict(visibleTowns,visibleTowns[(index+visibleTowns.length+Math.sign(actions.atlasPage))%visibleTowns.length].id);
+      if(visibleTowns.length>1)selectDistrict(visibleTowns,visibleTowns[(index+visibleTowns.length+Math.sign(actions.atlasPage))%visibleTowns.length].id,true);
       return;
     }
     if (!this.opening&&this.input.controllerDisconnected) {
@@ -458,7 +467,7 @@ class Game {
       if (actions.atlas || actions.back || actions.pause) this.activate();
       else {
         if (actions.atlasPage) this.hud.turnAtlasPage(actions.atlasPage);
-        this.hud.controlAtlasView(dt,actions.atlasZoom,actions.atlasZoomStep,actions.atlasPanX,actions.atlasPanY,actions.resetLook);
+      this.hud.controlAtlasView(dt,actions.atlasZoom,actions.atlasZoomStep,actions.atlasPanX,actions.atlasPanY,actions.resetLook,actions.atlasMoveY);
         this.hud.moveAtlasCursor(dt, actions.atlasMoveX, actions.atlasMoveY);
         if (actions.information) this.requestInformation();
         else if (actions.interact) this.hud.placeAtlasMarker();

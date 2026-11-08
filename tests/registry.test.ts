@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {existsSync,readFileSync} from 'node:fs';
 import registryData from '../public/maps/towns.json';
 import {District} from '../src/world/district';
-import {validateRegistry,requestedDistrict,selectDistrict,type TownRegistry} from '../src/world/load';
+import {validateRegistry,requestedDistrict,selectDistrict,consumeOpeningRules,type TownRegistry} from '../src/world/load';
 
 const registry=validateRegistry(registryData);
 const load=(map:string)=>JSON.parse(readFileSync(`public/maps/${map}`,'utf8'));
@@ -62,6 +62,9 @@ test('an unlisted or removed district falls back to the default without deleting
  storage.set('cerea-district','cerea-outskirts');location.hash='';assert.equal(requestedDistrict(list),'veronese','Hidden legacy preferences do not replace the unified default');
  selectDistrict(list.towns,'atlantis');assert.equal(reloads,0,'An unlisted district is never selected');
  selectDistrict(list.towns,'harbor');assert.equal(reloads,1);assert.equal(storage.get('cerea-district'),'harbor');assert.equal(location.hash,'#district=harbor');
+ selectDistrict(list.towns,'veronese',true);assert.equal(location.hash,'#district=veronese&opening=rules');
+ assert.equal(consumeOpeningRules(),true);assert.equal(location.hash,'#district=veronese');
+ assert.equal(consumeOpeningRules(),false,'Map selection resumes rules only once; a later launch may show the demo');
 });
 
 test('the region manifest is reproducible from its specs and keeps its towns at real scale',{timeout:400000},async()=>{

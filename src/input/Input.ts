@@ -104,6 +104,9 @@ export class Input {
     window.addEventListener("keyup", event=>this.heldKeys.delete(event.code),{capture:true});
     window.addEventListener("keydown", (event) => {
       if (blockedKeys.has(event.code) || (this.context==='driving' && Object.values(this.bindings).some(b=>b.keys.includes(event.code)))) event.preventDefault();
+      // A map reload (or blur) may lose the original keydown. A carried-over
+      // repeat is held input, never a new confirmation or driving press.
+      if(event.repeat&&!this.keys.has(event.code))return;
       const matches=(action:ControlAction,fallback:string[])=>this.context==='driving'?this.bindings[action].keys.includes(event.code):fallback.includes(event.code);
       // Preserve quick taps that begin and end between render frames.
       if (!this.keys.has(event.code) && !event.repeat) {

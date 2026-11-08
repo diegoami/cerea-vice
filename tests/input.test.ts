@@ -256,3 +256,20 @@ test('opening release guard includes unrelated keys, all controller axes and Sta
  pad.axes[2]=0;pad.buttons[9].value=1;input.poll();assert.equal(input.allReleased,false);
  pad.buttons[9].value=0;input.poll();assert.equal(input.allReleased,true);
 });
+
+test('a key held across a map reload cannot confirm or drive through orphan repeats',()=>{
+ const target=new EventTarget();
+ Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+ Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[]},configurable:true});
+ const input=new Input();input.context='menu';
+ const send=(type:string,code:string,repeat=false)=>{const e=new Event(type);Object.defineProperties(e,{code:{value:code},repeat:{value:repeat}});target.dispatchEvent(e);};
+ for(let i=0;i<3;i++){
+  send('keydown','Enter',true);assert.equal(input.poll().interact,false);
+  assert.equal(input.settingsInput.keyboardConfirm,false);assert.equal(input.allReleased,false);
+ }
+ send('keyup','Enter');input.poll();assert.equal(input.allReleased,true);
+ send('keydown','Enter');assert.equal(input.poll().interact,true,'A new deliberate press confirms');
+ send('keyup','Enter');input.context='driving';
+ send('keydown','KeyW',true);assert.equal(input.poll().throttle,0);
+ send('keyup','KeyW');send('keydown','KeyW');assert.equal(input.poll().throttle,1);
+});
