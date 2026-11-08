@@ -2,6 +2,7 @@ import {RouteGraph} from '../navigation/RouteGraph';
 import {laneRoute} from '../driving/LaneRoute';
 import {planOvertake} from '../driving/Overtake';
 import {vehicleClearance} from '../driving/VehicleClearance';
+import {forwardConnections,forwardEnd,forwardRoute,roadKey,turnSpace} from '../driving/ForwardRoute';
 import {createCar, type Car, type CollisionSource} from '../driving/Car';
 import type {Actions} from '../input/Input';
 import type {Mission} from '../mission/Mission';
@@ -28,6 +29,8 @@ export class DemoDriver {
   private stalled=0;
   private recoveryPhase:'none'|'brake'|'reverse'|'settle'='none';
   private recoveryAge=0;
+  private reverseLimit=5;
+  private reverseTimeLimit=4;
   private reverseOrigin:Point={x:0,z:0};
   private segmentStart?:Point;
   localFaresChosen=0;
@@ -42,9 +45,19 @@ export class DemoDriver {
   private detourCooldown=0;
   private sawFinished=false;
   private readonly probe:Car;
+  forwardDetours=0;
+  recoveryReroutes=0;
+  private recoverySites:{x:number;z:number;time:number;target:string}[]=[];
+  private forbiddenEntries=new Map<string,number>();
+  private visitedJunctions=new Map<string,number>();
+  private temporaryRoute=false;
+  private junctionCooldown=0;
+  private backout?:{target:Point;age:number;origin:Point;entryKey:string;blocked:number;aligned:boolean;alignment?:{origin:Point;heading:number;age:number}};
+  private entryAttempt?:{origin:Point;time:number;road:string;entry:string;forward:boolean;connector:boolean};
+  backouts=0;
   constructor(private context:District){this.probe=new (createCar(context).Car)();}
 
-  relocated(){this.blocked.clear();this.route=[];this.targetKey='';this.segmentStart=undefined;this.previous=undefined;this.best=Infinity;this.stalled=0;this.recoveryPhase='none';this.steering=0;this.turnCooldown=0;this.detourCooldown=0;this.overtakeCooldown=0;}
+  relocated(){this.blocked.clear();this.forbiddenEntries.clear();this.visitedJunctions.clear();this.recoverySites=[];this.backout=undefined;this.entryAttempt=undefined;this.temporaryRoute=false;this.junctionCooldown=0;this.route=[];this.targetKey='';this.segmentStart=undefined;this.previous=undefined;this.best=Infinity;this.stalled=0;this.recoveryPhase='none';this.steering=0;this.turnCooldown=0;this.detourCooldown=0;this.overtakeCooldown=0;}
 
   private advanceWaypoint(){
     const passing=this.route[0]?.passing;this.segmentStart=this.route.shift();this.best=Infinity;this.stalled=0;
@@ -64,16 +77,44 @@ export class DemoDriver {
     return action;
   }
 
-  private plan(car:Car,nodeId:string,bay?:Rect){
+  private plan(car:Car,nodeId:string,bay?:Rect,forceForward=false,colliders:CollisionSource=this.context.buildings){
     const {context}=this;
     const nearest=context.nearestRoad(car);
-    if(!nearest){this.route=[];return;}
+    if(!nearest){this.route=[];return false;}
     for(const [key,expiry] of this.blocked)if(expiry<this.elapsed)this.blocked.delete(key);
+    for(const map of [this.forbiddenEntries,this.visitedJunctions])for(const [key,expiry] of map)if(expiry<this.elapsed)map.delete(key);
     const graph=this.blocked.size?new RouteGraph(context.nodes,context.roads.filter(r=>!this.blocked.has(`${r.a}/${r.b}`))):context.graph;
-    const road=nearest.edge;
-    const entries=(road.oneWay?[road.b]:[road.a,road.b]).map(id=>({id,...graph.search(id,nodeId)}));
+    let road=nearest.edge;
+    const entries=(road.oneWay?[road.b]:[road.a,road.b]).filter(id=>!this.forbiddenEntries.has(`${roadKey(road)}:${id}`)).map(id=>({id,...graph.search(id,nodeId)}));
+    if(!entries.length){this.route=[];return false;}
     entries.sort((a,b)=>(a.cost+distance(car,context.nodeById(a.id)))-(b.cost+distance(car,context.nodeById(b.id))));
-    const path=[...entries[0].path];
+    let chosen=entries[0],temporary=false,connector:(Point&{radius:number})[]|undefined;
+    const entry=context.nodeById(chosen.id),behind=Math.abs(angle(Math.atan2(entry.x-car.x,-(entry.z-car.z))-car.heading))>2;
+    const sidewaysParkingExit=nearest.distance>4&&Math.abs(angle(Math.atan2(entry.x-car.x,-(entry.z-car.z))-car.heading))>1.2;
+    if(forceForward||sidewaysParkingExit)for(const option of forwardConnections(context,car,nodeId,this.blocked,this.forbiddenEntries,chosen.cost+(forceForward?1600:500))){
+      const other=option.road.a===option.entry?option.road.b:option.road.a,join=laneRoute(context,[other,...option.path])[1];
+      if(!join)continue;
+      const connection=this.detour(car,join,colliders,true);
+      if(connection.points.length){road=option.road;chosen={id:option.entry,path:option.path,cost:option.cost};connector=connection.points;this.forwardDetours++;break;}
+    }
+    if(!connector&&(behind||forceForward)){
+      const option=forwardRoute(context,car,nodeId,this.blocked,this.forbiddenEntries,chosen.cost+(forceForward?1600:500),this.junctionCooldown===0&&(forceForward||!turnSpace(context,car)),this.visitedJunctions);
+      if(option){chosen={id:option.entry,path:option.path,cost:0};temporary=option.temporary;this.forwardDetours++;if(option.temporary)this.visitedJunctions.set(option.path.at(-1)!,this.elapsed+90);}
+      else if(forceForward)return false;
+      else{
+        const forward=forwardEnd(context,car);
+        if(behind&&forward&&!road.oneWay&&!turnSpace(context,car)&&this.forbiddenEntries.has(`${roadKey(road)}:${forward.entry}`)){
+          const back=context.nodeById(forward.behind),lanes=laneRoute(context,[forward.behind,forward.entry]),lane=lanes[0],d=distance(car,lane),scale=Math.min(1,20/(d||1));
+          if(distance(car,back)>4){
+            let goal={x:car.x+(lane.x-car.x)*scale,z:car.z+(lane.z-car.z)*scale};
+            if(d<=20){const length=distance(lane,lanes[1])||1,p={x:lane.x+(lane.x-lanes[1].x)/length*4,z:lane.z+(lane.z-lanes[1].z)/length*4};if(vehicleClearance({...p,heading:car.heading},context.buildings,context.district.bounds)>=0)goal=p;}
+            this.backout={target:goal,age:0,origin:{x:car.x,z:car.z},entryKey:`${roadKey(road)}:${chosen.id}`,blocked:0,aligned:false};this.backouts++;this.temporaryRoute=false;this.route=[];this.stalled=0;return true;
+          }
+        }
+      }
+    }
+    this.temporaryRoute=temporary;
+    const path=[...chosen.path];
     // Include the occupied segment even when its far endpoint is the best graph
     // entry. Otherwise a one-node path would aim back at the road centre.
     let approach=false;
@@ -84,7 +125,7 @@ export class DemoDriver {
     // destination behind the car. In particular, do not drive back to a one-way
     // segment's start when already near its far end or a little off its verge.
     const approachStart=approach?this.route.shift():undefined;
-    if(bay&&this.route.length)this.route.push({x:bay.x,z:bay.z});
+    if(bay&&this.route.length&&!this.temporaryRoute)this.route.push({x:bay.x,z:bay.z});
     if(!this.route.length){
       // If an approach is unreachable, retreat to a reachable junction before
       // trying again. Never cancel a booked passenger or move the car by fiat.
@@ -98,19 +139,29 @@ export class DemoDriver {
     // A car already part-way down a road need not drive back to the entry node.
     if(this.route.length>1){const first=this.route[0],next=this.route[1],projection=projectToSegment(car,first,next);
       if(distance(car,projection)<4&&distance(projection,first)>1&&distance(projection,next)>1){this.segmentStart=projection;this.route.shift();}}
+    if(connector){this.route.unshift(...connector);this.segmentStart={x:car.x,z:car.z};}
     this.best=Infinity;this.stalled=0;
+    const chosenPoint=context.nodeById(chosen.id);
+    this.entryAttempt={origin:{x:car.x,z:car.z},time:this.elapsed,road:roadKey(road),entry:chosen.id,connector:Boolean(connector),forward:distance(car,chosenPoint)>4&&Math.abs(angle(Math.atan2(chosenPoint.x-car.x,-(chosenPoint.z-car.z))-car.heading))<1.25};
+    return chosen!==entries[0];
   }
 
   /** Bounded local detour around an unexpected obstruction, then resume the street route. */
-  private detour(car:Car,aim:Point,colliders:CollisionSource){
+  private detour(car:Car,aim:Point,colliders:CollisionSource,full=false){
     const clear=(p:Point)=>{
       const b=this.context.district.bounds;
-      return p.x>b.minX+1.3&&p.x<b.maxX-1.3&&p.z>b.minZ+1.3&&p.z<b.maxZ-1.3&&
-        !(Array.isArray(colliders)?colliders:colliders.at(p,1.3)).some(r=>inRect(p,r,-1.3));
+      return p.x>b.minX+1.6&&p.x<b.maxX-1.6&&p.z>b.minZ+1.6&&p.z<b.maxZ-1.6&&
+        !(Array.isArray(colliders)?colliders:colliders.at(p,1.6)).some(r=>inRect(p,r,-1.6));
     };
+    let skip=0;
+    if(full&&(!clear(aim)||distance(car,aim)>72))return {points:[],skip:0};
+    if(!full&&!clear(aim))for(let i=1;i<Math.min(8,this.route.length);i++){
+      const a=this.route[i-1],b=this.route[i],length=distance(a,b),t=Math.min(1,20/(length||1)),p={x:a.x+(b.x-a.x)*t,z:a.z+(b.z-a.z)*t};
+      if(distance(car,p)<=72&&clear(p)){aim=p;skip=i;break;}
+    }
     const line=(a:Point,b:Point)=>{const n=Math.ceil(distance(a,b)/.7);for(let i=1;i<=n;i++)if(!clear({x:a.x+(b.x-a.x)*i/n,z:a.z+(b.z-a.z)*i/n}))return false;return true;};
     const length=distance(car,aim);
-    let reach=Math.min(28,length),goal={x:car.x+(aim.x-car.x)*reach/(length||1),z:car.z+(aim.z-car.z)*reach/(length||1)};
+    let reach=full?length:Math.min(28,length),goal={x:car.x+(aim.x-car.x)*reach/(length||1),z:car.z+(aim.z-car.z)*reach/(length||1)};
     // A short ray can end inside the very building we must go around. If the
     // real nearby waypoint is clear, search far enough to reconnect to it.
     if(!clear(goal)&&length<=72&&clear(aim)){reach=length;goal=aim;}
@@ -131,18 +182,18 @@ export class DemoDriver {
         costs.set(id,cost);previous.set(id,at);open.push({x,z,cost,score:cost+Math.hypot(x-gx,z-gz)});
       }
     }
-    if(!end)return [];
+    if(!end)return {points:[],skip:0};
     const path:Point[]=[];for(let at=end;at.x!==0||at.z!==0;at=previous.get(key(at.x,at.z))!)path.unshift(point(at.x,at.z));
     // Remove grid zigzags, retaining only clear segments and generous aiming points.
     const result:(Point&{radius:number})[]=[];let at:Point=car;
     while(path.length){let index=path.length-1;while(index>0&&!line(at,path[index]))index--;at=path[index];result.push({...at,radius:1.4});path.splice(0,index+1);}
-    return result;
+    return {points:result,skip};
   }
 
   update(dt:number,car:Car,parking:Parking,mission:Mission,colliders:CollisionSource):Actions{
     if(mission.finished&&!this.sawFinished){this.relocated();this.blocked.clear();}
     this.sawFinished=mission.finished;
-    this.elapsed+=dt;this.turnCooldown=Math.max(0,this.turnCooldown-dt);this.detourCooldown=Math.max(0,this.detourCooldown-dt);this.overtakeCooldown=Math.max(0,this.overtakeCooldown-dt);
+    this.elapsed+=dt;this.turnCooldown=Math.max(0,this.turnCooldown-dt);this.detourCooldown=Math.max(0,this.detourCooldown-dt);this.overtakeCooldown=Math.max(0,this.overtakeCooldown-dt);this.junctionCooldown=Math.max(0,this.junctionCooldown-dt);
     if(this.previous)this.distanceDriven+=distance(car,this.previous);
     this.previous={x:car.x,z:car.z};
     const stop=()=>({...idleActions(),brake:1});
@@ -161,13 +212,41 @@ export class DemoDriver {
       return stop();
     }
     const target=!mission.finished?mission.target:undefined;
-    if(target&&inRect(car,target.bay,1.5)){
+    if(target&&(mission.taxiMode?mission.canServe(car,true):inRect(car,target.bay,1.1))){
       this.activity=`Stopping at ${target.name}`;
       this.stalled=0;
       if(car.speed===0&&parking.stopped&&mission.taxiMode&&mission.serveAtStop(car,true)){
-        this.actionsCompleted++;this.targetKey='';
+        this.actionsCompleted++;this.targetKey='';this.backout=undefined;this.entryAttempt=undefined;this.recoverySites=[];this.forbiddenEntries.clear();this.route=[];this.temporaryRoute=false;this.recoveryPhase='none';this.recoveryAge=0;this.stalled=0;this.best=Infinity;this.steering=0;
       }
       return stop();
+    }
+    if(this.backout){
+      this.activity='Backing out to a clearer road connection';this.backout.age+=dt;
+      const remaining=distance(car,this.backout.target);
+      if(remaining<1.5||this.backout.age>24){
+        if(car.speed!==0||!parking.stopped)return stop();
+        if(this.backout.age>24&&distance(car,this.backout.origin)<1)this.forbiddenEntries.set(this.backout.entryKey,this.elapsed+10);
+        if(car.gear==='R')car.shiftGear();this.backout=undefined;this.targetKey='';this.route=[];this.best=Infinity;this.stalled=0;return stop();
+      }
+      if(this.backout.alignment){
+        this.activity='Making room to straighten before backing out';const alignment=this.backout.alignment;alignment.age+=dt;
+        const error=angle(alignment.heading-car.heading);
+        if(Math.abs(error)<.1||distance(car,alignment.origin)>3||alignment.age>4){
+          if(car.speed!==0||!parking.stopped)return stop();
+          if(car.gear==='D')car.shiftGear();this.backout.alignment=undefined;this.backout.aligned=true;this.backout.blocked=0;return stop();
+        }
+        if(car.gear!=='D'){if(car.speed===0&&parking.stopped)car.shiftGear();return stop();}
+        const steer=Math.max(-1,Math.min(1,error*2));
+        for(const throttle of [.45,.2,.08]){const action=this.avoidImpact(car,{...idleActions(),steer,throttle:car.speed<2?throttle:0},colliders);if(!action.brake)return action;}
+        return {...stop(),steer};
+      }
+      if(car.gear!=='R'){if(car.speed===0&&parking.stopped)car.shiftGear();return stop();}
+      const error=angle(Math.atan2(this.backout.target.x-car.x,-(this.backout.target.z-car.z))+Math.PI-car.heading),limit=Math.min(2.5,Math.sqrt(4*Math.max(0,remaining-.8)));
+      const steer=-Math.max(-1,Math.min(1,2*Math.sin(error)/Math.max(4,Math.min(8,remaining))*2.8/.6*(1+Math.abs(car.speed)*.07)));
+      const action=this.avoidImpact(car,{...idleActions(),steer,throttle:Math.abs(car.speed)<limit?.7:0,brake:Math.max(0,(Math.abs(car.speed)-limit)*.5)},colliders);
+      this.backout.blocked=action.brake&&Math.abs(car.speed)<.2?this.backout.blocked+dt:0;
+      if(this.backout.blocked>.5&&!this.backout.aligned)this.backout.alignment={origin:{x:car.x,z:car.z},heading:car.heading+error,age:0};
+      return action;
     }
     let nodeId=target?.nodeId;
     // Harbor's legacy hotel is a bay rather than a road-graph node.
@@ -185,10 +264,13 @@ export class DemoDriver {
       }
       this.activity='Exploring streets and landmarks after the journey';
     }else this.activity=`${mission.taxiStage==='dropoff'?'Delivering to':'Driving to'} ${target!.name}`;
-    if(nodeId&&this.targetKey!==nodeId){this.targetKey=nodeId;this.plan(car,nodeId,target?.bay);}
+    if(nodeId&&this.targetKey!==nodeId){this.targetKey=nodeId;this.plan(car,nodeId,target?.bay,false,colliders);}
     while(this.route.length&&distance(car,this.route[0])<(this.route[0].radius??(this.route.length===1?1.5:3.5))){
       this.advanceWaypoint();
-      if(!this.route.length)this.actionsCompleted++;
+      if(!this.route.length){
+        if(this.temporaryRoute){this.temporaryRoute=false;this.targetKey='';this.junctionCooldown=20;}
+        else this.actionsCompleted++;
+      }
     }
     if(!this.route.length&&target){
       this.activity='Finding another approach to the destination';
@@ -210,15 +292,27 @@ export class DemoDriver {
     if(this.stalled>2.5&&this.recoveryPhase==='none'&&this.detourCooldown===0){
       this.detourCooldown=8;
       const bypass=this.detour(car,aim,colliders);
-      if(bypass.length){this.route.unshift(...bypass);this.segmentStart={x:car.x,z:car.z};this.best=Infinity;this.stalled=0;this.activity='Passing an obstruction using a clear road edge or verge';return stop();}
+      if(bypass.points.length){this.route.splice(0,bypass.skip,...bypass.points);this.segmentStart={x:car.x,z:car.z};this.best=Infinity;this.stalled=0;this.activity='Passing an obstruction using a clear road edge or verge';return stop();}
     }
     const behind=Math.abs(angle(Math.atan2(aim.x-car.x,-(aim.z-car.z))-car.heading))>2;
     if((this.stalled>7||(behind&&Math.abs(car.speed)<.6&&remaining<60&&this.turnCooldown===0))&&this.recoveryPhase==='none'){
-      const road=this.context.nearestRoad(car)?.edge;
-      if(road)this.blocked.set(`${road.a}/${road.b}`,this.elapsed+90);
+      const goal=nodeId??this.targetKey;
+      this.recoverySites=this.recoverySites.filter(p=>p.time>this.elapsed-90&&p.target===goal);
+      const repeats=this.recoverySites.filter(p=>distance(p,car)<24).length;
+      this.recoverySites.push({x:car.x,z:car.z,time:this.elapsed,target:goal});if(this.recoverySites.length>8)this.recoverySites.shift();
+      const forward=forwardEnd(this.context,car),road=this.context.nearestRoad(car)?.edge;
+      if(this.entryAttempt?.forward&&this.elapsed-this.entryAttempt.time>7&&distance(car,this.entryAttempt.origin)<12){
+        this.forbiddenEntries.set(`${this.entryAttempt.road}:${this.entryAttempt.entry}`,this.elapsed+90);if(!this.entryAttempt.connector)this.blocked.set(this.entryAttempt.road,this.elapsed+90);
+      }
+      if(road&&!behind){this.blocked.set(roadKey(road),this.elapsed+90);if(forward)this.forbiddenEntries.set(`${roadKey(road)}:${forward.entry}`,this.elapsed+90);}
+      if(repeats>0&&goal&&this.context.nodeMap.has(goal)&&this.plan(car,goal,target?.bay,true,colliders)){
+        this.recoveryReroutes++;this.recoveryPhase='none';this.best=Infinity;this.stalled=0;this.steering=0;this.turnCooldown=12;this.activity='Taking another route through a junction';return stop();
+      }
       this.recoveries++;this.recoveryPhase='brake';this.recoveryAge=0;
       const wanted=Math.atan2(aim.x-car.x,-(aim.z-car.z));
-      this.recoveryTurn=-Math.sign(angle(wanted-car.heading))||(this.recoveries%2?1:-1);
+      const preferred=-Math.sign(angle(wanted-car.heading))||(this.recoveries%2?1:-1);
+      this.recoveryTurn=repeats%2?-preferred:preferred;
+      this.reverseLimit=Math.min(9,5+repeats*2);this.reverseTimeLimit=Math.min(6,4+repeats);
       this.stalled=0;this.best=Infinity;
     }
     if(this.recoveryPhase!=='none'){
@@ -229,7 +323,7 @@ export class DemoDriver {
       }
       if(this.recoveryPhase==='reverse'){
         this.recoveryAge+=dt;
-        if(distance(car,this.reverseOrigin)>=5||this.recoveryAge>4){this.recoveryPhase='settle';return stop();}
+        if(distance(car,this.reverseOrigin)>=this.reverseLimit||this.recoveryAge>this.reverseTimeLimit){this.recoveryPhase='settle';return stop();}
         for(const steer of [this.recoveryTurn,0,-this.recoveryTurn]){
           const action=this.avoidImpact(car,{...idleActions(),throttle:Math.abs(car.speed)<2.5?.75:0,steer},colliders);
           if(!action.brake)return action;
@@ -239,7 +333,7 @@ export class DemoDriver {
       if(car.speed!==0||!parking.stopped)return stop();
       if(car.gear==='R')car.shiftGear();
       const detour=this.detour(car,aim,colliders);
-      if(detour.length)this.route.unshift(...detour);else {this.route=[];this.targetKey='';}
+      if(detour.points.length)this.route.splice(0,detour.skip,...detour.points);else {this.route=[];this.targetKey='';}
       this.segmentStart={x:car.x,z:car.z};this.recoveryPhase='none';this.stalled=0;this.best=Infinity;this.steering=0;this.turnCooldown=10;
       return stop();
     }
