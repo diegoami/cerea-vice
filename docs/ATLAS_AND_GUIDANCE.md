@@ -16,9 +16,9 @@ unchanged. F / View requests information while reading, including in countryside
 Zoom buttons and keys use 2× steps, and the wheel and triggers respond faster. The
 regional drawing omits building and street-label detail. Town drawings filter geometry
 to their own extents and batch roads/buildings into a few SVG paths. Only the selected
-town's street index is prepared until a wider lookup is requested. The fixed geometry is drawn once into a cached paper image (up to 4096 pixels for a
+town's street index is prepared until a wider lookup is requested. The fixed geometry is drawn once into a cached canvas paper (up to 4096 pixels for a
 town and 2048 for the region). Labels, town selection and knowledge markers remain
-vector overlays. Panning and zooming reuse that image instead of retessellating all
+vector overlays. Panning and zooming reuse that surface instead of retessellating all
 building and road shapes. Four paper drawings are cached. Glyph extents are measured on a canvas once for a drawing; pan/zoom projects
 those cached extents instead of forcing a DOM layout for every label. The frozen 3D
 scene and mirrors are rendered once under the atlas, with a fresh frame on resize or

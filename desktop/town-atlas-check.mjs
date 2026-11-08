@@ -3,6 +3,7 @@ import {mkdir} from 'node:fs/promises';
 const frames=page=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
 export async function checkTownAtlas(page,resize,label,{offline=false}={}){
  const started=Date.now(),progress=stage=>console.info({atlas:label,stage,elapsedMs:Date.now()-started});
+ const capture=async file=>{await page.evaluate(()=>window.dispatchEvent(new Event('resize')));await frames(page);await page.screenshot({path:file});};
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.waitForFunction(()=>{const opening=document.querySelector('#opening');return opening&&(opening.hidden||document.querySelector('#opening button')?.disabled===false);});
  if(await page.getByRole('button',{name:'Start',exact:true}).isVisible())await page.getByRole('button',{name:'Start',exact:true}).click();
@@ -30,8 +31,8 @@ export async function checkTownAtlas(page,resize,label,{offline=false}={}){
  assert.ok(await page.locator('.atlas-map *').count()<1200,'Town view contains local batched geometry');
  const pin=await page.locator('.atlas-pin').getAttribute('transform'),status=await page.locator('#atlas-marker-status').innerText(),clock=await page.locator('#timer').innerText();
  if(offline)await page.context().setOffline(true);
- await mkdir('test-results',{recursive:true});await resize(1440,900);await page.screenshot({path:`test-results/town-atlas-${label}-town.png`});
- const paper=await page.locator('[data-atlas-paper]').getAttribute('href');
+ await mkdir('test-results',{recursive:true});await resize(1440,900);await capture(`test-results/town-atlas-${label}-town.png`);
+ const paper=await page.locator('[data-atlas-paper]').elementHandle();
  const zoomSamples=[];
  for(let i=0;i<3;i++){
   const value=Number.parseInt(await page.locator('#atlas-zoom-level').innerText()),start=Date.now();
@@ -41,12 +42,13 @@ export async function checkTownAtlas(page,resize,label,{offline=false}={}){
  }
  progress('zoom');
  assert.equal(await page.locator('#atlas-zoom-level').innerText(),'800%');
- assert.equal(await page.locator('[data-atlas-paper]').getAttribute('href'),paper,'Zoom reuses the cached paper rather than repainting all geometry');
+ assert.equal(await paper.evaluate(e=>e===document.querySelector('.atlas-map [data-atlas-paper]')),true,'Zoom reuses the cached paper rather than repainting all geometry');await paper.dispose();
  for(let i=0;i<4;i++)await page.getByRole('button',{name:'Zoom out',exact:true}).click();
  await page.locator('.atlas-book[data-atlas-mode=regional]').waitFor();console.info(await page.locator('.atlas-map').evaluate(e=>({regionalDrawMs:e.dataset.paperDrawMs,regionalEncodeMs:e.dataset.paperEncodeMs})));
  assert.equal(await page.locator('.atlas-map .atlas-scenery-buildings,.atlas-map [data-street]').count(),0);
  const regionalNodes=await page.locator('.atlas-map *').count();assert.ok(regionalNodes<300,'Regional map is towns and connecting roads, not the global street atlas');
  assert.equal(await page.locator('.atlas-town-areas [data-atlas-sheet]').count(),9);
+ // Regional capture is performed by the native Windows smoke; SwiftShader's capture stalls after this mode switch.
  await page.getByRole('button',{name:'Zoom in',exact:true}).click();
  const initialView=await page.locator('.atlas-map').getAttribute('viewBox');let map=await page.locator('.atlas-map').boundingBox();
  await page.mouse.move(map.x+map.width*.6,map.y+map.height*.5);await page.mouse.down();await page.mouse.move(map.x+map.width*.35,map.y+map.height*.6,{steps:2});await page.mouse.up();
@@ -58,9 +60,9 @@ export async function checkTownAtlas(page,resize,label,{offline=false}={}){
  assert.equal(await page.locator('.atlas-map').evaluate(e=>e.hasPointerCapture(1)),true,'Dragging survives changing from town to regional drawing');
  const continued=await page.locator('.atlas-map').getAttribute('viewBox');await page.mouse.move(map.x+map.width*.8,map.y+map.height*.65,{steps:2});await page.mouse.up();
  assert.notEqual(await page.locator('.atlas-map').getAttribute('viewBox'),continued,'The same drag continues across the region');
+ assert.equal(await page.locator('.atlas-map').evaluate(e=>e.hasPointerCapture(1)),false,'The transferred capture is released at the end of the drag');
  progress('regional-drag');
  for(const size of [[960,640],[1280,800]]){await resize(...size);await frames(page);assert.ok(await page.locator('.atlas-map').evaluate(e=>e.getBoundingClientRect().height)>100);}
- await page.screenshot({path:`test-results/town-atlas-${label}-regional.png`});
  if(label==='browser'){
   await resize(390,844);await page.locator('.atlas-mode-navigation [data-atlas-sheet]').tap();
   const touchBox=await page.locator('.atlas-map').boundingBox();assert.ok(touchBox.width>220&&touchBox.height>150,'Portrait atlas keeps a usable map surface');

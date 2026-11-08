@@ -37,7 +37,7 @@ class Hud {
   private indexSelectDelay = 0;
   private indexSelectDirection = 0;
   private atlasDrawingState?:{map:SVGSVGElement;key:string;labels:{node:SVGTextElement;x:number;z:number;angle:number;left:number;right:number;ascent:number;descent:number;kind:string;street:string}[]};
-  private readonly atlasRasters=new Map<string,string>();
+  private readonly atlasRasters=new Map<string,HTMLCanvasElement>();
   private atlasDrag?:{id:number;startX:number;startY:number;lastX:number;lastY:number;moved:boolean};
   private suppressAtlasClick = false;
   private atlasPage: AtlasPage = "map";
@@ -176,8 +176,9 @@ class Hud {
     });
     this.overlay.addEventListener("pointerup",event=>{
       if(this.atlasDrag?.id===event.pointerId){this.suppressAtlasClick=this.atlasDrag.moved;this.atlasDrag=undefined;}
+      const map=this.overlay.querySelector<SVGSVGElement>('.atlas-map');if(map?.hasPointerCapture(event.pointerId))map.releasePointerCapture(event.pointerId);
     });
-    this.overlay.addEventListener("pointercancel",()=>{this.atlasDrag=undefined;this.suppressAtlasClick=false;});
+    this.overlay.addEventListener("pointercancel",event=>{const map=this.overlay.querySelector<SVGSVGElement>('.atlas-map');if(map?.hasPointerCapture(event.pointerId))map.releasePointerCapture(event.pointerId);this.atlasDrag=undefined;this.suppressAtlasClick=false;});
     window.addEventListener("resize",()=>this.updateAtlasView());
   }
 
@@ -307,11 +308,11 @@ class Hud {
   private rasterizeAtlasPaper(map:SVGSVGElement){
     const geometry=map.querySelector<SVGGElement>('[data-atlas-geometry]');if(!geometry)return;
     const frame=atlasFrame(),key=this.atlasSheet?`town:${this.atlasSheet.id}`:'region';
-    let url=this.atlasRasters.get(key);
+    let canvas=this.atlasRasters.get(key);
     try{
-      if(!url){
+      if(!canvas){
         const started=performance.now();
-        const canvas=document.createElement('canvas'),pixels=this.atlasSheet?4096:2048,ratio=pixels/Math.max(frame.width,frame.depth);
+        canvas=document.createElement('canvas');const pixels=this.atlasSheet?4096:2048,ratio=pixels/Math.max(frame.width,frame.depth);
         canvas.width=Math.max(1,Math.round(frame.width*ratio));canvas.height=Math.max(1,Math.round(frame.depth*ratio));
         const draw=canvas.getContext('2d',{willReadFrequently:true})!;
         draw.setTransform(canvas.width/frame.width,0,0,canvas.height/frame.depth,-frame.minX*canvas.width/frame.width,-frame.minZ*canvas.height/frame.depth);
@@ -326,17 +327,14 @@ class Hud {
             draw.setLineDash(style.strokeDasharray==='none'?[]:style.strokeDasharray.split(/[ ,]+/).map(Number.parseFloat));draw.stroke(path);
           }
         }
-        const painted=performance.now();url=canvas.toDataURL('image/png');
-        map.dataset.paperDrawMs=(painted-started).toFixed(1);map.dataset.paperEncodeMs=(performance.now()-painted).toFixed(1);
-        canvas.width=0;canvas.height=0;
-        if(!url.startsWith('data:image/png'))return;
-        this.atlasRasters.set(key,url);
-        if(this.atlasRasters.size>4)this.atlasRasters.delete([...this.atlasRasters.keys()].find(k=>k!=='region'&&k!==key)!);
+        map.dataset.paperDrawMs=(performance.now()-started).toFixed(1);
+        canvas.style.width='100%';canvas.style.height='100%';canvas.style.display='block';canvas.dataset.atlasPaper=key;
+        this.atlasRasters.set(key,canvas);
+        if(this.atlasRasters.size>4){const old=[...this.atlasRasters.keys()].find(k=>k!=='region'&&k!==key)!;const released=this.atlasRasters.get(old)!;this.atlasRasters.delete(old);released.width=0;released.height=0;}
       }
-      const image=document.createElementNS('http://www.w3.org/2000/svg','image');
-      image.setAttribute('x',`${frame.minX}`);image.setAttribute('y',`${frame.minZ}`);image.setAttribute('width',`${frame.width}`);image.setAttribute('height',`${frame.depth}`);
-      image.setAttribute('preserveAspectRatio','none');image.setAttribute('href',url);image.setAttribute('aria-hidden','true');image.setAttribute('data-atlas-paper','');
-      geometry.replaceWith(image);map.dataset.rasterReady='true';
+      const surface=document.createElementNS('http://www.w3.org/2000/svg','foreignObject');
+      surface.setAttribute('x',`${frame.minX}`);surface.setAttribute('y',`${frame.minZ}`);surface.setAttribute('width',`${frame.width}`);surface.setAttribute('height',`${frame.depth}`);surface.setAttribute('aria-hidden','true');
+      surface.append(canvas);geometry.replaceWith(surface);map.dataset.rasterReady='true';
     }catch{map.dataset.rasterReady='false';} // The original SVG remains usable if a browser cannot allocate a paper surface.
   }
 
