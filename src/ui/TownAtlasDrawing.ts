@@ -31,7 +31,7 @@ export function drawTownAtlas(context:District,sheet:AtlasSheet|undefined,sheets
  });
  const roadPaths=(tier:number,extra:number)=>{
   const groups=new Map<number,string[]>();
-  for(const r of roads){if(tierFor(r.roadClass)!==tier)continue;const a=context.nodeById(r.a),b=context.nodeById(r.b),width=roadWidth(r)+extra,list=groups.get(width)??[];list.push(`M ${a.x} ${a.z} L ${b.x} ${b.z}`);groups.set(width,list);}
+  for(const r of roads){if(tierFor(r.roadClass)!==tier)continue;const a=context.nodeById(r.a),b=context.nodeById(r.b),width=regional?Math.max(roadWidth(r),paper.span/450)+(extra?paper.span/900:0):roadWidth(r)+extra,list=groups.get(width)??[];list.push(`M ${a.x} ${a.z} L ${b.x} ${b.z}`);groups.set(width,list);}
   return [...groups].map(([width,paths])=>`<path d="${paths.join(' ')}" stroke-width="${width}"/>`).join('');
  };
  const roadDrawing=[3,2,1].map(tier=>`<g data-road-tier="${tier}"><g fill="none" stroke="#8b8e76" stroke-linecap="round">${roadPaths(tier,2)}</g><g fill="none" stroke="#f9f2df" stroke-linecap="round">${roadPaths(tier,0)}</g></g>`).join('');
@@ -46,7 +46,7 @@ export function drawTownAtlas(context:District,sheet:AtlasSheet|undefined,sheets
  }).join('');
  const bays=regional?'':context.parkingZones.filter(p=>overlaps(corners(p),paper)).map(p=>`<rect x="${p.x-p.width/2}" y="${p.z-p.depth/2}" width="${p.width}" height="${p.depth}" class="atlas-bay"/><text x="${p.x}" y="${p.z+2*u}" class="atlas-parking" data-map-label="parking">P</text>`).join('');
  const labels=regional?'':streets.map(s=>`<text data-street="${xml(s.key)}" data-angle="${s.angle}" data-road-tier="${s.tier}" x="${s.x}" y="${s.z-u}" transform="rotate(${s.angle} ${s.x} ${s.z-u})" style="font-size:${4*u}px">${xml(s.name.toUpperCase())}</text>`).join('');
- const towns=regional?`<g class="atlas-town-areas">${sheets.map(s=>`<rect data-atlas-sheet="${xml(s.id)}" x="${s.minX}" y="${s.minZ}" width="${s.width}" height="${s.depth}" fill="#cbd6b8" stroke="#728777" stroke-width="8"/>`).join('')}</g><g class="atlas-town-labels">${sheets.map(s=>`<text data-map-label="town" x="${s.minX+s.width!/2}" y="${s.minZ+s.depth!/2}">${xml(s.name)}</text>`).join('')}</g>`:'';
+ const towns=regional?`<g class="atlas-town-areas">${sheets.map(s=>`<rect data-atlas-sheet="${xml(s.id)}" x="${s.minX}" y="${s.minZ}" width="${s.width}" height="${s.depth}" fill="#cbd6b8" stroke="#728777" stroke-width="8"/>`).join('')}</g><g class="atlas-town-labels">${sheets.map(s=>`<text data-map-label="town" x="${s.minX+s.width!/2}" y="${s.minZ+s.depth!/2}">${xml(s.regionalName??s.name)}</text>`).join('')}</g>`:'';
  const grid=regional?'':`<g class="atlas-grid">${Array.from({length:5},(_,i)=>`<path d="M ${paper.minX+i*paper.width/4} ${paper.minZ} V ${paper.minZ+paper.depth} M ${paper.minX} ${paper.minZ+i*paper.depth/4} H ${paper.minX+paper.width}"/>`).join('')}</g>`;
  const gridLabels=regional?'':`<g class="atlas-grid-label">${['A','B','C','D'].map((l,i)=>`<text data-grid-letter="${i}" x="${paper.minX+(i+.5)*paper.width/4}" y="${paper.minZ-5*u}">${l}</text>`).join('')}${[1,2,3,4].map((n,i)=>`<text data-grid-number="${i}" x="${paper.minX-7*u}" y="${paper.minZ+(i+.5)*paper.depth/4}">${n}</text>`).join('')}</g>`;
  return `<svg class="atlas-map" data-atlas-drawing="${regional?'regional':'town'}" viewBox="${paper.minX-14*u} ${paper.minZ-17*u} ${paper.width+28*u} ${paper.depth+28*u}" role="img" aria-labelledby="atlas-map-title atlas-map-description">

@@ -281,11 +281,24 @@ class Hud {
     for(const label of [...state!.labels].sort((a,b)=>priority(a)-priority(b))){
       const selected=label.street===this.selectedStreet&&Boolean(label.street),font=label.kind==='town'?15:label.kind==='parking'?pixels+2:selected?pixels+2:pixels;
       label.node.style.fontSize=`${font/scale}px`;label.node.style.strokeWidth=`${3/scale}px`;label.node.style.paintOrder='stroke';label.node.style.stroke='#f8f1dd';label.node.style.fill=selected?'#8f342c':'#29443f';
-      const c=Math.cos(label.angle),s=Math.sin(label.angle),x=label.x*scale+matrix.e,y=label.z*scale+matrix.f;
-      const corners=[[-label.left,-label.ascent],[label.right,-label.ascent],[label.right,label.descent],[-label.left,label.descent]].map(([u,v])=>({x:x+(u*c-v*s)*font,y:y+(u*s+v*c)*font}));
-      const bounds={left:Math.min(...corners.map(p=>p.x))-2,right:Math.max(...corners.map(p=>p.x))+2,top:Math.min(...corners.map(p=>p.y))-2,bottom:Math.max(...corners.map(p=>p.y))+2};
+      const c=Math.cos(label.angle),s=Math.sin(label.angle);let x=label.x*scale+matrix.e,y=label.z*scale+matrix.f;
+      const boundsAt=(x:number,y:number)=>{
+        const corners=[[-label.left,-label.ascent],[label.right,-label.ascent],[label.right,label.descent],[-label.left,label.descent]].map(([u,v])=>({x:x+(u*c-v*s)*font,y:y+(u*s+v*c)*font}));
+        return {left:Math.min(...corners.map(p=>p.x))-2,right:Math.max(...corners.map(p=>p.x))+2,top:Math.min(...corners.map(p=>p.y))-2,bottom:Math.max(...corners.map(p=>p.y))+2};
+      };
+      const overlaps=(bounds:ReturnType<typeof boundsAt>)=>occupied.some(o=>bounds.left<o.right+3&&bounds.right>o.left-3&&bounds.top<o.bottom+2&&bounds.bottom>o.top-2);
+      let bounds=boundsAt(x,y);
+      if(label.kind==='town'){
+        if(x<paper.left||x>paper.right||y<paper.top||y>paper.bottom){label.node.style.display='none';continue;}
+        x=Math.max(paper.left+label.left*font+4,Math.min(paper.right-label.right*font-4,x));
+        const original=y;
+        for(const offset of [0,-1.5,1.5,-3,3]){
+          y=Math.max(paper.top+label.ascent*font+4,Math.min(paper.bottom-label.descent*font-4,original+offset*font));bounds=boundsAt(x,y);if(!overlaps(bounds))break;
+        }
+        label.node.setAttribute('x',`${(x-matrix.e)/scale}`);label.node.setAttribute('y',`${(y-matrix.f)/scale}`);
+      }
       const visible=bounds.left>=paper.left+2&&bounds.right<=paper.right-2&&bounds.top>=paper.top+2&&bounds.bottom<=paper.bottom-2;
-      const collides=priority(label)!==0&&occupied.some(o=>bounds.left<o.right+3&&bounds.right>o.left-3&&bounds.top<o.bottom+2&&bounds.bottom>o.top-2);
+      const collides=label.kind!=='town'&&priority(label)!==0&&overlaps(bounds);
       const display=visible&&!collides?'':'none';if(label.node.style.display!==display)label.node.style.display=display;
       if(!display)occupied.push(bounds);
     }

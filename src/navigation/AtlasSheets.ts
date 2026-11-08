@@ -1,7 +1,7 @@
 import { type Point, District } from '../world/district';
 import {createTownSheets} from './TownSheets';
 
-export interface AtlasSheet { id:string; column:number; row:number; minX:number; minZ:number; span:number; name:string; overlap:number; width?:number;depth?:number;town?:boolean }
+export interface AtlasSheet { id:string; column:number; row:number; minX:number; minZ:number; span:number; name:string; overlap:number; width?:number;depth?:number;town?:boolean;regionalName?:string }
 /** A page stays readable while it carries no more distinct street labels than the busiest page of the accepted regional atlas. */
 const MAX_PAGE_LABELS=90;
 /** Detail pages overlap their neighbours so streets near an edge still sit fully on a page. */

@@ -48,6 +48,7 @@ export async function checkTownAtlas(page,resize,label,{offline=false}={}){
  assert.equal(await page.locator('.atlas-map .atlas-scenery-buildings,.atlas-map [data-street]').count(),0);
  const regionalNodes=await page.locator('.atlas-map *').count();assert.ok(regionalNodes<300,'Regional map is towns and connecting roads, not the global street atlas');
  assert.equal(await page.locator('.atlas-town-areas [data-atlas-sheet]').count(),9);
+ assert.equal(await page.locator('[data-map-label=town]').evaluateAll(nodes=>nodes.filter(n=>n.style.display!=='none').length),9,'Regional overview names every town, including edge towns');
  // Regional capture is performed by the native Windows smoke; SwiftShader's capture stalls after this mode switch.
  await page.getByRole('button',{name:'Zoom in',exact:true}).click();
  const initialView=await page.locator('.atlas-map').getAttribute('viewBox');let map=await page.locator('.atlas-map').boundingBox();

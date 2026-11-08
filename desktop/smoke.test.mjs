@@ -754,7 +754,7 @@ test('picture quality is labelled, saved, keyboard/controller selectable and fol
   await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
   await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();
   await page.locator('[data-key=resolution]').selectOption('retro');await page.locator('[data-key=resolution]').selectOption('high');
-  await page.keyboard.press('Enter');await page.locator('#overlay').waitFor({state:'hidden'});
+  await page.keyboard.press('Enter');await page.locator('#overlay').waitFor({state:'hidden'});await frames(page);
   await page.keyboard.press('t');await page.locator('.atlas-map').waitFor();
   assert.equal(await page.locator('.atlas-pin').getAttribute('transform'),pin,'Picture quality never moves the atlas marker');
   await page.keyboard.press('Escape');await page.locator('#overlay').waitFor({state:'hidden'});
