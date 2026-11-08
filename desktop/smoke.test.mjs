@@ -48,11 +48,11 @@ const clippedText=page=>page.evaluate(()=>{
   }
   return bad;
 });
-/** Screens explain actions, never bindings: the full mapping lives under Change controls (#93). */
+/** Gameplay screens omit bindings; opening rules and world-choice guidance are deliberate exceptions. */
 const mappingText=/\b[ABXY] \/ (Cross|Circle|Square|Triangle|Enter)\b|\b(LB|RB|RT|LT|R3|L3)\b|D-pad|(Left|Right) stick|\bEsc(ape)? \/|\/ START|ENTER TO|\bpress [A-Z0-9]\b(?! key)/i;
 async function assertNoMappingText(page,where){
   for(const selector of ['#overlay','#prompt','#hint','#objective-title','.dashboard']){
-    const text=await page.locator(selector).first().evaluate(element=>{if(element.offsetParent===null&&getComputedStyle(element).position!=='fixed')return '';const copy=element.cloneNode(true);copy.querySelectorAll('.opening-instructions').forEach(node=>node.remove());return copy.textContent;});
+    const text=await page.locator(selector).first().evaluate(element=>{if(element.offsetParent===null&&getComputedStyle(element).position!=='fixed')return '';const copy=element.cloneNode(true);copy.querySelectorAll('.opening-instructions,.world-choice').forEach(node=>node.remove());return copy.textContent;});
     assert.doesNotMatch(text,mappingText,`${where}: ${selector} names no bindings`);
   }
 }
