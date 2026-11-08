@@ -273,3 +273,15 @@ test('a key held across a map reload cannot confirm or drive through orphan repe
  send('keydown','KeyW',true);assert.equal(input.poll().throttle,0);
  send('keyup','KeyW');send('keydown','KeyW');assert.equal(input.poll().throttle,1);
 });
+
+test('quick menu arrow taps survive between render frames without steering the car',()=>{
+ const target=new EventTarget();
+ Object.defineProperty(globalThis,'window',{value:target,configurable:true});
+ Object.defineProperty(globalThis,'navigator',{value:{getGamepads:()=>[]},configurable:true});
+ const input=new Input();input.context='menu';
+ for(const [code,axis,expected] of [['ArrowDown','atlasMoveY',1],['ArrowUp','atlasMoveY',-1],['ArrowRight','atlasMoveX',1],['ArrowLeft','atlasMoveX',-1]] as const){
+  for(const type of ['keydown','keyup']){const e=new Event(type);Object.defineProperty(e,'code',{value:code});target.dispatchEvent(e);}
+  const tap=input.poll();assert.equal(tap[axis],expected);assert.equal(tap.steer,0);assert.equal(tap.throttle,0);
+  assert.equal(input.poll()[axis],0,'A tap is consumed once');
+ }
+});
