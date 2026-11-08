@@ -147,7 +147,10 @@ test('every listed district labels its places with their own names; only Cerea k
   const html=atlas.atlasMarkup('map');
   const shown=[...html.matchAll(/class="atlas-place-label"[^>]*>([^<]*)<\/text>/g)].map(m=>m[1]);
   const xml=(s:string)=>s.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
-  assert.deepEqual(shown,context.landmarks.map(place=>xml(atlasLabel(place).toUpperCase())),`${town.id}: atlas labels`);
+  if(atlas.townModes){
+   const local=atlas.sheets.flatMap(sheet=>{atlas.setAtlasSheet(sheet.id);return [...atlas.atlasMarkup('map').matchAll(/class="atlas-place-label"[^>]*>([^<]*)<\/text>/g)].map(m=>m[1]);});
+   assert.deepEqual([...new Set(local)].sort(),[...new Set(context.landmarks.map(place=>xml(atlasLabel(place).toUpperCase())))].sort(),`${town.id}: every place keeps its name on its town map`);
+  }else assert.deepEqual(shown,context.landmarks.map(place=>xml(atlasLabel(place).toUpperCase())),`${town.id}: atlas labels`);
   // Distinct places never share a label.
   const byLabel=new Map<string,Set<string>>();for(const place of context.landmarks){const label=atlasLabel(place);byLabel.set(label,(byLabel.get(label)??new Set()).add(place.name));}
   for(const [label,names] of byLabel)assert.equal(names.size,1,`${town.id}: ${label} names ${[...names].join(', ')}`);

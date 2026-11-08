@@ -4,6 +4,9 @@ import type {DirectionRow} from './directions';
 import {townSignName} from './placeNames';
 import {createSigns} from './signs';
 import type {RoadsideBoard} from './streaming/schema';
+import {createDestinationGuide} from './destinationBoards';
+import {roadWidth} from './district';
+import type {Bounds} from './schema';
 
 const major=(road:Road)=>['trunk','primary','secondary','tertiary'].includes(road.roadClass??'');
 const through=(road:Road)=>['trunk','primary','secondary'].includes(road.roadClass??'');
@@ -17,7 +20,48 @@ function createBoardPresentation(context:District){
  // Areas can also be neighbourhoods or prototype countryside, not towns.
  const townIds=new Set(context.district.taxi?.stops.map(s=>s.townId).filter(Boolean));
  const regional=towns.length>1&&(townIds.size>1||Boolean(context.district.gateways?.length));
- const {boardIsClear}=createSigns(context);
+ const {boardIsClear,planApproachBoard}=createSigns(context);
+ const guide=context.district.taxi?.endless?createDestinationGuide(context):undefined;
+ const localPlans=new Map<string,RoadsideBoard[]>();
+ const localJunctions=guide?context.nodes.filter(n=>{
+  const links=context.adjacency.get(n.id)??[];
+  // Existing surveyed boards already own crossings between named major roads.
+  return links.length>=3&&new Set(links.filter(r=>['primary','secondary','tertiary'].includes(r.roadClass??'')).map(r=>r.name)).size<2;
+ }):[];
+ function additional(bounds:Bounds):RoadsideBoard[]{
+  if(!guide)return [];
+  const result=new Map<string,RoadsideBoard>();
+  for(const place of context.landmarks){
+   if(place.x<bounds.minX-320||place.x>bounds.maxX+320||place.z<bounds.minZ-320||place.z>bounds.maxZ+320)continue;
+   let plans=localPlans.get(place.id);
+   if(!plans){
+    plans=[];
+    const candidates=localJunctions.filter(n=>Math.hypot(n.x-place.x,n.z-place.z)<=220).sort((a,b)=>Math.hypot(a.x-place.x,a.z-place.z)-Math.hypot(b.x-place.x,b.z-place.z));
+    for(const node of candidates){
+     const links=context.adjacency.get(node.id)??[];
+     for(const incoming of [...links].sort((a,b)=>Number(major(b))-Number(major(a)))){
+      if(roadWidth(incoming)<5||incoming.oneWay&&incoming.b!==node.id)continue;
+      const approach=incoming.a===node.id?incoming.b:incoming.a;
+      const nearby=guide(node.id,approach,place.id).filter(r=>r.kind==='landmark'),target=nearby.find(r=>r.destinationId===place.id||r.destinationIds?.includes(place.id));
+      if(!target||Math.abs(target.turnAngle??0)<.45)continue;
+      const rows=[target,...nearby.filter(r=>r!==target)].slice(0,2).sort((a,b)=>a.turnAngle!-b.turnAngle!);
+      const plan=planApproachBoard(node.id,approach,rows);if(!plan)continue;
+      if(plans.some(p=>p.junctionId===node.id&&p.approachId===approach))continue;
+      plans.push({...plan,color:'#6b5739'});if(plans.length===2)break;
+     }
+     if(plans.length===2)break;
+    }
+    localPlans.set(place.id,plans);
+   }
+   for(const plan of plans){
+    const p=plan.position;if(p.x<bounds.minX||p.x>=bounds.maxX||p.z<bounds.minZ||p.z>=bounds.maxZ)continue;
+    const key=`${plan.junctionId}:${plan.approachId}`,old=result.get(key);
+    if(!old)result.set(key,{...plan,rows:[...plan.rows]});
+    else for(const row of plan.rows)if(old.rows.length<2&&typeof row!=='string'&&!old.rows.some(r=>typeof r!=='string'&&r.destinationId===row.destinationId))old.rows.push(row);
+   }
+  }
+  return [...result.values()];
+ }
  let destinations:{name:string;area:typeof towns[number];costs:Map<string,number>}[]|undefined;
  const results=new Map<string,DirectionRow[]>();
  function townRows(junctionId:string,approachId:string){
@@ -49,8 +93,13 @@ function createBoardPresentation(context:District){
   const rows=selected.slice(0,3).map(c=>c.row).sort((a,b)=>['left','straight','right'].indexOf(a.direction)-['left','straight','right'].indexOf(b.direction));
   results.set(key,rows);return rows;
  }
- return (board:RoadsideBoard):RoadsideBoard|undefined=>{
+ const present=(board:RoadsideBoard):RoadsideBoard|undefined=>{
   if(context.district.id==='harbor'||!board.junctionId||!board.approachId)return board;
+  if(guide){
+   const rows=guide(board.junctionId,board.approachId);if(!rows.length)return;
+   const width=[5.6,5,4.2,3.6,board.width].find(width=>width<=board.width||boardIsClear({...board,width}))!;
+   return {...board,rows,width,height:rows.length>3?4:3.4,color:regional?'#234b72':'#6b5739'};
+  }
   if(regional){
    const rows=townRows(board.junctionId,board.approachId);if(!rows.length)return;
    const width=[5.6,5,4.2,3.6,board.width].find(width=>width<=board.width||boardIsClear({...board,width}))!;
@@ -66,4 +115,5 @@ function createBoardPresentation(context:District){
   if(!rows.length)return;
   return {...board,rows,width:Math.min(board.width,2.2),height:2.4};
  };
+ return Object.assign(present,{additional});
 }

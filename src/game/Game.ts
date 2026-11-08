@@ -80,6 +80,7 @@ class Game {
   private demoTown?:string;
   private previousTime = 0;
   private accumulator = 0;
+  private atlasRendered=false;
   private districtSwitchReady = false;
   private ignorePauseUntil = 0;
   private missionRevision = -1;
@@ -163,6 +164,7 @@ class Game {
   }
 
   private resize() {
+    this.atlasRendered=false;
     const width = window.innerWidth,
       height = window.innerHeight;
     const ratio=window.devicePixelRatio||1,gl=this.renderer.getContext();
@@ -496,6 +498,7 @@ class Game {
       }
       if (actions.atlas && this.screen === "running") {
         if (this.parking.stopped && this.car.speed === 0) {
+          this.hud.prepareAtlas(this.car);
           this.screen = "atlas";
           this.accumulator = 0;
           this.releaseMouseLook();
@@ -567,12 +570,16 @@ class Game {
     this.people.update(this.mission,this.world.frame,this.car);
     this.interior.setPassenger(this.mission.seatedIdentity);
     this.interior.update({...this.car,...this.world.frame.toLocal(this.car)},this.motion.roll,this.motion.pitch,this.motion.wobble);
-    const renderStart=context.profile.start();
     if(this.renderedPicture!==this.pictureMode)this.resize();
-    this.interior.renderMirrors(this.renderer,this.world.scene,dt);
-    if(isRetro(this.pictureMode))this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
-    else this.renderer.render(this.world.scene, this.cockpit.camera);
-    context.profile.end("render",renderStart);
+    // The atlas freezes the scene. Keep its last background frame instead of
+    // spending three 3D passes on it while the reader pans and zooms the paper.
+    if(this.screen!=='atlas'||!this.atlasRendered){
+      const renderStart=context.profile.start();
+      this.interior.renderMirrors(this.renderer,this.world.scene,dt);
+      if(isRetro(this.pictureMode))this.retro.render(this.renderer,this.world.scene,this.cockpit.camera);
+      else this.renderer.render(this.world.scene, this.cockpit.camera);
+      context.profile.end("render",renderStart);this.atlasRendered=this.screen==='atlas';
+    }
     if(this.timingPanel&&time>=this.timingRefresh){this.timingRefresh=time+500;this.timingPanel.textContent=context.profile.text()+(this.world instanceof StreamingWorld?`\ntiles: ${this.world.stream.resident.size} resident · ${this.world.stream.stats.loads} loads / ${this.world.stream.stats.unloads} unloads`:"");}
   }
 }

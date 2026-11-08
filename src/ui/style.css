@@ -1033,3 +1033,8 @@ h1 { letter-spacing:0; line-height:1.05; }
 
 #rest-overlay { position:absolute;inset:0;z-index:60;display:grid;place-items:center;background:#050911f5;color:var(--cream);font:26px Vice,monospace;pointer-events:auto; }
 #rest-overlay[hidden] { display:none; }
+
+.atlas-mode-navigation { display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid #9d9f87;background:#e5e3c8; }
+.atlas-mode-navigation button { padding:7px 10px;font-size:18px; }
+.atlas-mode-navigation button[aria-pressed=true] { background:#405e51;color:#f4ecd4; }
+.atlas-mode-navigation strong { margin-left:auto;font-size:18px; }

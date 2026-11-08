@@ -174,6 +174,7 @@ class World {
       const board=roadsideBoards(context)({...plan,color:'#31594e'});
       if(board)signpost(scene,board.position.x,board.position.z,board.rows,board.angle,board.color,board.width,board.height);
     }
+    for(const board of roadsideBoards(context).additional(district.bounds))signpost(scene,board.position.x,board.position.z,board.rows,board.angle,board.color,board.width,board.height);
     const noEntry=planVittoriaNoEntrySign();
     if(noEntry)signpost(scene,noEntry.position.x,noEntry.position.z,["SENSO VIETATO","V.LE VITTORIA"],noEntry.angle,"#943f37",noEntry.width,noEntry.height);
     for(const plan of planEdgeSigns())signpost(scene,plan.position.x,plan.position.z,[plan.boundary?"FINE ZONA":"STRADA CHIUSA","TORNA INDIETRO"],plan.angle,"#755e46",plan.width,plan.height);

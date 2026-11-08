@@ -40,7 +40,7 @@ function harness(data:unknown=contextHarbor,maps?:{id:string;name:string;hidden?
   cockpit:{update:noop,camera:{}},interior:{update:noop,renderMirrors:noop,setPassenger:noop},sound:{update:noop,unlock:noop,state:'running'},radio:{update:noop,next:()=>radioSkips++,playable:true,summary:'1/2 Test'},motion:new BodyMotion(),
   settings:{...defaults},settingsPanel:{update:()=>false},
   hud:{setHint:noop,confirmAtlasPosition:()=>markers++,setAtlasInformation:noop,show:noop,update:noop,setTaxiMessage:noop,
-   turnAtlasPage:noop,controlAtlasView:noop,moveAtlasCursor:noop,placeAtlasMarker:()=>estimates++,removeAtlasMarker:noop,refresh:noop,setFareSelection:noop,remindMission:noop,setSound:noop},
+   prepareAtlas:noop,turnAtlasPage:noop,controlAtlasView:noop,moveAtlasCursor:noop,placeAtlasMarker:()=>estimates++,removeAtlasMarker:noop,refresh:noop,setFareSelection:noop,remindMission:noop,setSound:noop},
  });
  game.parking.update(1,game.car,0);
  return {game,step:(next:Partial<Actions>={},dt=100)=>{actions={...idle,...next};clock+=dt;game.frame(clock);},markers:()=>markers,estimates:()=>estimates,radioSkips:()=>radioSkips};
@@ -225,4 +225,14 @@ test('leaving the demo destroys autonomous control before a fresh player handoff
  for(let i=0;i<100;i++)h.step();
  assert.equal(botUpdates,0);assert.deepEqual([g.car.x,g.car.z,g.car.heading],playerPose,'No autonomous movement remains during play');
  h.step({throttle:1});assert.ok(g.car.speed>0,'Only player input accelerates the fresh car');
+});
+
+test('atlas controls remain live without repeatedly rendering the frozen 3D scene and mirrors',()=>{
+ const h=harness(),g=h.game as any;let draws=0,mirrors=0;
+ g.retro.render=()=>draws++;g.interior.renderMirrors=()=>mirrors++;
+ h.step();h.step({atlas:true});const frozenDraws=draws;
+ for(let i=0;i<20;i++)h.step();
+ assert.equal(draws,frozenDraws);assert.equal(mirrors,frozenDraws);
+ h.step({interact:true});assert.equal(h.estimates(),1,'Paper controls do not depend on 3D redraws');
+ h.step({back:true});assert.ok(draws>frozenDraws,'Leaving the atlas immediately redraws the drive');
 });

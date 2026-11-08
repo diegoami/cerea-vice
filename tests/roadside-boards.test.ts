@@ -4,7 +4,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import harbor from '../public/maps/harbor.json';
 import {District} from '../src/world/district';
 import {roadsideBoards} from '../src/world/roadsideBoards';
-import {townSignName} from '../src/world/placeNames';
+import {directionsName,townSignName} from '../src/world/placeNames';
 import {mapSignature} from '../src/game/Save';
 import {createSigns} from '../src/world/signs';
 import type {RoadsideBoard} from '../src/world/streaming/schema';
@@ -27,20 +27,33 @@ test('the unified world promotes towns on its existing clear board sites without
  const {boardIsClear}=createSigns(context);
  const source=[...boards('lower-verona'),...boards('verona-plain')],before=JSON.stringify(source);
  const names=new Set(context.district.areas.filter(a=>Math.min(a.width,a.depth)>=600).map(a=>townSignName(a).toUpperCase()));
- const shown=new Set<string>();let count=0,removed=0;
+ const shown=new Set<string>(),places=new Set(context.landmarks.map(p=>directionsName(p).toUpperCase())),shownPlaces=new Set<string>();let count=0,removed=0;
  for(const board of source.filter(b=>b.junctionId)){
   const result=present(board);if(!result){removed++;continue;}count++;
   assert.equal(result.color,'#234b72');assert.ok(result.width<=5.6);assert.equal(result.angle,board.angle);assert.deepEqual(result.position,board.position);
   if(result.width>board.width)assert.ok(boardIsClear(result),'Enlarged boards must still clear streets and buildings');
-  for(const row of result.rows){assert.ok(typeof row!=='string');assert.ok(names.has(row.text),row.text);assert.equal(row.detail,'');shown.add(row.text);}
+  for(const row of result.rows){assert.ok(typeof row!=='string');assert.ok(Number.isFinite(row.turnAngle));if(row.kind==='town'){assert.ok(names.has(row.text),row.text);assert.equal(row.detail,'');shown.add(row.text);}else{if(row.destinationIds){for(const id of row.destinationIds){const place=context.landmarks.find(p=>p.id===id);assert.ok(place);shownPlaces.add(directionsName(place).toUpperCase());}}else{const name=[row.text,row.detail].filter(Boolean).join(' ');assert.ok(places.has(name),name);shownPlaces.add(name);}}}
  }
- assert.ok(count>100);assert.ok(removed>0);assert.ok(shown.size>=8);assert.ok(source.some(b=>b.rows.some(row=>typeof row==='string'&&row.includes('OPPEANO'))),'The Oppeano corridor retains its dedicated town boards');assert.equal(JSON.stringify(source),before);assert.equal(mapSignature(context),signature);
+ assert.ok(count>100);assert.ok(removed>0);assert.ok(shown.size>=8);assert.ok(shownPlaces.size>=10,'Landmark directions accompany the inter-town exits');assert.ok(source.some(b=>b.rows.some(row=>typeof row==='string'&&row.includes('OPPEANO'))),'The Oppeano corridor retains its dedicated town boards');assert.equal(JSON.stringify(source),before);assert.equal(mapSignature(context),signature);
  for(const board of source.filter(b=>!b.junctionId))assert.equal(present(board),board,'Place, gateway, parking and facade signs remain intact');
 });
-test('single-city street boards are compact and limited to through-road junctions; name plates stay in the tiles',()=>{
+test('single-city destination boards point to mapped landmarks while street-name plates stay on their roads',()=>{
  const context=new District(read('public/maps/london-westminster/manifest.json')),source=boards('london-westminster').filter(b=>b.junctionId),present=roadsideBoards(context);
- const kept=source.map(present).filter(b=>b!==undefined);assert.ok(kept.length<source.length/2,`${kept.length}/${source.length}`);
- for(const board of kept){assert.ok(board.width<=2.2);assert.equal(board.height,2.4);}
+ const kept=source.map(present).filter(b=>b!==undefined);assert.ok(kept.length>0&&kept.length<=source.length,`${kept.length}/${source.length}`);
+ assert.ok(kept.some(b=>b.rows.some(r=>typeof r!=='string'&&r.kind==='landmark')));
+ for(const board of kept){assert.ok(board.width<=5.6);assert.ok(board.rows.every(r=>typeof r!=='string'&&r.kind));}
  const tiles=readdirSync('public/maps/london-westminster/tiles').map(file=>read(`public/maps/london-westminster/tiles/${file}`));
  assert.ok(tiles.reduce((n,t)=>n+t.plates.length,0)>100);
+});
+
+test('additional local landmark boards supplement main-road signs without covering buildings or carriageways',()=>{
+ const context=new District(read('public/maps/veronese/manifest.json')),present=roadsideBoards(context),signature=mapSignature(context);
+ const plans=present.additional(context.district.bounds);assert.ok(plans.length>0&&plans.length<=context.landmarks.length*2);
+ const {boardIsClear}=createSigns(context);const named=new Set<string>();
+ for(const plan of plans){assert.ok(boardIsClear(plan));assert.equal(plan.color,'#6b5739');assert.ok(plan.rows.length<=2);for(const row of plan.rows){assert.ok(typeof row!=='string'&&row.kind==='landmark');for(const id of row.destinationIds??[row.destinationId!])named.add(id);}}
+ assert.ok(named.size>=15,'Local junctions provide directions beyond the main through-road boards');
+ const covered=new Set(named);for(const raw of [...boards('lower-verona'),...boards('verona-plain')])for(const row of present(raw)?.rows??[])if(typeof row!=='string'&&row.kind==='landmark')for(const id of row.destinationIds??[row.destinationId!])covered.add(id);
+ assert.equal(covered.size,context.landmarks.length,'Every mapped landmark has a public direction cue, including co-located civic destinations');
+ assert.equal(mapSignature(context),signature);
+ console.info({additionalLandmarkBoards:plans.length,landmarks:named.size});
 });

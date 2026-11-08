@@ -6,6 +6,11 @@ map server at play time, or local-only file is needed. The normal chooser shows 
 without `hidden: true`; older prototype/component maps can remain hidden. Veronese
 stays the default unless an author deliberately requests `--default`.
 
+Registered maps ship in the next website or full desktop build. An already-installed
+desktop client has no separate map-ZIP/folder importer yet. Creating a map in a cloud
+session therefore means producing and checking in its complete repository assets,
+then obtaining an updated game build after the owner's merge.
+
 Start a cloud task with a prompt such as:
 
 > Add a selectable map of central Kyoto, Japan, with real streets and at least three
@@ -53,6 +58,11 @@ Edit the generated spec:
 - Set `townName` to the actual town (for example London), while `name` may identify
   the smaller map (London Westminster). Choose `drivingSide` correctly. New scaffolds
   use continuous taxi service, local metric scale and tiled delivery.
+- Preserve distinct town identities and accurate town extents. Continuous-service
+  imports generate stop `townId`/`town` fields; regional builds retain each component.
+  These drive the one-town atlas drawings and public direction signs to legal town
+  entrances. Landmark signs use their real stopping nodes and available clear verges.
+  Atlas browsing uses resident static data and needs no online mapping API.
 - Keep river/railway connections, bridge tags, one-way directions and street-name
   ownership meaningful. Review non-Latin glyph readability in the target browser;
   if a font is needed, include a suitably licensed offline asset and its licence.

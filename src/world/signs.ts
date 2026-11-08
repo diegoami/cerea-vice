@@ -93,6 +93,18 @@ function planJunctionSigns():{signs:RoadSignPlan[];missing:string[]} {
   }
   return {signs,missing};
 }
+/** A compact local destination board at a real approach, without rewriting tile/map data. */
+function planApproachBoard(junctionId:string,approachId:string,rows:DirectionRow[]):RoadSignPlan|undefined{
+  const incoming=(context.adjacency.get(junctionId)??[]).find(r=>r.a===approachId||r.b===approachId);if(!incoming)return;
+  const path=approachPoints(junctionId,incoming),available=path.slice(1).reduce((sum,p,i)=>sum+distance(path[i],p),0);
+  for(const width of [4.2,3.6,3])for(const side of [1,-1])for(const setback of [10,14,18,6,22,4]){
+    if(setback>available-1)continue;const {point,dx,dz}=pointBack(path,setback);
+    for(const extra of [.5,1.5,3,5]){
+      const offset=roadWidth(incoming)/2+width/2+extra,plan={junctionId,approachId,position:{x:point.x-dz*offset*side,z:point.z+dx*offset*side},angle:Math.atan2(-dx,-dz),width,height:2.8,rows};
+      if(boardIsClear(plan))return plan;
+    }
+  }
+}
 /** One P sign per bay where one fits; a bay with no clear spot (in a dense centre) keeps only its markings. */
 function planParkingSigns():{zoneId:string;position:Point;angle:number;width:number;height:number;label:string}[] {
   return district.parkingZones.flatMap(zone=>{
@@ -192,5 +204,5 @@ function planGatewaySigns():{position:Point;angle:number;width:number;height:num
   }
   return result;
 }
-return {isMajorRoad,boardPoints,boardIsClear,planJunctionSigns,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,planPlaceSigns,planGatewaySigns};
+return {isMajorRoad,boardPoints,boardIsClear,planJunctionSigns,planApproachBoard,planParkingSigns,planVittoriaNoEntrySign,planEdgeSigns,planPlaceSigns,planGatewaySigns};
 }
