@@ -69,7 +69,7 @@ try {
  $clock=Js "document.querySelector('#timer').textContent"
  Start-Sleep -Milliseconds 700
  if((Js "document.querySelector('#timer').textContent") -ne $clock){throw 'Windows rules did not freeze time'}
- Js "Math.random=(()=>{const values=[.68,.1,.4];return()=>values.shift()??.37})();document.querySelector('.briefing-main button').click()" | Out-Null
+ Js "Math.random=(()=>{const values=[.68,.1,.4];return()=>values.shift()??.37})();document.querySelector('.briefing-main > button').click()" | Out-Null
  Start-Sleep -Milliseconds 700
  $fresh=Js "({opening:!!document.querySelector('#opening'),stage:document.querySelector('#objective-stage').textContent,money:document.querySelector('#taxi-status').textContent,startHint:document.querySelector('#hint').textContent,save:localStorage.getItem('cerea-save-veronese')})"
  if($fresh.opening -or $fresh.stage -notmatch 'FREE DRIVING' -or $fresh.money -notmatch '0.00' -or $fresh.save -ne 'Windows isolation sentinel'){throw ('Windows handoff failed: '+($fresh|ConvertTo-Json -Compress))}

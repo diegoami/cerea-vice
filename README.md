@@ -40,11 +40,19 @@ destinations at crossings, while street names remain on small plates.
 **Start** freezes it for rules and current controls. **Begin game** discards the demo and starts
 fresh once held controls are released. The instructions retain settings
 and **Continue saved game**; the demo never saves or changes your dispatch history.
+World selection appears above the rules and controls. Use the controller D-pad or left stick to
+highlight a world or Begin game, and A to confirm. Keyboard left/right and Enter
+also work. Changing worlds returns directly to
+its frozen rules screen; it never puts the bot back in control. Begin game remains
+a separate confirmation.
 The driving header shows only the current goal’s landmark, town and street, with earnings
 beside the clock. Taxi-radio updates stay brief at stops and disappear in motion. The
 demo badge reads `DEMO  MODE`.
-Scroll the instructions with arrows, Page Up/Down, the wheel, touch swipe or the controller's
-right stick. Driving supports keyboard/mouse and standard controllers; touch is for menus.
+Navigate opening choices with arrow keys, controller D-pad or left stick; Enter / A
+confirms. Scroll the instructions with Page Up/Down, the wheel, touch swipe or the
+controller's right stick. Atlas arrows move its crosshair or highlight street-index
+entries; Enter / A looks up the selected street without moving your position marker.
+Driving supports keyboard/mouse and standard controllers; touch is for menus.
 Use `npm run test:browser` for the production browser opening and
 `npm run test:windows-opening` on WSL/Windows for a disposable native Windows check.
 See [opening implementation and checks](docs/OPENING.md).

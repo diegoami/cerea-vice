@@ -34,6 +34,10 @@ export async function checkOpening(page,resize,label,district='cerea'){
  assert.equal(await page.locator('#timer').innerText(),frozen,'Rules freeze the demo clock');
  await page.keyboard.up('Enter');
  for(const [w,h] of [[960,640],[1440,900]]){await resize(w,h);await page.screenshot({path:`test-results/opening-${label}-rules-${w}.png`});}
+ if(district==='veronese'){
+  await page.keyboard.press('ArrowDown');await page.waitForFunction(()=>document.activeElement?.getAttribute('data-district')==='london-westminster');
+  await page.keyboard.press('ArrowUp');await page.waitForFunction(()=>document.activeElement?.getAttribute('data-district')==='veronese');
+ }
  await page.keyboard.press('End');assert.ok(await page.locator('#overlay').evaluate(e=>e.scrollTop)>100,'Keyboard scrolls the instructions');
  await page.keyboard.press('Home');
  await page.evaluate(()=>{window.openingPad={connected:true,mapping:'standard',axes:[0,0,0,1],buttons:Array.from({length:17},()=>({value:0}))};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.openingPad]});});
@@ -61,6 +65,11 @@ export async function checkOpening(page,resize,label,district='cerea'){
  const top=await page.locator('#overlay').evaluate(e=>e.scrollTop);
  await page.keyboard.press('End');assert.equal(await page.locator('#overlay').evaluate(e=>e.scrollTop),top,'Opening key listener has been removed');
  await page.locator('#stream-status').waitFor({state:'hidden'});
+ const idleHeading=await page.locator('#heading').innerText();
+ await page.waitForTimeout(5000);
+ assert.match(await page.locator('#objective-stage').innerText(),/FREE DRIVING/,'The bot cannot book work after handoff');
+ assert.equal(await page.locator('#speed').innerText(),'00','Fresh player car stays still without input');
+ assert.equal(await page.locator('#heading').innerText(),idleHeading,'No autonomous steering survives handoff');
  await page.keyboard.down('w');await page.waitForTimeout(1200);await page.keyboard.up('w');
  assert.doesNotMatch(await page.locator('#stop-state').innerText(),/STOP/,'Fresh player controls drive the car');
  assert.equal(await page.locator('#prompt').isHidden(),true,'Travel does not repeat stopped-control instructions');

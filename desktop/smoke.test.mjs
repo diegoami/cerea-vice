@@ -14,8 +14,8 @@ const _electron={async launch(options){
   if(attached!==page){
    attached=page;let preparing;
    const rules=()=>preparing??=(async()=>{
-    await page.waitForFunction(()=>document.querySelector('#opening button')||document.querySelector('.fatal h1')?.textContent.startsWith('Unable'),null,{timeout:180000});
-    if(await page.locator('#opening button').count())await page.getByRole('button',{name:'Start',exact:true}).click({timeout:180000});
+    await page.waitForFunction(()=>document.querySelector('#opening:not([hidden]) button')||document.querySelector('.briefing-main > button')||document.querySelector('.fatal h1')?.textContent.startsWith('Unable'),null,{timeout:180000});
+    if(await page.locator('#opening:not([hidden]) button').count())await page.getByRole('button',{name:'Start',exact:true}).click({timeout:180000});
    })().catch(error=>{if(!page.isClosed())throw error;}).finally(()=>preparing=undefined);
    page.on('domcontentloaded',()=>void rules());await rules();
   }
@@ -48,11 +48,11 @@ const clippedText=page=>page.evaluate(()=>{
   }
   return bad;
 });
-/** Screens explain actions, never bindings: the full mapping lives under Change controls (#93). */
+/** Gameplay screens omit bindings; opening rules and world-choice guidance are deliberate exceptions. */
 const mappingText=/\b[ABXY] \/ (Cross|Circle|Square|Triangle|Enter)\b|\b(LB|RB|RT|LT|R3|L3)\b|D-pad|(Left|Right) stick|\bEsc(ape)? \/|\/ START|ENTER TO|\bpress [A-Z0-9]\b(?! key)/i;
 async function assertNoMappingText(page,where){
   for(const selector of ['#overlay','#prompt','#hint','#objective-title','.dashboard']){
-    const text=await page.locator(selector).first().evaluate(element=>{if(element.offsetParent===null&&getComputedStyle(element).position!=='fixed')return '';const copy=element.cloneNode(true);copy.querySelectorAll('.opening-instructions').forEach(node=>node.remove());return copy.textContent;});
+    const text=await page.locator(selector).first().evaluate(element=>{if(element.offsetParent===null&&getComputedStyle(element).position!=='fixed')return '';const copy=element.cloneNode(true);copy.querySelectorAll('.opening-instructions,.world-choice').forEach(node=>node.remove());return copy.textContent;});
     assert.doesNotMatch(text,mappingText,`${where}: ${selector} names no bindings`);
   }
 }
@@ -730,7 +730,7 @@ test('picture quality is labelled, saved, keyboard/controller selectable and fol
    Object.defineProperty(navigator,'getGamepads',{value:()=>[window.qualityPad],configurable:true});});
   for(const key of ['detail','resolution']){
    await page.evaluate(()=>{window.qualityPad.buttons[13].value=1;});
-   await page.waitForFunction(key=>document.querySelector(`[data-key=${key}]`).classList.contains('controller-selected'),key);
+   await page.waitForFunction(key=>document.activeElement===document.querySelector(`[data-key=${key}]`),key);
    await page.evaluate(()=>{window.qualityPad.buttons[13].value=0;});await frames(page);
   }
   await page.evaluate(()=>{window.qualityPad.buttons[0].value=1;});
@@ -788,6 +788,7 @@ test('restricted storage and keyboard settings preserve startup and resume contr
  try{
   const page=await app.firstWindow();
   await page.getByRole('button',{name:'Begin game'}).waitFor();
+  await page.getByRole('button',{name:'Begin game'}).click();await page.locator('#overlay').waitFor({state:'hidden'});
   for(const key of ['ArrowDown','s','ArrowUp','w']){
    if(await page.locator('#overlay').isHidden()){
     await page.keyboard.press('p');await page.getByRole('button',{name:'Back to the road'}).waitFor();

@@ -207,3 +207,22 @@ test('the bot rests between night jobs and performs no dispatch or boarding whil
  h.step({},100);assert.equal(dispatch,0,'Sleep must freeze discrete interactions too, not only driving physics');assert.equal(g.mission.earningsCents,2000);
  g.sleepUntil=0;h.step({},100);assert.equal(dispatch,1);assert.equal(g.restOverlay.hidden,true);
 });
+
+test('leaving the demo destroys autonomous control before a fresh player handoff',()=>{
+ const h=harness(),g=h.game as any;
+ let confirmed=false,disposed=0,botUpdates=0;
+ Object.defineProperty(globalThis,'document',{configurable:true,value:{pointerLockElement:null,querySelector:(selector:string)=>selector==='.opening-instructions'?{dataset:{bindings:JSON.stringify(defaultBindings)}}:null}});
+ g.opening={state:'rules',update:()=>confirmed,navigateRules:()=>false,refreshButton:()=>{},dispose:()=>disposed++};
+ g.demo={update:()=>{botUpdates++;return {...idle,throttle:1,steer:1};}};
+ g.cockpit.reset=()=>{};g.hud.resetAtlasNotes=()=>{};
+ g.mission.elapsed=30;g.car.x+=20;
+ const demoPose=[g.car.x,g.car.z];
+ h.step();assert.equal(g.demo,undefined,'Start discards the bot while the rules are still open');
+ assert.equal(botUpdates,0);assert.equal(g.mission.elapsed,30);assert.deepEqual([g.car.x,g.car.z],demoPose);
+ confirmed=true;h.step();assert.equal(disposed,1);assert.equal(g.opening,undefined);assert.equal(g.hasStarted,true);
+ assert.equal(g.screen,'running');assert.ok(g.mission.elapsed<.2,'Begin resets demo progress');
+ const playerPose=[g.car.x,g.car.z,g.car.heading];
+ for(let i=0;i<100;i++)h.step();
+ assert.equal(botUpdates,0);assert.deepEqual([g.car.x,g.car.z,g.car.heading],playerPose,'No autonomous movement remains during play');
+ h.step({throttle:1});assert.ok(g.car.speed>0,'Only player input accelerates the fresh car');
+});

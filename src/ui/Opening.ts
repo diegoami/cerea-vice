@@ -12,7 +12,9 @@ export class Opening {
   private readonly pointers=new Set<number>();
   private readonly button=document.createElement('button');
   private readonly badge=document.createElement('div');
-  constructor(root:HTMLElement,private context:District,private bindings:Bindings){
+  private worldMoveDelay=0;
+  private worldMove=0;
+  constructor(root:HTMLElement,private context:District,private bindings:Bindings,rules=false){
     this.element.id='opening';this.badge.className='demo-label';this.badge.textContent='DEMO  MODE';
     this.button.type='button';this.button.className='opening-start';this.button.textContent='Start';this.button.disabled=true;
     this.button.addEventListener('click',()=>this.activate(),{signal:this.events.signal});
@@ -21,10 +23,11 @@ export class Opening {
     for(const name of ['pointerup','pointercancel'] as const)window.addEventListener(name,e=>this.pointers.delete(e.pointerId),{signal:this.events.signal});
     window.addEventListener('keydown',e=>{
       if(this.state!=='rules'||(e.target as HTMLElement).closest('.presentation-settings,.controls-settings'))return;
-      const amounts:Record<string,number>={ArrowDown:45,ArrowUp:-45,PageDown:250,PageUp:-250,Home:-Infinity,End:Infinity};
+      const amounts:Record<string,number>={PageDown:250,PageUp:-250,Home:-Infinity,End:Infinity};
       if(e.code in amounts){e.preventDefault();const view=document.querySelector<HTMLElement>('#overlay')!;view.scrollTop=e.code==='Home'?0:e.code==='End'?view.scrollHeight:view.scrollTop+amounts[e.code];}
     },{signal:this.events.signal});
     this.element.append(this.badge,this.button);root.append(this.element);
+    if(rules){this.state='rules';this.badge.hidden=true;this.element.hidden=true;}
   }
   activate(){
     if(!this.ready)return;
@@ -33,7 +36,7 @@ export class Opening {
       this.state='rules';this.badge.hidden=true;
       this.element.hidden=true;
     }else if(this.state==='rules'){
-      this.state='waiting';const button=document.querySelector<HTMLButtonElement>('.briefing-main button');if(button){button.disabled=true;button.textContent='Release controls to begin…';}
+      this.state='waiting';const button=document.querySelector<HTMLButtonElement>('.briefing-main > button');if(button){button.disabled=true;button.textContent='Release controls to begin…';}
     }
   }
   update(dt:number,actions:Actions,released:boolean){
@@ -45,8 +48,47 @@ export class Opening {
   }
   refreshButton(){
     if(this.state==='demo')return;
-    const button=document.querySelector<HTMLButtonElement>('.briefing-main button');
+    const button=document.querySelector<HTMLButtonElement>('.briefing-main > button');
     if(button){button.disabled=!this.ready||this.state==='waiting';if(this.state==='waiting')button.textContent='Release controls to begin…';}
+  }
+  /** One focus path for controller world choice, Begin game and existing options. */
+  navigateRules(dt:number,actions:Actions,padMove:number,keyboardConfirm:boolean){
+    if(this.state!=='rules')return false;
+    const worlds=Array.from(document.querySelectorAll<HTMLButtonElement>('.district-switch button[data-district]'));
+    const begin=document.querySelector<HTMLButtonElement>('.briefing-main > button');
+    const options=Array.from(document.querySelectorAll<HTMLButtonElement|HTMLSelectElement>('.presentation-settings select,.presentation-settings button:not(:disabled)'));
+    const items:(HTMLButtonElement|HTMLSelectElement)[]=[...worlds,...(begin?[begin]:[]),...options];
+    const active=items.findIndex(item=>item===document.activeElement);
+    const inOptions=active>=0&&options.includes(items[active]);
+    // Native keyboard arrows still edit selects; Enter retains the existing start shortcut.
+    if(inOptions&&keyboardConfirm)return false;
+    this.worldMoveDelay=Math.max(0,this.worldMoveDelay-dt);
+    const axis=padMove||(!inOptions?(actions.atlasMoveX||actions.atlasMoveY):0);
+    const move=Math.abs(axis)>.5?Math.sign(axis):0;
+    if(move!==this.worldMove)this.worldMoveDelay=0;
+    this.worldMove=move;
+    if(move&&this.worldMoveDelay===0&&items.length){
+      const current=worlds.findIndex(b=>b.getAttribute('aria-pressed')==='true');
+      const index=active>=0?active:current>=0?current:move>0?-1:0;
+      const item=items[(index+move+items.length)%items.length];
+      item.focus({preventScroll:true});item.scrollIntoView({block:'nearest'});this.worldMoveDelay=.25;
+    }
+    const focused=items.find(item=>item===document.activeElement);
+    if(focused&&actions.interact){
+      if(this.ready){
+        if(focused===begin)focused.click();
+        else{
+          this.ready=false;
+          if(focused.tagName==='SELECT'){
+            const select=focused as HTMLSelectElement;
+            select.selectedIndex=(select.selectedIndex+1)%select.options.length;
+            select.dispatchEvent(new Event('change',{bubbles:true}));
+          }else focused.click();
+        }
+      }
+      return true;
+    }
+    return Boolean(focused);
   }
   instructions(){
     const {district}=this.context;
@@ -58,7 +100,7 @@ export class Opening {
       <h2>Current keyboard & controller controls</h2><p>Left stick steers. Right stick or captured mouse looks around; click the windshield to capture the mouse. Looking returns forward when idle.</p>
       <table><thead><tr><th>Action</th><th>Keyboard</th><th>Controller</th></tr></thead><tbody>${controlActions.map(a=>`<tr><td>${actionLabels[a]}</td><td>${escape(bindingLabel(this.bindings,a))}</td><td>${a==='steerLeft'||a==='steerRight'?'Left stick':escape(bindingLabel(this.bindings,a,true))}</td></tr>`).join('')}</tbody></table>
       <p>Pause: Esc / P / Start. In fare lists: arrows / left stick / D-pad select, Enter / A accepts, Backspace / B closes, N / Y refreshes. In the atlas: arrows / left stick move the estimate, Enter / A places it, Q / E or LB / RB turn pages; + / −, wheel or triggers zoom; right stick pans; Delete / X clears the marker; T / Esc / B closes.</p>
-      <p>Scroll here with ↑ / ↓, Page Up / Down, mouse wheel, controller right stick, or touch swipe. Touch can operate this opening; driving requires keyboard or a standard controller.</p>
+      <p>Use arrow keys, D-pad or left stick to navigate the opening choices; Enter / A confirms. Scroll the rules with Page Up / Down, mouse wheel, controller right stick, or touch swipe. Touch can operate this opening; driving requires keyboard or a standard controller.</p>
       <p>Begin game starts a fresh session. The options panel offers saved shifts, controls, picture and sound. During play, pause for Save shift or Main screen to choose a district. Your existing manual save is kept until you deliberately save again.</p>`;
   }
 
