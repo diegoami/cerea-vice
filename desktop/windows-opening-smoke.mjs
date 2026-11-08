@@ -54,6 +54,8 @@ try {
   return $reply.result
  }
  function Js($expression){$reply=Cdp 'Runtime.evaluate' @{expression=$expression;returnByValue=$true;awaitPromise=$true};if($reply.exceptionDetails){throw ($reply.exceptionDetails|ConvertTo-Json -Compress)};return $reply.result.value}
+ Cdp 'Emulation.setFocusEmulationEnabled' @{enabled=$true} | Out-Null
+ Js "Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[]})" | Out-Null
  for($attempt=0;$attempt -lt 60;$attempt++){if(Js "Boolean(document.querySelector('#opening button:not(:disabled)'))"){break};Start-Sleep -Milliseconds 250}
  $ready=Js "Boolean(document.querySelector('#opening button:not(:disabled)'))"
  if(-not $ready){throw 'Windows demo did not become ready'}
@@ -88,7 +90,7 @@ try {
  Cdp 'Input.dispatchKeyEvent' @{type='keyDown';key='t';code='KeyT'} | Out-Null
  Cdp 'Input.dispatchKeyEvent' @{type='keyUp';key='t';code='KeyT'} | Out-Null
  Start-Sleep -Milliseconds 700
- $atlasTown=Js "({mode:document.querySelector('.atlas-book')?.dataset.atlasMode,title:document.querySelector('#atlas-title')?.textContent,nodes:document.querySelector('.atlas-map')?.querySelectorAll('*').length,time:document.querySelector('#timer').textContent,marker:document.querySelector('.atlas-pin')?.getAttribute('transform')})"
+ $atlasTown=Js "({mode:document.querySelector('.atlas-book')?.dataset.atlasMode,title:document.querySelector('#atlas-title')?.textContent,nodes:document.querySelector('.atlas-map')?.querySelectorAll('*').length,time:document.querySelector('#timer').textContent,marker:document.querySelector('.atlas-pin')?.getAttribute('transform'),paused:!!document.querySelector('.pause'),stopped:document.querySelector('#stop-state').textContent,sceneryReady:document.querySelector('#stream-status').hidden,focused:document.hasFocus()})"
  if($atlasTown.mode -ne 'town' -or $atlasTown.title -notmatch 'Verona' -or $atlasTown.nodes -gt 1400){throw ('Native town atlas failed: '+($atlasTown|ConvertTo-Json -Compress))}
  $atlasZoom=Js ${literal("(async()=>{const start=performance.now();document.querySelector('[data-atlas-zoom=\"1\"]').click();const handlerMs=performance.now()-start;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {handlerMs,paintMs:performance.now()-start,level:document.querySelector('#atlas-zoom-level').textContent};})()")}
  $shot=Cdp 'Page.captureScreenshot' @{format='png'}
