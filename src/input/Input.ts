@@ -112,7 +112,7 @@ export class Input {
       const matches=(action:ControlAction,fallback:string[])=>this.context==='driving'?this.bindings[action].keys.includes(event.code):fallback.includes(event.code);
       // Preserve quick taps that begin and end between render frames.
       if (!this.keys.has(event.code) && !event.repeat) {
-        if(this.context==='menu'){
+        if(this.context==='menu'||this.context==='atlas'){
           if(['ArrowLeft','KeyA'].includes(event.code))this.queuedMenuX=-1;
           if(['ArrowRight','KeyD'].includes(event.code))this.queuedMenuX=1;
           if(['ArrowUp','KeyW'].includes(event.code))this.queuedMenuY=-1;
@@ -247,9 +247,9 @@ export class Input {
       back: this.queuedBack || (back && !this.previousBack),
       declineOffer: this.context==='menu'&&(this.queuedDeclineOffer || (declineOffer && !this.previousDeclineOffer)),
       atlasPage: this.queuedAtlasPage || (atlasPage !== this.previousAtlasPage ? atlasPage : 0),
-      atlasMoveX: keyboardSteer || (Number(button(15) > 0.5) - Number(button(14) > 0.5)) || deadzone(pad?.axes[0] ?? 0) || (this.context==='menu'?this.queuedMenuX:0),
+      atlasMoveX: keyboardSteer || (Number(button(15) > 0.5) - Number(button(14) > 0.5)) || deadzone(pad?.axes[0] ?? 0) || (this.context!=='driving'?this.queuedMenuX:0),
       atlasMoveY: (Number(down("KeyS", "ArrowDown")) - Number(down("KeyW", "ArrowUp")))
-        || (Number(button(13) > 0.5) - Number(button(12) > 0.5)) || deadzone(pad?.axes[1] ?? 0) || (this.context==='menu'?this.queuedMenuY:0),
+        || (Number(button(13) > 0.5) - Number(button(12) > 0.5)) || deadzone(pad?.axes[1] ?? 0) || (this.context!=='driving'?this.queuedMenuY:0),
       clearMarker: this.queuedClearMarker || (clearMarker && !this.previousClearMarker),
       information: this.queuedInformation || (information && !this.previousInformation),
       requestFares: this.context==='driving'&&(this.queuedRequestFares || (requestFares && !this.previousRequestFares)),
