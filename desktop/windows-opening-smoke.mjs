@@ -1,5 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import {mkdir} from 'node:fs/promises';
+import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 
 // WSL or Windows: exercise the native export in a disposable profile, then close only this instance.
@@ -158,5 +160,10 @@ try {
  for($attempt=0;$attempt -lt 20;$attempt++){try{if(Test-Path $target){Remove-Item -LiteralPath $target -Recurse -Force};break}catch{if($attempt -eq 19){throw};Start-Sleep -Milliseconds 250}}
 }
 `;
-const encoded=Buffer.from(script,'utf16le').toString('base64');
-process.stdout.write(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',encoded],{encoding:'utf8',timeout:120000,maxBuffer:1024*1024}));
+// A file avoids Windows' command-line length limit as native checks grow.
+const scriptDirectory=mkdtempSync(path.join(tmpdir(),'cerea-windows-check-'));
+const scriptFile=path.join(scriptDirectory,'check.ps1');
+try{
+ writeFileSync(scriptFile,'\ufeff'+script,'utf8');
+ process.stdout.write(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',win(scriptFile)],{encoding:'utf8',timeout:120000,maxBuffer:1024*1024}));
+}finally{rmSync(scriptDirectory,{recursive:true,force:true});}

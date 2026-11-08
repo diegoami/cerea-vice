@@ -37,6 +37,7 @@ class Hud {
   private indexSelectDelay = 0;
   private indexSelectDirection = 0;
   private atlasDrawingState?:{map:SVGSVGElement;key:string;labels:{node:SVGTextElement;x:number;z:number;angle:number;left:number;right:number;ascent:number;descent:number;kind:string;street:string}[]};
+  private readonly atlasRasters=new Map<string,string>();
   private atlasDrag?:{id:number;startX:number;startY:number;lastX:number;lastY:number;moved:boolean};
   private suppressAtlasClick = false;
   private atlasPage: AtlasPage = "map";
@@ -253,6 +254,7 @@ class Hud {
   /** Project known label extents instead of repeatedly forcing DOM layout for every street. */
   private updateTownAtlasView(){
     const map=this.overlay.querySelector<SVGSVGElement>('.atlas-map');if(!map)return;
+    this.rasterizeAtlasPaper(map);
     const box=this.atlasView.box;
     const key=[box.x.toFixed(2),box.z.toFixed(2),box.width.toFixed(2),box.height.toFixed(2),this.selectedStreet,innerWidth,innerHeight].join('|');
     let state=this.atlasDrawingState;
@@ -296,9 +298,46 @@ class Hud {
     crosshair?.querySelector('circle')?.setAttribute('r',`${8/scale}`);crosshair?.querySelector('path')?.setAttribute('d',`M ${-12/scale} 0 H ${-4/scale} M ${4/scale} 0 H ${12/scale} M 0 ${-12/scale} V ${-4/scale} M 0 ${4/scale} V ${12/scale}`);
     if(pin)pin.style.strokeWidth=`${1.2/scale}px`;if(crosshair)crosshair.style.strokeWidth=`${1/scale}px`;
     const output=this.overlay.querySelector('#atlas-zoom-level');if(output)output.textContent=`${Math.round(this.atlasView.zoom*100)}%`;
-    const reference=this.overlay.querySelector('#atlas-view-reference');if(reference)reference.textContent=atlasReference(this.atlasView.centre);
+    const reference=this.overlay.querySelector('#atlas-view-reference');if(reference){reference.textContent=atlasReference(this.atlasView.centre);reference.setAttribute('title',reference.textContent);}
     const out=this.overlay.querySelector<HTMLButtonElement>('[data-atlas-zoom="-1"]'),into=this.overlay.querySelector<HTMLButtonElement>('[data-atlas-zoom="1"]');
     if(out)out.disabled=!this.atlasSheet&&this.atlasView.zoom<=1;if(into)into.disabled=this.atlasView.zoom>=8;
+  }
+
+  /** Draw fixed paper once; pan/zoom then moves one image, with crisp live labels above it. */
+  private rasterizeAtlasPaper(map:SVGSVGElement){
+    const geometry=map.querySelector<SVGGElement>('[data-atlas-geometry]');if(!geometry)return;
+    const frame=atlasFrame(),key=this.atlasSheet?`town:${this.atlasSheet.id}`:'region';
+    let url=this.atlasRasters.get(key);
+    try{
+      if(!url){
+        const started=performance.now();
+        const canvas=document.createElement('canvas'),pixels=this.atlasSheet?4096:2048,ratio=pixels/Math.max(frame.width,frame.depth);
+        canvas.width=Math.max(1,Math.round(frame.width*ratio));canvas.height=Math.max(1,Math.round(frame.depth*ratio));
+        const draw=canvas.getContext('2d',{willReadFrequently:true})!;
+        draw.setTransform(canvas.width/frame.width,0,0,canvas.height/frame.depth,-frame.minX*canvas.width/frame.width,-frame.minZ*canvas.height/frame.depth);
+        for(const node of geometry.querySelectorAll<SVGPathElement>('path')){
+          const style=getComputedStyle(node),path=new Path2D(node.getAttribute('d')??'');
+          let alpha=Number(style.opacity);
+          for(let parent=node.parentElement;parent&&parent!==geometry.parentElement;parent=parent.parentElement)alpha*=Number(getComputedStyle(parent).opacity);
+          if(style.fill!=='none'){draw.globalAlpha=alpha*Number(style.fillOpacity);draw.fillStyle=style.fill;draw.fill(path,style.fillRule==='evenodd'?'evenodd':'nonzero');}
+          if(style.stroke!=='none'){
+            draw.globalAlpha=alpha*Number(style.strokeOpacity);draw.strokeStyle=style.stroke;draw.lineWidth=parseFloat(style.strokeWidth);
+            draw.lineCap=style.strokeLinecap as CanvasLineCap;draw.lineJoin=style.strokeLinejoin as CanvasLineJoin;draw.miterLimit=Number(style.strokeMiterlimit);
+            draw.setLineDash(style.strokeDasharray==='none'?[]:style.strokeDasharray.split(/[ ,]+/).map(Number.parseFloat));draw.stroke(path);
+          }
+        }
+        const painted=performance.now();url=canvas.toDataURL('image/png');
+        map.dataset.paperDrawMs=(painted-started).toFixed(1);map.dataset.paperEncodeMs=(performance.now()-painted).toFixed(1);
+        canvas.width=0;canvas.height=0;
+        if(!url.startsWith('data:image/png'))return;
+        this.atlasRasters.set(key,url);
+        if(this.atlasRasters.size>4)this.atlasRasters.delete([...this.atlasRasters.keys()].find(k=>k!=='region'&&k!==key)!);
+      }
+      const image=document.createElementNS('http://www.w3.org/2000/svg','image');
+      image.setAttribute('x',`${frame.minX}`);image.setAttribute('y',`${frame.minZ}`);image.setAttribute('width',`${frame.width}`);image.setAttribute('height',`${frame.depth}`);
+      image.setAttribute('preserveAspectRatio','none');image.setAttribute('href',url);image.setAttribute('aria-hidden','true');image.setAttribute('data-atlas-paper','');
+      geometry.replaceWith(image);map.dataset.rasterReady='true';
+    }catch{map.dataset.rasterReady='false';} // The original SVG remains usable if a browser cannot allocate a paper surface.
   }
 
   private zoomAtlas(factor:number,anchor?:Point) {
@@ -403,9 +442,11 @@ class Hud {
   private updateAtlasInformation() {
     const panel=this.overlay.querySelector<HTMLElement>(".atlas-information");
     const text=this.overlay.querySelector("#atlas-information-text");
+    const changed=Boolean(panel&&panel.hidden!==!this.atlasInformation||text&&text.textContent!==this.atlasInformation);
     if(panel)panel.hidden=!this.atlasInformation;
     this.overlay.querySelector(".atlas-book")?.classList.toggle("has-information",Boolean(this.atlasInformation));
     if(text)text.textContent=this.atlasInformation;
+    if(changed&&this.atlasDrawingState)this.atlasDrawingState.key='';
   }
 
   private updateAtlasNotes() {
@@ -424,7 +465,10 @@ class Hud {
       const text = !marker ? "No position marked." : this.atlasNotes.source === "estimate"
         ? `Your estimated position · ${atlasReference(marker)}`
         : `${this.atlasNotes.source === "confirmed" ? "Last information received" : "Starting position"}: ${this.atlasNotes.label} · ${atlasReference(marker)}`;
-      if (status.textContent !== text) status.textContent = text;
+      if (status.textContent !== text){
+        status.textContent = text;
+        if(townModes&&this.atlasDrawingState){this.atlasDrawingState.key='';this.updateAtlasView();}
+      }
     }
     const mapPage = this.atlasPage === "map";
     const placeButton = this.overlay.querySelector<HTMLButtonElement>("[data-atlas-place]");

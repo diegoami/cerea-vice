@@ -21,7 +21,14 @@ function polygon(rings:readonly Point[][]){
 /** Few batched paths, no whole-world building DOM, and only the selected town's labels. */
 export function drawTownAtlas(context:District,sheet:AtlasSheet|undefined,sheets:readonly AtlasSheet[],streets:readonly Street[],paper:Paper,tierFor:(roadClass?:string)=>number){
  const {district}=context,regional=!sheet,u=paper.unit;
- const roads=context.roads.filter(r=>regional?tierFor(r.roadClass)===1:overlaps([context.nodeById(r.a),context.nodeById(r.b)],paper));
+ const roads=context.roads.filter(r=>{
+  if(regional&&tierFor(r.roadClass)!==1)return false;
+  const a=context.nodeById(r.a),b=context.nodeById(r.b);
+  if(!regional)return overlaps([a,b],paper);
+  // Town blocks cover their internal network. Keep the connecting segments,
+  // without asking the SVG renderer to process thousands of invisible streets.
+  return !sheets.some(s=>[a,b].every(p=>p.x>=s.minX&&p.x<=s.minX+s.width!&&p.z>=s.minZ&&p.z<=s.minZ+s.depth!));
+ });
  const roadPaths=(tier:number,extra:number)=>{
   const groups=new Map<number,string[]>();
   for(const r of roads){if(tierFor(r.roadClass)!==tier)continue;const a=context.nodeById(r.a),b=context.nodeById(r.b),width=roadWidth(r)+extra,list=groups.get(width)??[];list.push(`M ${a.x} ${a.z} L ${b.x} ${b.z}`);groups.set(width,list);}
@@ -46,7 +53,7 @@ export function drawTownAtlas(context:District,sheet:AtlasSheet|undefined,sheets
  <title id="atlas-map-title">${xml(sheet?.name??district.name)} atlas, north at the top</title><desc id="atlas-map-description">${regional?'Towns and connecting roads. Choose a town for detailed streets.':'Town streets, landmarks and stopping bays.'} No live position or route line.</desc>
  <defs><clipPath id="atlas-paper-clip"><rect x="${paper.minX}" y="${paper.minZ}" width="${paper.width}" height="${paper.depth}"/></clipPath></defs>
  <rect x="${paper.minX}" y="${paper.minZ}" width="${paper.width}" height="${paper.depth}" fill="#dedfc7"/>
- <g clip-path="url(#atlas-paper-clip)">${areas}${buildings?`<path class="atlas-scenery-buildings" d="${buildings}" fill="#cdc3a8" stroke="#b6ab8e" stroke-width="${.2*u}"/>`:''}${features}${grid}${roadDrawing}${towns}${bays}${places}<g class="atlas-road-label">${labels}</g></g>${gridLabels}
+ <g clip-path="url(#atlas-paper-clip)"><g data-atlas-geometry>${areas}${buildings?`<path class="atlas-scenery-buildings" d="${buildings}" fill="#cdc3a8" stroke="#b6ab8e" stroke-width="${.2*u}"/>`:''}${features}${grid}${roadDrawing}</g>${towns}${bays}${places}<g class="atlas-road-label">${labels}</g></g>${gridLabels}
  <g clip-path="url(#atlas-paper-clip)"><g class="atlas-pin" style="display:none" role="img" aria-label="Your marker"><circle/><path/></g><g class="atlas-cursor" aria-hidden="true"><circle/><path/></g></g>
  <g class="atlas-north" transform="translate(${paper.minX+paper.width-9*u} ${paper.minZ+8*u}) scale(${u})"><path d="M 0 1 V 16 M -4 6 L 0 0 L 4 6"/><text x="0" y="-5">N</text></g></svg>`;
 }

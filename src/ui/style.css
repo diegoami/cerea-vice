@@ -1038,3 +1038,18 @@ h1 { letter-spacing:0; line-height:1.05; }
 .atlas-mode-navigation button { padding:7px 10px;font-size:18px; }
 .atlas-mode-navigation button[aria-pressed=true] { background:#405e51;color:#f4ecd4; }
 .atlas-mode-navigation strong { margin-left:auto;font-size:18px; }
+
+/* On the two-scale atlas, controls get their own row and cannot cover printed names. */
+.atlas-book[data-atlas-mode] .atlas-sheet { display:flex;flex-direction:column;gap:6px; }
+.atlas-book[data-atlas-mode] .atlas-zoom-controls { position:static;flex:0 0 38px;box-sizing:border-box;width:100%;max-width:100%;box-shadow:none;white-space:nowrap; }
+.atlas-book[data-atlas-mode] .atlas-map { flex:1;min-height:0;height:0; }
+.atlas-book[data-atlas-mode] #atlas-view-reference { flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+
+@media(max-width:650px) {
+ .atlas-book[data-atlas-mode].has-information .atlas-margin { max-height:120px;flex:0 0 auto;overflow:auto;padding:8px; }
+ .atlas-book[data-atlas-mode] .atlas-information-sidebar p { font-size:17px;line-height:1.35; }
+ .atlas-book[data-atlas-mode] .atlas-tools { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:6px; }
+ .atlas-book[data-atlas-mode] .atlas-tools > span { grid-column:1/-1;min-width:0;font-size:15px;line-height:1.2; }
+ .atlas-book[data-atlas-mode] .atlas-tools button { min-height:44px;padding:6px;font-size:16px;line-height:1.2; }
+ .atlas-book[data-atlas-mode] .atlas-mode-navigation strong { display:none; }
+}

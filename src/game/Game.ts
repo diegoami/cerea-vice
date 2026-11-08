@@ -137,7 +137,7 @@ class Game {
     });
     window.addEventListener("pointerdown",()=>this.sound.unlock());
     window.addEventListener("keydown",()=>this.sound.unlock());
-    window.addEventListener("pagehide",()=>{this.traffic?.dispose();this.opening?.dispose();this.sound.dispose();this.world.dispose();},{once:true});
+    window.addEventListener("pagehide",()=>{this.renderer.setAnimationLoop(null);this.traffic?.dispose();this.opening?.dispose();this.sound.dispose();this.world.dispose();},{once:true});
     this.resize();
     window.addEventListener("resize", () => this.resize());
     this.watchPixelRatio();

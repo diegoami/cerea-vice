@@ -16,6 +16,7 @@ test('continuous worlds have one town drawing per dispatch town, not hundreds of
  const overview=atlas.atlasMarkup('map');
  assert.match(overview,/data-atlas-drawing="regional"/);assert.doesNotMatch(overview,/atlas-scenery-buildings|data-street=/);
  assert.ok((overview.match(/<path/g)??[]).length<200,'Regional roads are batched into a small drawing');
+ assert.ok(overview.length<600000,'Regional drawing omits the invisible internal town networks');
  for(const name of ['Oppeano','Casaleone','San Giovanni Lupatoto'])assert.ok(overview.includes(name));
 });
 

@@ -15,7 +15,7 @@ function pose(board){
  if(context.buildings.at(car,2).some(b=>inRect(car,b,1.5)))return;
  return {car,junction:board.junctionId,approach:board.approachId,rows:board.rows};
 }
-const main=raw.map(present).filter(b=>b?.rows.some(r=>typeof r!=='string'&&r.kind==='town')&&b.rows.some(r=>typeof r!=='string'&&r.kind==='landmark')).map(pose).find(Boolean);
+const main=raw.map(present).filter(b=>b?.rows.some(r=>typeof r!=='string'&&r.kind==='town')&&b.rows.some(r=>typeof r!=='string'&&r.kind==='landmark')).map(pose).filter(Boolean).sort((a,b)=>new Set(b.rows.map(r=>r.direction)).size-new Set(a.rows.map(r=>r.direction)).size)[0];
 const extra=present.additional({minX:town.area.x-town.area.width/2,minZ:town.area.z-town.area.depth/2,maxX:town.area.x+town.area.width/2,maxZ:town.area.z+town.area.depth/2}).map(pose).find(Boolean);
 if(!main)throw new Error('No clear destination-board approach capture pose');
 console.log(JSON.stringify([{name:'town-and-landmark-junction',...main},...(extra?[{name:'local-landmark-turn',...extra}]:[])]));
